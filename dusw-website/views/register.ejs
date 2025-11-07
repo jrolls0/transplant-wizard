@@ -1,0 +1,766 @@
+<%- include('partials/header', {title: title, currentPage: 'register'}) %>
+
+<div class="auth-container">
+    <div class="auth-background"></div>
+    <div class="container py-5 position-relative">
+        <div class="row justify-content-center min-vh-100 align-items-center">
+            <div class="col-12 col-md-10 col-lg-9 col-xl-8">
+                <!-- Main Registration Card -->
+                <div class="modern-card auth-card">
+                    <div class="card-body p-5">
+                        <!-- Header Section -->
+                        <div class="text-center mb-4">
+                            <div class="auth-icon mb-3">
+                                <div class="auth-icon-inner">
+                                    <i class="fas fa-user-plus"></i>
+                                </div>
+                            </div>
+                            <h2 class="auth-title mb-2">Get Started</h2>
+                            <p class="auth-subtitle">Create your Dialysis Unit Social Worker account</p>
+                        </div>
+
+                        <!-- Alert Messages -->
+                        <% if (error) { %>
+                            <div class="modern-alert modern-alert-danger" role="alert">
+                                <div class="alert-icon">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </div>
+                                <div class="alert-content">
+                                    <div class="alert-title">Registration Failed</div>
+                                    <div class="alert-message"><%= error %></div>
+                                </div>
+                            </div>
+                        <% } %>
+
+                        <!-- Registration Form -->
+                        <form method="POST" action="/register" class="auth-form">
+                            <!-- Personal Information Section -->
+                            <div class="form-section mb-4">
+                                <h6 class="form-section-title">Personal Information</h6>
+                                
+                                <!-- First Row: Title -->
+                                <div class="row mb-4">
+                                    <div class="col-12 col-md-6">
+                                        <label for="title" class="form-label">Title *</label>
+                                        <div class="modern-select-group">
+                                            <div class="input-icon">
+                                                <i class="fas fa-user-tag"></i>
+                                            </div>
+                                            <select class="form-select modern-select" id="title" name="title" required>
+                                                <option value="">Choose Title</option>
+                                                <option value="Ms.">Ms.</option>
+                                                <option value="Mrs.">Mrs.</option>
+                                                <option value="Mr.">Mr.</option>
+                                                <option value="Dr.">Dr.</option>
+                                                <option value="MSW">MSW</option>
+                                                <option value="LCSW">LCSW</option>
+                                                <option value="LMSW">LMSW</option>
+                                            </select>
+                                            <div class="input-highlight"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Second Row: Names -->
+                                <div class="row">
+                                    <div class="col-12 col-md-6 mb-4">
+                                        <label for="firstName" class="form-label">First Name *</label>
+                                        <div class="modern-input-group">
+                                            <div class="input-icon">
+                                                <i class="fas fa-user"></i>
+                                            </div>
+                                            <input type="text" class="form-control modern-input" id="firstName" name="firstName" 
+                                                   placeholder="John" required autocomplete="given-name">
+                                            <div class="input-highlight"></div>
+                                        </div>
+                                    </div>
+                                    <div class="col-12 col-md-6 mb-4">
+                                        <label for="lastName" class="form-label">Last Name *</label>
+                                        <div class="modern-input-group">
+                                            <div class="input-icon">
+                                                <i class="fas fa-user"></i>
+                                            </div>
+                                            <input type="text" class="form-control modern-input" id="lastName" name="lastName" 
+                                                   placeholder="Smith" required autocomplete="family-name">
+                                            <div class="input-highlight"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Third Row: Contact Info -->
+                                <div class="row">
+                                    <div class="col-12 col-md-6 mb-4">
+                                        <label for="phoneNumber" class="form-label">Phone Number *</label>
+                                        <div class="modern-input-group">
+                                            <div class="input-icon">
+                                                <i class="fas fa-phone"></i>
+                                            </div>
+                                            <input type="tel" class="form-control modern-input" id="phoneNumber" name="phoneNumber" 
+                                                   placeholder="(555) 123-4567" required autocomplete="tel">
+                                            <div class="input-highlight"></div>
+                                        </div>
+                                    </div>
+                                    <div class="col-12 col-md-6 mb-4">
+                                        <label for="email" class="form-label">Email Address *</label>
+                                        <div class="modern-input-group">
+                                            <div class="input-icon">
+                                                <i class="fas fa-envelope"></i>
+                                            </div>
+                                            <input type="email" class="form-control modern-input" id="email" name="email" 
+                                                   placeholder="john.smith@hospital.com" required autocomplete="email">
+                                            <div class="input-highlight"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Professional Information Section -->
+                            <div class="form-section mb-4">
+                                <h6 class="form-section-title">Professional Information</h6>
+                                
+                                <div class="mb-4">
+                                    <label for="dialysisClinic" class="form-label">Dialysis Clinic *</label>
+                                    <div class="modern-select-group">
+                                        <div class="input-icon">
+                                            <i class="fas fa-hospital"></i>
+                                        </div>
+                                        <select class="form-select modern-select" id="dialysisClinic" name="dialysisClinic" required>
+                                            <option value="">Select Your Dialysis Clinic</option>
+                                            <option value="Metro Health Dialysis Center">Metro Health Dialysis Center</option>
+                                            <option value="Lakeside Renal Unit">Lakeside Renal Unit</option>
+                                            <option value="Grand River Kidney Care">Grand River Kidney Care</option>
+                                            <option value="University Hospital Dialysis">University Hospital Dialysis</option>
+                                            <option value="Community Dialysis Center">Community Dialysis Center</option>
+                                            <option value="Regional Kidney Care">Regional Kidney Care</option>
+                                        </select>
+                                        <div class="input-highlight"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Security Section -->
+                            <div class="form-section mb-4">
+                                <h6 class="form-section-title">Account Security</h6>
+                                
+                                <div class="mb-4">
+                                    <label for="password" class="form-label">Password *</label>
+                                    <div class="modern-input-group">
+                                        <div class="input-icon">
+                                            <i class="fas fa-lock"></i>
+                                        </div>
+                                        <input type="password" class="form-control modern-input" id="password" name="password" 
+                                               placeholder="Create secure password" required autocomplete="new-password">
+                                        <div class="input-highlight"></div>
+                                    </div>
+                                    <div class="password-requirements">
+                                        <small class="form-text">Password must be at least 8 characters long</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Terms and Conditions -->
+                            <div class="mb-4">
+                                <div class="form-check modern-checkbox">
+                                    <input class="form-check-input" type="checkbox" id="terms" required>
+                                    <label class="form-check-label" for="terms">
+                                        I agree to the <a href="/terms" target="_blank" class="auth-link">Terms of Service</a> and 
+                                        <a href="/privacy" target="_blank" class="auth-link">Privacy Policy</a> *
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Create Account Button -->
+                            <div class="d-grid mb-4">
+                                <button type="submit" class="btn modern-btn-primary">
+                                    <span class="btn-text">
+                                        <i class="fas fa-rocket me-2"></i>Get Started
+                                    </span>
+                                    <div class="btn-loading">
+                                        <i class="fas fa-spinner fa-spin"></i>
+                                    </div>
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- Divider -->
+                        <div class="auth-divider">
+                            <span class="divider-text">Already have an account?</span>
+                        </div>
+
+                        <!-- Login Link -->
+                        <div class="text-center">
+                            <p class="auth-register-text">
+                                <a href="/login" class="auth-register-link">Sign In</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Security Notice -->
+                <div class="auth-security-notice">
+                    <div class="security-notice-content">
+                        <i class="fas fa-shield-alt security-icon"></i>
+                        <div class="security-text">
+                            <div class="security-title">HIPAA Compliant Registration</div>
+                            <div class="security-subtitle">Your information is encrypted and securely stored</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Authentication Page Styles - Matching Login */
+.auth-container {
+    min-height: 100vh;
+    position: relative;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.auth-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 50%, rgba(103, 126, 234, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(76, 201, 254, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 40% 80%, rgba(255, 99, 132, 0.1) 0%, transparent 50%);
+    pointer-events: none;
+}
+
+.auth-card {
+    border: none;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xl);
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.95);
+    transition: all 0.3s ease;
+    animation: slideUpFade 0.6s ease-out;
+}
+
+@keyframes slideUpFade {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.auth-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+        0 25px 50px -12px rgba(0, 0, 0, 0.15),
+        0 0 0 1px rgba(255, 255, 255, 0.8);
+}
+
+.auth-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--primary-gradient);
+    box-shadow: var(--shadow-lg);
+}
+
+.auth-icon-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+}
+
+.auth-icon i {
+    font-size: 1.8rem;
+    color: white;
+}
+
+.auth-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.auth-subtitle {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin-bottom: 0;
+}
+
+/* Modern Alert Styles */
+.modern-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px 20px;
+    border-radius: var(--radius-md);
+    border: none;
+    margin-bottom: 24px;
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modern-alert-danger {
+    background: linear-gradient(135deg, rgba(220, 53, 69, 0.1) 0%, rgba(220, 53, 69, 0.05) 100%);
+    border-left: 4px solid #dc3545;
+}
+
+.modern-alert-success {
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.1) 0%, rgba(40, 167, 69, 0.05) 100%);
+    border-left: 4px solid #28a745;
+}
+
+.alert-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.modern-alert-danger .alert-icon {
+    color: #dc3545;
+}
+
+.modern-alert-success .alert-icon {
+    color: #28a745;
+}
+
+.alert-content {
+    flex: 1;
+}
+
+.alert-title {
+    font-weight: 600;
+    font-size: 0.875rem;
+    margin-bottom: 4px;
+}
+
+.alert-message {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+/* Form Styles */
+.auth-form .form-label {
+    font-weight: 600;
+    color: #0F172A; /* Dark slate-800 for WCAG AA compliance */
+    margin-bottom: 8px;
+    font-size: 0.875rem;
+}
+
+.modern-input-group {
+    position: relative;
+}
+
+.input-icon {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary);
+    z-index: 2;
+    transition: color 0.3s ease;
+}
+
+.modern-input {
+    padding: 18px 20px 18px 52px;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    line-height: 1.5;
+    transition: all 0.3s ease;
+    background: rgba(255, 255, 255, 0.8);
+    position: relative;
+    z-index: 1;
+    color: #0F172A;
+    width: 100%;
+    min-width: 250px; /* Default generous minimum */
+}
+
+.modern-input::placeholder {
+    color: #6b7280; /* Darker than #9CA3AF for better contrast */
+}
+
+.modern-input:focus {
+    border-color: transparent;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+    background: white;
+    outline: none;
+    z-index: 1;
+}
+
+.modern-input:focus ~ .input-icon {
+    color: var(--primary-color);
+}
+
+.input-highlight {
+    display: none; /* Remove purple underline completely */
+}
+
+.modern-checkbox .form-check-input {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border-color);
+    border-radius: 4px;
+}
+
+.modern-checkbox .form-check-input:checked {
+    background: var(--primary-gradient);
+    border-color: transparent;
+}
+
+.modern-checkbox .form-check-label {
+    color: #0F172A; /* Dark text for better contrast */
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.auth-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: color 0.3s ease;
+}
+
+.auth-link:hover {
+    color: var(--primary-hover);
+    text-decoration: underline;
+}
+
+.modern-btn-primary {
+    position: relative;
+    padding: 16px 24px;
+    background: var(--primary-gradient);
+    border: none;
+    border-radius: var(--radius-md);
+    color: white;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.modern-btn-primary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.modern-btn-primary:hover::before {
+    left: 100%;
+}
+
+.modern-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.btn-loading {
+    display: none;
+}
+
+.auth-divider {
+    position: relative;
+    text-align: center;
+    margin: 32px 0;
+}
+
+.auth-divider::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--border-color);
+}
+
+.divider-text {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 0 20px;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    position: relative;
+    z-index: 1;
+}
+
+.auth-register-text {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: 0;
+}
+
+.auth-register-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 600;
+    margin-left: 8px;
+    transition: color 0.3s ease;
+}
+
+.auth-register-link:hover {
+    color: var(--primary-hover);
+    text-decoration: underline;
+}
+
+.auth-security-notice {
+    margin-top: 24px;
+    text-align: center;
+}
+
+.security-notice-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: var(--radius-md);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.security-icon {
+    color: #28a745;
+    font-size: 1.2rem;
+}
+
+.security-text {
+    text-align: left;
+}
+
+.security-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #0F172A; /* Dark text for better readability */
+    margin-bottom: 2px;
+}
+
+.security-subtitle {
+    font-size: 0.75rem;
+    color: #374151; /* Darker gray for better contrast */
+}
+
+/* Additional Registration Form Styles */
+.form-section {
+    position: relative;
+    padding-bottom: 20px;
+}
+
+.form-section:not(:last-child) {
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 32px;
+}
+
+.form-section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #0F172A; /* Dark text for better readability */
+    margin-bottom: 20px;
+    padding-bottom: 8px;
+    position: relative;
+}
+
+.form-section-title::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 40px;
+    height: 3px;
+    background: var(--primary-gradient);
+    border-radius: 2px;
+}
+
+.modern-select-group {
+    position: relative;
+}
+
+.modern-select {
+    padding: 18px 52px 18px 52px;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    line-height: 1.5;
+    transition: all 0.3s ease;
+    background: rgba(255, 255, 255, 0.8);
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 16px center;
+    background-repeat: no-repeat;
+    background-size: 16px;
+    position: relative;
+    z-index: 1;
+    color: #0F172A;
+    width: 100%;
+    min-width: 250px; /* Default generous minimum */
+}
+
+.modern-select option {
+    color: #0F172A;
+    background: white;
+}
+
+.modern-select:focus {
+    border-color: transparent;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+    background: white;
+    outline: none;
+    z-index: 1;
+}
+
+.password-requirements {
+    margin-top: 8px;
+}
+
+.password-requirements .form-text {
+    color: #374151; /* Darker color for better contrast */
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.password-requirements .form-text::before {
+    content: '🔐';
+    font-size: 0.8rem;
+}
+
+/* Enhanced responsive design */
+@media (max-width: 768px) {
+    .auth-card .card-body {
+        padding: 2.5rem 1.5rem;
+    }
+    
+    .form-section-title {
+        font-size: 1rem;
+    }
+    
+    .auth-title {
+        font-size: 1.75rem;
+    }
+    
+    /* Full width inputs on mobile */
+    .modern-input,
+    .modern-select {
+        width: 100%;
+        min-width: 250px; /* Generous minimum for mobile */
+    }
+    
+    /* Make registration card take more width on mobile */
+    .col-12.col-md-10.col-lg-9.col-xl-8 {
+        padding: 0 0.75rem;
+    }
+}
+
+/* Medium screens - generous width for inputs */
+@media (min-width: 768px) and (max-width: 1199px) {
+    .modern-input,
+    .modern-select {
+        min-width: 280px; /* Much wider minimum width */
+    }
+    
+    /* Wider card for better input experience */
+    .auth-card {
+        width: 100%;
+        max-width: none;
+    }
+}
+
+/* Large screens - even more generous */
+@media (min-width: 1200px) {
+    .modern-input,
+    .modern-select {
+        min-width: 320px; /* Very generous width */
+    }
+}
+
+/* Base input improvements */
+.modern-input,
+.modern-select {
+    box-sizing: border-box;
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+/* Extra padding for better text visibility */
+.modern-input {
+    padding: 18px 20px 18px 52px; /* More generous padding */
+}
+
+.modern-select {
+    padding: 18px 52px 18px 52px; /* More generous padding */
+}
+
+/* Wider overall form layout */
+.auth-card {
+    max-width: 100% !important;
+}
+
+/* Better spacing for form sections */
+.form-section {
+    margin-bottom: 2.5rem;
+}
+
+.form-section:not(:last-child) {
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 2rem;
+}
+</style>
+
+<script>
+    // Phone number formatting
+    document.getElementById('phoneNumber').addEventListener('input', function (e) {
+        let value = e.target.value.replace(/\D/g, '');
+        let formattedValue = '';
+        
+        if (value.length > 0) {
+            if (value.length <= 3) {
+                formattedValue = '(' + value;
+            } else if (value.length <= 6) {
+                formattedValue = '(' + value.substr(0, 3) + ') ' + value.substr(3);
+            } else {
+                formattedValue = '(' + value.substr(0, 3) + ') ' + value.substr(3, 3) + '-' + value.substr(6, 4);
+            }
+        }
+        
+        e.target.value = formattedValue;
+    });
+</script>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,503 @@
+<%- include('partials/header', {title: title, currentPage: 'contact'}) %>
+
+<!-- Contact Hero Section -->
+<section class="contact-hero py-5 hero-gradient" aria-labelledby="contact-hero-title">
+    <div class="container py-5">
+        <div class="row justify-content-center text-center">
+            <div class="col-lg-8">
+                <h1 id="contact-hero-title" class="display-4 fw-bold mb-4">
+                    Get in <span class="text-gradient">Touch</span>
+                </h1>
+                <p class="lead text-secondary mb-4">
+                    Ready to transform your transplant care coordination? Our team of healthcare 
+                    and technology experts is here to help you get started.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Contact Options Section -->
+<section class="contact-options py-5" aria-labelledby="contact-options-title">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 id="contact-options-title" class="display-5 fw-bold mb-3">How Can We Help You?</h2>
+            <p class="lead text-secondary">
+                Choose the best way to connect with our team based on your needs
+            </p>
+        </div>
+        
+        <div class="row g-4 mb-5">
+            <div class="col-lg-4 col-md-6">
+                <div class="contact-option modern-card h-100 p-4 text-center">
+                    <div class="contact-icon mb-3">
+                        <i class="fas fa-calendar-alt fa-3x text-primary"></i>
+                    </div>
+                    <h4 class="fw-bold mb-3">Schedule a Demo</h4>
+                    <p class="text-secondary mb-4">
+                        See TransplantWizard in action with a personalized demonstration 
+                        tailored to your organization's needs.
+                    </p>
+                    <button class="btn btn-modern-primary" onclick="showDemoModal()">
+                        <i class="fas fa-video me-2"></i>
+                        Request Demo
+                    </button>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 col-md-6">
+                <div class="contact-option modern-card h-100 p-4 text-center">
+                    <div class="contact-icon mb-3">
+                        <i class="fas fa-phone fa-3x text-primary"></i>
+                    </div>
+                    <h4 class="fw-bold mb-3">Speak with Sales</h4>
+                    <p class="text-secondary mb-4">
+                        Connect with our sales team to discuss pricing, implementation, 
+                        and how TransplantWizard fits your organization.
+                    </p>
+                    <a href="tel:+1-555-0123" class="btn btn-modern-primary">
+                        <i class="fas fa-phone me-2"></i>
+                        Call Sales
+                    </a>
+                    <div class="mt-2 small text-muted">
+                        +1 (555) 012-3456
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 col-md-6">
+                <div class="contact-option modern-card h-100 p-4 text-center">
+                    <div class="contact-icon mb-3">
+                        <i class="fas fa-life-ring fa-3x text-primary"></i>
+                    </div>
+                    <h4 class="fw-bold mb-3">Technical Support</h4>
+                    <p class="text-secondary mb-4">
+                        Already a customer? Get help with technical questions, 
+                        training, or platform support from our expert team.
+                    </p>
+                    <a href="mailto:support@transplantwizard.com" class="btn btn-modern-primary">
+                        <i class="fas fa-envelope me-2"></i>
+                        Email Support
+                    </a>
+                    <div class="mt-2 small text-muted">
+                        Available 24/7
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Contact Form Section -->
+<section class="contact-form-section py-5 bg-light" aria-labelledby="contact-form-title">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="text-center mb-5">
+                    <h2 id="contact-form-title" class="display-6 fw-bold mb-3">Send Us a Message</h2>
+                    <p class="lead text-secondary">
+                        Have a specific question? Fill out the form below and we'll get back to you within 24 hours.
+                    </p>
+                </div>
+                
+                <div class="modern-card p-4">
+                    <form id="contactForm" novalidate>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="firstName" class="form-label fw-semibold">
+                                    First Name <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" 
+                                       class="form-control form-control-lg" 
+                                       id="firstName" 
+                                       name="firstName" 
+                                       required
+                                       aria-describedby="firstNameError">
+                                <div class="invalid-feedback" id="firstNameError">
+                                    Please provide your first name.
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="lastName" class="form-label fw-semibold">
+                                    Last Name <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" 
+                                       class="form-control form-control-lg" 
+                                       id="lastName" 
+                                       name="lastName" 
+                                       required
+                                       aria-describedby="lastNameError">
+                                <div class="invalid-feedback" id="lastNameError">
+                                    Please provide your last name.
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="email" class="form-label fw-semibold">
+                                    Email Address <span class="text-danger">*</span>
+                                </label>
+                                <input type="email" 
+                                       class="form-control form-control-lg" 
+                                       id="email" 
+                                       name="email" 
+                                       required
+                                       aria-describedby="emailError">
+                                <div class="invalid-feedback" id="emailError">
+                                    Please provide a valid email address.
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="phone" class="form-label fw-semibold">
+                                    Phone Number
+                                </label>
+                                <input type="tel" 
+                                       class="form-control form-control-lg" 
+                                       id="phone" 
+                                       name="phone"
+                                       placeholder="(555) 123-4567">
+                            </div>
+                            <div class="col-12">
+                                <label for="organization" class="form-label fw-semibold">
+                                    Organization <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" 
+                                       class="form-control form-control-lg" 
+                                       id="organization" 
+                                       name="organization" 
+                                       placeholder="Hospital, Dialysis Center, or Transplant Center"
+                                       required
+                                       aria-describedby="organizationError">
+                                <div class="invalid-feedback" id="organizationError">
+                                    Please provide your organization name.
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <label for="role" class="form-label fw-semibold">
+                                    Your Role <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select form-select-lg" 
+                                        id="role" 
+                                        name="role" 
+                                        required
+                                        aria-describedby="roleError">
+                                    <option value="">Select your role...</option>
+                                    <option value="physician">Physician</option>
+                                    <option value="social-worker">Social Worker</option>
+                                    <option value="nurse">Nurse</option>
+                                    <option value="administrator">Administrator</option>
+                                    <option value="it-manager">IT Manager</option>
+                                    <option value="executive">Executive</option>
+                                    <option value="other">Other</option>
+                                </select>
+                                <div class="invalid-feedback" id="roleError">
+                                    Please select your role.
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <label for="inquiryType" class="form-label fw-semibold">
+                                    How can we help? <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select form-select-lg" 
+                                        id="inquiryType" 
+                                        name="inquiryType" 
+                                        required
+                                        aria-describedby="inquiryTypeError">
+                                    <option value="">Select inquiry type...</option>
+                                    <option value="demo">Request a Demo</option>
+                                    <option value="pricing">Pricing Information</option>
+                                    <option value="implementation">Implementation Questions</option>
+                                    <option value="integration">Integration Support</option>
+                                    <option value="training">Training & Support</option>
+                                    <option value="partnership">Partnership Opportunities</option>
+                                    <option value="other">General Questions</option>
+                                </select>
+                                <div class="invalid-feedback" id="inquiryTypeError">
+                                    Please select an inquiry type.
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <label for="message" class="form-label fw-semibold">
+                                    Message <span class="text-danger">*</span>
+                                </label>
+                                <textarea class="form-control" 
+                                          id="message" 
+                                          name="message" 
+                                          rows="4" 
+                                          placeholder="Please provide details about your inquiry, organization size, and timeline..."
+                                          required
+                                          aria-describedby="messageError"></textarea>
+                                <div class="invalid-feedback" id="messageError">
+                                    Please provide a message.
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="privacyConsent" 
+                                           name="privacyConsent" 
+                                           required
+                                           aria-describedby="privacyError">
+                                    <label class="form-check-label" for="privacyConsent">
+                                        I agree to the <a href="#" class="text-decoration-none">Privacy Policy</a> 
+                                        and consent to being contacted by TransplantWizard regarding my inquiry. <span class="text-danger">*</span>
+                                    </label>
+                                    <div class="invalid-feedback" id="privacyError">
+                                        Please agree to the privacy policy.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-modern-primary btn-lg">
+                                <span id="submitText">
+                                    <i class="fas fa-paper-plane me-2"></i>
+                                    Send Message
+                                </span>
+                                <span id="submitLoading" style="display: none;">
+                                    <i class="fas fa-spinner fa-spin me-2"></i>
+                                    Sending...
+                                </span>
+                            </button>
+                        </div>
+                        
+                        <div class="alert alert-success mt-3" id="successMessage" style="display: none;" role="alert">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong>Thank you!</strong> Your message has been received. We'll get back to you within 24 hours.
+                        </div>
+                        
+                        <div class="alert alert-danger mt-3" id="errorMessage" style="display: none;" role="alert">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Error:</strong> There was a problem sending your message. Please try again or contact us directly.
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Contact Information Section -->
+<section class="contact-info py-5" aria-labelledby="contact-info-title">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 id="contact-info-title" class="display-6 fw-bold mb-3">Additional Ways to Reach Us</h2>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-lg-4 col-md-6">
+                <div class="contact-info-item modern-card h-100 p-4 text-center">
+                    <div class="contact-info-icon mb-3">
+                        <i class="fas fa-map-marker-alt fa-2x text-primary"></i>
+                    </div>
+                    <h5 class="fw-bold mb-3">Headquarters</h5>
+                    <address class="text-secondary mb-0">
+                        TransplantWizard, Inc.<br>
+                        123 Healthcare Plaza<br>
+                        Suite 500<br>
+                        Austin, TX 78701
+                    </address>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 col-md-6">
+                <div class="contact-info-item modern-card h-100 p-4 text-center">
+                    <div class="contact-info-icon mb-3">
+                        <i class="fas fa-clock fa-2x text-primary"></i>
+                    </div>
+                    <h5 class="fw-bold mb-3">Business Hours</h5>
+                    <div class="text-secondary">
+                        <div><strong>Sales & Support:</strong></div>
+                        <div>Monday - Friday: 8:00 AM - 8:00 PM CT</div>
+                        <div>Saturday: 9:00 AM - 5:00 PM CT</div>
+                        <div class="mt-2">
+                            <strong>Technical Support:</strong><br>
+                            24/7 for existing customers
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 col-md-6">
+                <div class="contact-info-item modern-card h-100 p-4 text-center">
+                    <div class="contact-info-icon mb-3">
+                        <i class="fas fa-shield-alt fa-2x text-primary"></i>
+                    </div>
+                    <h5 class="fw-bold mb-3">Security & Compliance</h5>
+                    <div class="text-secondary">
+                        For security-related inquiries or to report vulnerabilities:<br>
+                        <a href="mailto:security@transplantwizard.com" class="text-decoration-none">
+                            security@transplantwizard.com
+                        </a>
+                        <div class="mt-2 small">
+                            <i class="fas fa-check-circle text-success me-1"></i>
+                            HIPAA Compliant<br>
+                            <i class="fas fa-check-circle text-success me-1"></i>
+                            SOC 2 Type II Certified
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Demo Request Modal -->
+<div class="modal fade" id="demoModal" tabindex="-1" aria-labelledby="demoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content modern-card border-0">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="demoModalLabel">
+                    <i class="fas fa-video me-2 text-primary"></i>
+                    Schedule Your Personal Demo
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body pt-0">
+                <p class="text-secondary mb-4">
+                    See TransplantWizard in action with a personalized demonstration tailored to your organization. 
+                    Our product experts will show you how to streamline your transplant care coordination.
+                </p>
+                
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <div class="demo-feature d-flex align-items-start">
+                            <i class="fas fa-check-circle text-success me-2 mt-1"></i>
+                            <div>
+                                <strong>45-minute session</strong><br>
+                                <small class="text-muted">Comprehensive platform overview</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="demo-feature d-flex align-items-start">
+                            <i class="fas fa-check-circle text-success me-2 mt-1"></i>
+                            <div>
+                                <strong>Customized scenarios</strong><br>
+                                <small class="text-muted">Based on your organization type</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="demo-feature d-flex align-items-start">
+                            <i class="fas fa-check-circle text-success me-2 mt-1"></i>
+                            <div>
+                                <strong>Q&A session</strong><br>
+                                <small class="text-muted">Get answers to your questions</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="demo-feature d-flex align-items-start">
+                            <i class="fas fa-check-circle text-success me-2 mt-1"></i>
+                            <div>
+                                <strong>Implementation roadmap</strong><br>
+                                <small class="text-muted">Next steps and timeline</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-primary border-0" style="background: rgba(102, 126, 234, 0.1);">
+                    <i class="fas fa-info-circle me-2" style="color: #667eea;"></i>
+                    <strong>Ready to schedule?</strong> Use the contact form above and select "Request a Demo" or 
+                    call our sales team directly at <strong>(555) 012-3456</strong>.
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-modern-outline" data-bs-dismiss="modal">
+                    Close
+                </button>
+                <button type="button" class="btn btn-modern-primary" onclick="scrollToForm()">
+                    Request Demo Now
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Demo modal functionality
+function showDemoModal() {
+    const modal = new bootstrap.Modal(document.getElementById('demoModal'));
+    modal.show();
+}
+
+function scrollToForm() {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('demoModal'));
+    modal.hide();
+    
+    // Scroll to form and pre-select demo option
+    document.getElementById('contactForm').scrollIntoView({ behavior: 'smooth' });
+    setTimeout(() => {
+        document.getElementById('inquiryType').value = 'demo';
+    }, 500);
+}
+
+// Contact form handling
+document.getElementById('contactForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // Reset previous validation states
+    this.classList.remove('was-validated');
+    
+    // Validate form
+    if (!this.checkValidity()) {
+        e.stopPropagation();
+        this.classList.add('was-validated');
+        return;
+    }
+    
+    // Show loading state
+    const submitText = document.getElementById('submitText');
+    const submitLoading = document.getElementById('submitLoading');
+    const successMessage = document.getElementById('successMessage');
+    const errorMessage = document.getElementById('errorMessage');
+    
+    submitText.style.display = 'none';
+    submitLoading.style.display = 'inline';
+    
+    // Simulate form submission (since this is non-functional)
+    setTimeout(() => {
+        submitText.style.display = 'inline';
+        submitLoading.style.display = 'none';
+        
+        // Show success message
+        successMessage.style.display = 'block';
+        errorMessage.style.display = 'none';
+        
+        // Reset form
+        this.reset();
+        this.classList.remove('was-validated');
+        
+        // Scroll to success message
+        successMessage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        
+        // Hide success message after 5 seconds
+        setTimeout(() => {
+            successMessage.style.display = 'none';
+        }, 5000);
+        
+    }, 2000);
+});
+
+// Phone number formatting
+document.getElementById('phone').addEventListener('input', function (e) {
+    let value = e.target.value.replace(/\D/g, '');
+    let formattedValue = '';
+    
+    if (value.length > 0) {
+        if (value.length <= 3) {
+            formattedValue = '(' + value;
+        } else if (value.length <= 6) {
+            formattedValue = '(' + value.substr(0, 3) + ') ' + value.substr(3);
+        } else {
+            formattedValue = '(' + value.substr(0, 3) + ') ' + value.substr(3, 3) + '-' + value.substr(6, 4);
+        }
+    }
+    
+    e.target.value = formattedValue;
+});
+</script>
+
+<%- include('partials/footer') %>

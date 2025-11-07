@@ -1,0 +1,513 @@
+<%- include('partials/header', {title: title}) %>
+
+<!-- Main Dashboard Container -->
+<div class="container-fluid px-4 py-4">
+    <!-- Welcome Hero Section -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card border-0" style="background: var(--primary-gradient); color: white; overflow: hidden;">
+                <div class="card-body p-5 position-relative">
+                    <div class="row align-items-center">
+                        <div class="col-lg-8">
+                            <div class="mb-3">
+                                <span class="badge bg-white bg-opacity-90 text-dark px-3 py-2 rounded-pill">
+                                    <i class="fas fa-calendar-day me-2"></i>
+                                    <%= new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) %>
+                                </span>
+                            </div>
+                            <h1 class="display-6 fw-bold mb-3">
+                                Good <%= new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening' %>, 
+                                <%= user.title %> <%= user.firstName %>! 👋
+                            </h1>
+                            <p class="lead mb-4 opacity-90">
+                                Welcome back to your DUSW dashboard. You have <strong><%= notifications.length %></strong> active patients 
+                                and <strong>3</strong> new notifications waiting for your attention.
+                            </p>
+                            <div class="d-flex gap-3 mb-4">
+                                <div class="d-flex align-items-center text-white-50">
+                                    <i class="fas fa-hospital me-2"></i>
+                                    <small><%= user.dialysisClinic %></small>
+                                </div>
+                                <div class="d-flex align-items-center text-white-50">
+                                    <i class="fas fa-envelope me-2"></i>
+                                    <small><%= user.email %></small>
+                                </div>
+                                <div class="d-flex align-items-center text-white-50">
+                                    <i class="fas fa-clock me-2"></i>
+                                    <small>Last login: <span id="currentTime"></span></small>
+                                </div>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2">
+                                <a href="/patients" class="btn btn-light btn-sm fw-semibold">
+                                    <i class="fas fa-users me-2"></i>View All Patients
+                                </a>
+                                <a href="/reports" class="btn btn-outline-light btn-sm">
+                                    <i class="fas fa-chart-bar me-2"></i>Generate Report
+                                </a>
+                            </div>
+                        </div>
+                        <div class="col-lg-4 text-end">
+                            <div class="position-relative">
+                                <div class="bg-white bg-opacity-20 rounded-circle d-inline-flex align-items-center justify-content-center" 
+                                     style="width: 120px; height: 120px;">
+                                    <i class="fas fa-user-md" style="font-size: 3rem; color: white;"></i>
+                                </div>
+                                <div class="position-absolute top-0 end-0 bg-success rounded-circle d-flex align-items-center justify-content-center"
+                                     style="width: 40px; height: 40px;">
+                                    <i class="fas fa-check text-white" style="font-size: 1.2rem;"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Decorative elements -->
+                    <div class="position-absolute" style="top: -50px; right: -50px; opacity: 0.1;">
+                        <i class="fas fa-heartbeat" style="font-size: 200px; color: white;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modern Statistics Grid -->
+    <div class="row mb-5">
+        <!-- Total Patients Card -->
+        <div class="col-xl-3 col-lg-6 col-md-6 mb-4">
+            <div class="card border-0 h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="card-body text-white p-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <div class="bg-white bg-opacity-20 rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
+                                 style="width: 50px; height: 50px;">
+                                <i class="fas fa-users text-white"></i>
+                            </div>
+                            <h6 class="text-white text-uppercase fw-semibold mb-1" style="font-size: 0.75rem; letter-spacing: 1px;">
+                                Total Patients
+                            </h6>
+                            <h2 class="fw-bold mb-0"><%= notifications.length %></h2>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-white bg-opacity-90 text-dark">
+                                <i class="fas fa-arrow-up me-1"></i>+12%
+                            </span>
+                        </div>
+                    </div>
+                    <div class="progress bg-white bg-opacity-20" style="height: 4px;">
+                        <div class="progress-bar bg-white" role="progressbar" style="width: 75%"></div>
+                    </div>
+                    <small class="text-white mt-2 d-block">vs. last month</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Referrals Card -->
+        <div class="col-xl-3 col-lg-6 col-md-6 mb-4">
+            <div class="card border-0 h-100" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <div class="card-body text-white p-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <div class="bg-white bg-opacity-20 rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
+                                 style="width: 50px; height: 50px;">
+                                <i class="fas fa-paper-plane text-white"></i>
+                            </div>
+                            <h6 class="text-white text-uppercase fw-semibold mb-1" style="font-size: 0.75rem; letter-spacing: 1px;">
+                                Active Referrals
+                            </h6>
+                            <h2 class="fw-bold mb-0">
+                                <%= notifications.reduce((sum, patient) => sum + parseInt(patient.referral_count || 0), 0) %>
+                            </h2>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-white bg-opacity-90 text-dark">
+                                <i class="fas fa-arrow-up me-1"></i>+8%
+                            </span>
+                        </div>
+                    </div>
+                    <div class="progress bg-white bg-opacity-20" style="height: 4px;">
+                        <div class="progress-bar bg-white" role="progressbar" style="width: 60%"></div>
+                    </div>
+                    <small class="text-white mt-2 d-block">vs. last month</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- This Week Card -->
+        <div class="col-xl-3 col-lg-6 col-md-6 mb-4">
+            <div class="card border-0 h-100" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <div class="bg-white bg-opacity-40 rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
+                                 style="width: 50px; height: 50px;">
+                                <i class="fas fa-calendar-week" style="color: #111827;"></i>
+                            </div>
+                            <h6 class="text-uppercase fw-semibold mb-1" style="font-size: 0.75rem; letter-spacing: 1px; color: #1f2937;">
+                                This Week
+                            </h6>
+                            <h2 class="fw-bold mb-0" style="color: #111827;">
+                                <%= notifications.filter(p => {
+                                    const weekAgo = new Date();
+                                    weekAgo.setDate(weekAgo.getDate() - 7);
+                                    return new Date(p.created_at) >= weekAgo;
+                                }).length %>
+                            </h2>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-success text-white">
+                                <i class="fas fa-arrow-up me-1"></i>+15%
+                            </span>
+                        </div>
+                    </div>
+                    <div class="progress bg-white bg-opacity-40" style="height: 4px;">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: 90%"></div>
+                    </div>
+                    <small class="mt-2 d-block" style="color: #1f2937;">New registrations</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pending Actions Card -->
+        <div class="col-xl-3 col-lg-6 col-md-6 mb-4">
+            <div class="card border-0 h-100" style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <div class="bg-white bg-opacity-40 rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
+                                 style="width: 50px; height: 50px;">
+                                <i class="fas fa-exclamation-triangle" style="color: #78350f;"></i>
+                            </div>
+                            <h6 class="text-uppercase fw-semibold mb-1" style="font-size: 0.75rem; letter-spacing: 1px; color: #451a03;">
+                                Needs Attention
+                            </h6>
+                            <h2 class="fw-bold mb-0" style="color: #78350f;">7</h2>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-warning text-dark">
+                                <i class="fas fa-bell"></i> Urgent
+                            </span>
+                        </div>
+                    </div>
+                    <div class="progress bg-white bg-opacity-40" style="height: 4px;">
+                        <div class="progress-bar bg-warning" role="progressbar" style="width: 45%"></div>
+                    </div>
+                    <small class="mt-2 d-block" style="color: #451a03;">Require follow-up</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions Section -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h4 class="fw-bold mb-4">
+                <i class="fas fa-bolt me-2" style="color: var(--primary-color);"></i>
+                Quick Actions
+            </h4>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 h-100 quick-action-card" style="cursor: pointer;">
+                <div class="card-body text-center p-4">
+                    <div class="feature-icon mx-auto mb-3" style="background: var(--success-gradient);">
+                        <i class="fas fa-user-plus"></i>
+                    </div>
+                    <h6 class="fw-semibold">Add New Patient</h6>
+                    <p class="text-muted small mb-0">Register a new patient in the system</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 h-100 quick-action-card" style="cursor: pointer;">
+                <div class="card-body text-center p-4">
+                    <div class="feature-icon mx-auto mb-3" style="background: var(--secondary-gradient);">
+                        <i class="fas fa-file-medical"></i>
+                    </div>
+                    <h6 class="fw-semibold">Create Report</h6>
+                    <p class="text-muted small mb-0">Generate monthly progress reports</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 h-100 quick-action-card" style="cursor: pointer;">
+                <div class="card-body text-center p-4">
+                    <div class="feature-icon mx-auto mb-3" style="background: var(--warning-gradient);">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <h6 class="fw-semibold">Schedule Follow-up</h6>
+                    <p class="text-muted small mb-0">Book appointments with patients</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 h-100 quick-action-card" style="cursor: pointer;">
+                <div class="card-body text-center p-4">
+                    <div class="feature-icon mx-auto mb-3" style="background: var(--danger-gradient);">
+                        <i class="fas fa-bell"></i>
+                    </div>
+                    <h6 class="fw-semibold">Send Notification</h6>
+                    <p class="text-muted small mb-0">Notify patients about updates</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Tabs -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0">
+                <div class="card-header bg-transparent border-0 px-0">
+                    <ul class="nav nav-pills nav-fill" id="dashboardTabs" role="tablist" style="gap: 0.5rem;">
+                        <li class="nav-item">
+                            <button class="nav-link active fw-semibold" id="notifications-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#notifications" type="button" role="tab"
+                                    style="border-radius: var(--radius-md); border: 2px solid transparent;">
+                                <i class="fas fa-bell me-2"></i>Patient Activity
+                                <% if (notifications.length > 0) { %>
+                                    <span class="badge bg-light text-primary ms-2"><%= notifications.length %></span>
+                                <% } %>
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link fw-semibold" id="recent-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#recent" type="button" role="tab"
+                                    style="border-radius: var(--radius-md); border: 2px solid transparent;">
+                                <i class="fas fa-activity me-2"></i>Recent Actions
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link fw-semibold" id="analytics-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#analytics" type="button" role="tab"
+                                    style="border-radius: var(--radius-md); border: 2px solid transparent;">
+                                <i class="fas fa-chart-line me-2"></i>Analytics
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link fw-semibold" id="tools-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#tools" type="button" role="tab"
+                                    style="border-radius: var(--radius-md); border: 2px solid transparent;">
+                                <i class="fas fa-cogs me-2"></i>Management Tools
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="card-body">
+                    <div class="tab-content" id="dashboardTabContent">
+                        <!-- Patient Notifications Tab -->
+                        <div class="tab-pane fade show active" id="notifications" role="tabpanel">
+                            <% if (notifications.length === 0) { %>
+                                <!-- Empty State -->
+                                <div class="text-center py-5">
+                                    <div class="mb-4">
+                                        <div class="feature-icon mx-auto mb-3" style="background: var(--secondary-gradient); opacity: 0.7;">
+                                            <i class="fas fa-users"></i>
+                                        </div>
+                                        <h4 class="fw-bold mb-2">No Patient Activity Yet</h4>
+                                        <p class="text-muted lead">
+                                            Patient activity will appear here when patients from your dialysis clinic<br>
+                                            register and select their transplant centers through the mobile app.
+                                        </p>
+                                    </div>
+                                    <div class="d-flex justify-content-center gap-3">
+                                        <a href="/patients" class="btn btn-primary">
+                                            <i class="fas fa-users me-2"></i>Manage Patients
+                                        </a>
+                                        <button class="btn btn-outline-primary">
+                                            <i class="fas fa-mobile-alt me-2"></i>Mobile App Guide
+                                        </button>
+                                    </div>
+                                </div>
+                            <% } else { %>
+                                <!-- Patients Grid -->
+                                <div class="row g-4">
+                                    <% notifications.forEach((patient, index) => { %>
+                                        <div class="col-xl-6 col-lg-6 col-md-12">
+                                            <div class="card border-0 patient-card h-100" style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
+                                                <div class="card-body p-4">
+                                                    <!-- Patient Header -->
+                                                    <div class="d-flex align-items-start mb-4">
+                                                        <div class="flex-shrink-0 me-3">
+                                                            <div class="rounded-circle d-flex align-items-center justify-content-center position-relative" 
+                                                                 style="width: 60px; height: 60px; background: <%= ['var(--primary-gradient)', 'var(--success-gradient)', 'var(--secondary-gradient)', 'var(--warning-gradient)'][index % 4] %>;">
+                                                                <i class="fas fa-user text-white" style="font-size: 1.5rem;"></i>
+                                                                <% if (patient.referral_count > 0) { %>
+                                                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success" style="font-size: 0.6rem;">
+                                                                        <i class="fas fa-check"></i>
+                                                                    </span>
+                                                                <% } %>
+                                                            </div>
+                                                        </div>
+                                                        <div class="flex-grow-1">
+                                                            <h6 class="text-slate-50 fw-semibold mb-1 text-lg" style="color: #f8fafc !important; font-size: 1.125rem; line-height: 1.4;">
+                                                                <%= patient.first_name %> <%= patient.last_name %>
+                                                            </h6>
+                                                            <p class="text-slate-300 mb-2" style="font-size: 0.9rem; color: #cbd5e1 !important;">
+                                                                <i class="fas fa-envelope me-2" style="color: #94a3b8;"></i><%= patient.email %>
+                                                            </p>
+                                                            <div class="d-flex align-items-center gap-3">
+                                                                <small class="text-slate-400" style="color: #94a3b8 !important;">
+                                                                    <i class="fas fa-calendar-day me-1" style="color: #94a3b8;"></i>
+                                                                    Joined <%= new Date(patient.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) %>
+                                                                </small>
+                                                                <% if (new Date() - new Date(patient.created_at) < 7 * 24 * 60 * 60 * 1000) { %>
+                                                                    <span class="badge bg-primary bg-opacity-10 text-primary">New</span>
+                                                                <% } %>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <!-- Status & Progress -->
+                                                    <div class="mb-4">
+                                                        <% if (patient.referral_count > 0) { %>
+                                                            <div class="status-badge status-completed mb-3">
+                                                                <i class="fas fa-hospital"></i>
+                                                                <%= patient.referral_count %> Transplant Center<%= patient.referral_count > 1 ? 's' : '' %> Selected
+                                                            </div>
+                                                            <div class="progress bg-success bg-opacity-20" style="height: 6px;">
+                                                                <div class="progress-bar bg-success" role="progressbar" style="width: 100%"></div>
+                                                            </div>
+                                                            <small class="text-success fw-semibold mt-2 d-block">
+                                                                <i class="fas fa-check-circle me-1"></i>Onboarding Complete
+                                                            </small>
+                                                        <% } else { %>
+                                                            <div class="status-badge status-pending mb-3">
+                                                                <i class="fas fa-clock"></i>
+                                                                Setting up profile...
+                                                            </div>
+                                                            <div class="progress bg-warning bg-opacity-20" style="height: 6px;">
+                                                                <div class="progress-bar bg-warning" role="progressbar" style="width: 40%"></div>
+                                                            </div>
+                                                            <small class="text-warning fw-semibold mt-2 d-block">
+                                                                <i class="fas fa-hourglass-half me-1"></i>Awaiting Transplant Center Selection
+                                                            </small>
+                                                        <% } %>
+                                                    </div>
+                                                    
+                                                    <!-- Action Buttons -->
+                                                    <div class="d-flex gap-2">
+                                                        <a href="/patients/<%= patient.patient_id %>" class="btn btn-primary btn-sm flex-fill">
+                                                            <i class="fas fa-eye me-2"></i>View Details
+                                                        </a>
+                                                        <button class="btn btn-outline-success btn-sm flex-fill" onclick="contactPatient('<%= patient.email %>')">
+                                                            <i class="fas fa-comments me-2"></i>Contact
+                                                        </button>
+                                                        <div class="dropdown">
+                                                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                                                <i class="fas fa-ellipsis-v"></i>
+                                                            </button>
+                                                            <ul class="dropdown-menu">
+                                                                <li><a class="dropdown-item" href="#"><i class="fas fa-notes-medical me-2"></i>Add Note</a></li>
+                                                                <li><a class="dropdown-item" href="#"><i class="fas fa-calendar me-2"></i>Schedule Follow-up</a></li>
+                                                                <li><hr class="dropdown-divider"></li>
+                                                                <li><a class="dropdown-item text-danger" href="#"><i class="fas fa-flag me-2"></i>Flag Patient</a></li>
+                                                            </ul>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    <% }); %>
+                                </div>
+                                
+                                <!-- View All Button -->
+                                <div class="text-center mt-5">
+                                    <a href="/patients" class="btn btn-outline-primary btn-lg">
+                                        <i class="fas fa-users me-2"></i>View All Patients
+                                        <span class="badge bg-primary ms-2"><%= notifications.length %></span>
+                                    </a>
+                                </div>
+                            <% } %>
+                        </div>
+                        
+                        <!-- Recent Activity Tab -->
+                        <div class="tab-pane fade" id="recent" role="tabpanel">
+                            <h5 class="mb-3">
+                                <i class="fas fa-clock text-info me-2"></i>
+                                Recent Activity
+                            </h5>
+                            <div class="list-group">
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">System Login</h6>
+                                        <small>Just now</small>
+                                    </div>
+                                    <p class="mb-1">Successful login from your account</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Reports Tab -->
+                        <div class="tab-pane fade" id="reports" role="tabpanel">
+                            <h5 class="mb-3">
+                                <i class="fas fa-chart-bar text-success me-2"></i>
+                                Reports & Analytics
+                            </h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-download fa-2x text-primary mb-3"></i>
+                                            <h6>Monthly Patient Report</h6>
+                                            <p class="text-muted small">Export patient activity data</p>
+                                            <button class="btn btn-outline-primary btn-sm">Download</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-chart-pie fa-2x text-info mb-3"></i>
+                                            <h6>Referral Analytics</h6>
+                                            <p class="text-muted small">View referral success rates</p>
+                                            <button class="btn btn-outline-info btn-sm">View Report</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Tools Tab -->
+                        <div class="tab-pane fade" id="tools" role="tabpanel">
+                            <h5 class="mb-3">
+                                <i class="fas fa-tools text-warning me-2"></i>
+                                DUSW Tools
+                            </h5>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="card">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-users fa-2x text-primary mb-3"></i>
+                                            <h6>Patient Manager</h6>
+                                            <p class="text-muted small">Manage all your patients</p>
+                                            <a href="/patients" class="btn btn-outline-primary btn-sm">Open</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-hospital fa-2x text-success mb-3"></i>
+                                            <h6>Center Directory</h6>
+                                            <p class="text-muted small">Browse transplant centers</p>
+                                            <button class="btn btn-outline-success btn-sm">Browse</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-cog fa-2x text-secondary mb-3"></i>
+                                            <h6>Settings</h6>
+                                            <p class="text-muted small">Account preferences</p>
+                                            <button class="btn btn-outline-secondary btn-sm">Configure</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/footer') %>

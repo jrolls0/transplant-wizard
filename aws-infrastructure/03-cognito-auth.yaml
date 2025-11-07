@@ -1,0 +1,317 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS Cognito Authentication for Transplant Platform with HIPAA Compliance'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: transplant-platform
+    Description: Name of the project for resource tagging
+
+Resources:
+  # Cognito User Pool
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub ${ProjectName}-user-pool
+      
+      # Account Recovery and Verification
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+      
+      # Auto-verified attributes
+      AutoVerifiedAttributes:
+        - email
+      
+      # Required standard attributes
+      UsernameAttributes:
+        - email
+      
+      # Email configuration
+      EmailConfiguration:
+        EmailSendingAccount: COGNITO_DEFAULT
+        
+      # MFA Configuration (HIPAA Best Practice)
+      MfaConfiguration: OPTIONAL
+      EnabledMfas:
+        - SOFTWARE_TOKEN_MFA
+        - SMS_MFA
+      
+      # Password Policy (HIPAA Compliant)
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          TemporaryPasswordValidityDays: 7
+      
+      # User Pool Add-ons
+      UserPoolAddOns:
+        AdvancedSecurityMode: ENFORCED
+      
+      # Verification messages
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_LINK
+        EmailSubject: "Verify your Transplant Platform account"
+        EmailMessage: "Please click the link to verify your account: {##Verify Email##}"
+      
+      # User invitation message
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      
+      # Device tracking for security
+      DeviceConfiguration:
+        ChallengeRequiredOnNewDevice: true
+        DeviceOnlyRememberedOnUserPrompt: false
+      
+      # Schema for custom attributes
+      Schema:
+        - Name: user_role
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+        - Name: dialysis_clinic
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+        - Name: assigned_social_worker
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+        - Name: consent_signed_date
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+        - Name: roi_signature
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+      
+      UserPoolTags:
+        Name: !Sub ${ProjectName}-user-pool
+        Environment: production
+        HIPAA: compliant
+
+  # Cognito User Pool Client for Web Application
+  UserPoolWebClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      ClientName: !Sub ${ProjectName}-web-client
+      
+      # Authentication flows
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+      
+      # Token validity (HIPAA requirement for session management)
+      AccessTokenValidity: 1  # 1 hour
+      IdTokenValidity: 1      # 1 hour
+      RefreshTokenValidity: 30 # 30 days
+      TokenValidityUnits:
+        AccessToken: hours
+        IdToken: hours
+        RefreshToken: days
+      
+      # Security settings
+      PreventUserExistenceErrors: ENABLED
+      EnableTokenRevocation: true
+      
+      # Callback URLs (will be updated when domain is available)
+      CallbackURLs:
+        - http://localhost:3000/auth/callback
+        - https://localhost:3000/auth/callback
+      
+      LogoutURLs:
+        - http://localhost:3000/auth/logout
+        - https://localhost:3000/auth/logout
+      
+      # OAuth configuration
+      AllowedOAuthFlows:
+        - code
+        - implicit
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - profile
+      AllowedOAuthFlowsUserPoolClient: true
+      
+      # Attribute permissions
+      ReadAttributes:
+        - email
+        - given_name
+        - family_name
+        - phone_number
+        - custom:user_role
+        - custom:dialysis_clinic
+        - custom:assigned_social_worker
+        - custom:consent_signed_date
+        - custom:roi_signature
+      
+      WriteAttributes:
+        - email
+        - given_name
+        - family_name
+        - phone_number
+        - custom:user_role
+        - custom:dialysis_clinic
+        - custom:assigned_social_worker
+        - custom:consent_signed_date
+        - custom:roi_signature
+
+  # Cognito User Pool Client for Mobile Application
+  UserPoolMobileClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      ClientName: !Sub ${ProjectName}-mobile-client
+      
+      # Authentication flows for mobile
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_CUSTOM_AUTH
+      
+      # Token validity
+      AccessTokenValidity: 1
+      IdTokenValidity: 1
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: hours
+        IdToken: hours
+        RefreshToken: days
+      
+      # Security settings
+      PreventUserExistenceErrors: ENABLED
+      EnableTokenRevocation: true
+      
+      # Mobile-specific settings
+      SupportedIdentityProviders:
+        - COGNITO
+      
+      # Attribute permissions (same as web client)
+      ReadAttributes:
+        - email
+        - given_name
+        - family_name
+        - phone_number
+        - custom:user_role
+        - custom:dialysis_clinic
+        - custom:assigned_social_worker
+        - custom:consent_signed_date
+        - custom:roi_signature
+      
+      WriteAttributes:
+        - email
+        - given_name
+        - family_name
+        - phone_number
+        - custom:user_role
+        - custom:dialysis_clinic
+        - custom:assigned_social_worker
+        - custom:consent_signed_date
+        - custom:roi_signature
+
+  # Cognito Identity Pool for federated identities
+  IdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      IdentityPoolName: !Sub ${ProjectName}-identity-pool
+      AllowUnauthenticatedIdentities: false
+      CognitoIdentityProviders:
+        - ClientId: !Ref UserPoolWebClient
+          ProviderName: !GetAtt UserPool.ProviderName
+        - ClientId: !Ref UserPoolMobileClient
+          ProviderName: !GetAtt UserPool.ProviderName
+
+  # IAM Role for authenticated users
+  CognitoAuthenticatedRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                'cognito-identity.amazonaws.com:aud': !Ref IdentityPool
+              'ForAnyValue:StringLike':
+                'cognito-identity.amazonaws.com:amr': authenticated
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonCognitoPowerUser
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-authenticated-role
+
+  # IAM Role for unauthenticated users (minimal permissions)
+  CognitoUnauthenticatedRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                'cognito-identity.amazonaws.com:aud': !Ref IdentityPool
+              'ForAnyValue:StringLike':
+                'cognito-identity.amazonaws.com:amr': unauthenticated
+      Policies:
+        - PolicyName: DenyAllPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Deny
+                Action: '*'
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-unauthenticated-role
+
+  # Identity Pool Role Attachment
+  IdentityPoolRoleAttachment:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId: !Ref IdentityPool
+      Roles:
+        authenticated: !GetAtt CognitoAuthenticatedRole.Arn
+        unauthenticated: !GetAtt CognitoUnauthenticatedRole.Arn
+
+Outputs:
+  UserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref UserPool
+    Export:
+      Name: !Sub ${ProjectName}-user-pool-id
+
+  UserPoolWebClientId:
+    Description: Cognito User Pool Web Client ID
+    Value: !Ref UserPoolWebClient
+    Export:
+      Name: !Sub ${ProjectName}-web-client-id
+
+  UserPoolMobileClientId:
+    Description: Cognito User Pool Mobile Client ID
+    Value: !Ref UserPoolMobileClient
+    Export:
+      Name: !Sub ${ProjectName}-mobile-client-id
+
+  IdentityPoolId:
+    Description: Cognito Identity Pool ID
+    Value: !Ref IdentityPool
+    Export:
+      Name: !Sub ${ProjectName}-identity-pool-id
+
+  UserPoolDomain:
+    Description: Cognito User Pool Domain
+    Value: !Sub ${ProjectName}-${AWS::AccountId}
+    Export:
+      Name: !Sub ${ProjectName}-user-pool-domain

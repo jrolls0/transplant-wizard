@@ -1,0 +1,47 @@
+# Environment files
+.env
+.env.*
+*.env
+
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+server.log
+production-server.log
+
+# OS files
+.DS_Store
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+
+# Build outputs
+dist/
+build/
+*.js.map
+
+# Xcode
+*.xcworkspace
+xcuserdata/
+*.xcuserstate
+
+# Database
+*.sql
+*.db
+
+# AWS
+*.pem
+*.key
+
+# Sensitive
+credentials.json
+config/secrets.js

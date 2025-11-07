@@ -1,0 +1,111 @@
+<%- include('partials/header', {title: title, currentPage: 'home'}) %>
+
+<!-- Hero Section -->
+<section class="hero-section py-5 hero-gradient d-flex align-items-center" style="min-height: 85vh;" aria-labelledby="hero-title">
+    <div class="container">
+        <div class="row justify-content-center text-center">
+            <div class="col-lg-10 col-xl-8">
+                <div class="hero-content">
+                    <h1 id="hero-title" class="hero-title fw-bold mb-4" style="letter-spacing: -0.025em;">
+                        <span class="text-gradient">TransplantWizard</span>
+                    </h1>
+                    <p class="hero-subtitle mb-5 text-body-emphasis">
+                        Accelerating transplant evaluations through seamless care coordination between dialysis units and transplant centers
+                    </p>
+                    <a href="#demo" class="btn btn-accent btn-lg mb-4" style="min-height: 52px;">
+                        Request Demo
+                    </a>
+                    
+                    <!-- Trust Badges -->
+                    <div class="trust-badges mb-2">
+                        <div class="d-flex align-items-center justify-content-center gap-4 flex-wrap">
+                            <div class="trust-item">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-success me-2">
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                                    <path d="M9 12l2 2 4-4"/>
+                                </svg>
+                                <span class="small fw-semibold text-success">HIPAA Compliant</span>
+                            </div>
+                            <div class="trust-divider">•</div>
+                            <div class="trust-item">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-primary me-2">
+                                    <path d="M9 12l2 2 4-4"/>
+                                    <circle cx="12" cy="12" r="10"/>
+                                </svg>
+                                <span class="small text-body-secondary">SOC 2 Certified</span>
+                            </div>
+                            <div class="trust-divider">•</div>
+                            <div class="trust-item">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-warning me-2">
+                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                                </svg>
+                                <span class="small text-body-secondary">150+ Centers</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Portal Selection -->
+<section class="portal-section py-3 bg-portal-tint">
+    <div class="container">
+        <div class="row justify-content-center text-center mb-4">
+            <div class="col-lg-8">
+                <h2 class="section-title fw-semibold mb-3 text-dark">Choose Your Portal</h2>
+                <p class="text-body-secondary">Access your dedicated workspace designed for your role in transplant care</p>
+            </div>
+        </div>
+        
+        <div class="row g-4 justify-content-center">
+            <!-- Transplant Centers -->
+            <div class="col-lg-4 col-md-6">
+                <a href="https://tc.transplantwizard.com" 
+                   class="persona-tile persona-tile-green text-decoration-none"
+                   target="_blank" 
+                   rel="noopener noreferrer">
+                    <div class="persona-content">
+                        <h3 class="persona-title">Transplant Centers</h3>
+                        <p class="persona-benefit">Streamline patient evaluations and reduce processing time by 40%</p>
+                        <button class="btn btn-success btn-lg w-100">
+                            Access Portal
+                        </button>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Social Workers -->
+            <div class="col-lg-4 col-md-6">
+                <a href="https://dusw.transplantwizard.com" 
+                   class="persona-tile persona-tile-purple text-decoration-none"
+                   target="_blank" 
+                   rel="noopener noreferrer">
+                    <div class="persona-content">
+                        <h3 class="persona-title">Dialysis Social Workers</h3>
+                        <p class="persona-benefit">Monitor patient progress and coordinate seamlessly with centers</p>
+                        <button class="btn btn-purple btn-lg w-100">
+                            Access Portal
+                        </button>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Patients -->
+            <div class="col-lg-4 col-md-6">
+                <div class="persona-tile persona-tile-blue">
+                    <div class="persona-content">
+                        <h3 class="persona-title">Patients & Families</h3>
+                        <p class="persona-benefit">Track your transplant journey and stay connected with your care team</p>
+                        <button class="btn btn-waitlist btn-lg w-100" onclick="showWaitlistModal(event)">
+                            Join the Waitlist
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<%- include('partials/footer') %>

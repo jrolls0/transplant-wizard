@@ -1,0 +1,37 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "cloudformation:*",
+                "rds:*",
+                "cognito-idp:*",
+                "cognito-identity:*",
+                "s3:*",
+                "ses:*",
+                "logs:*",
+                "ec2:*",
+                "iam:GetRole",
+                "iam:PassRole",
+                "iam:CreateRole",
+                "iam:DeleteRole",
+                "iam:AttachRolePolicy",
+                "iam:DetachRolePolicy",
+                "iam:CreatePolicy",
+                "iam:DeletePolicy",
+                "iam:GetPolicy",
+                "iam:ListRolePolicies",
+                "iam:ListAttachedRolePolicies",
+                "lambda:*",
+                "apigateway:*",
+                "elasticloadbalancing:*",
+                "autoscaling:*",
+                "cloudwatch:*",
+                "route53:*",
+                "acm:*"
+            ],
+            "Resource": "*"
+        }
+    ]
+}

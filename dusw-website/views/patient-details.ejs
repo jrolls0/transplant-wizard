@@ -1,0 +1,1173 @@
+<%- include('partials/header', {title: title}) %>
+
+<div class="patient-details-container">
+    <div class="container py-4">
+        <!-- Modern Navigation Header -->
+        <div class="modern-breadcrumb">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="/dashboard" class="breadcrumb-link">
+                            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active">
+                        <i class="fas fa-user-circle me-2"></i>
+                        <%= patient.first_name || 'Anonymous' %> <%= patient.last_name || 'User' %>
+                    </li>
+                </ol>
+            </nav>
+            
+            <div class="nav-actions">
+                <a href="/dashboard" class="btn-back">
+                    <i class="fas fa-arrow-left me-2"></i>
+                    <span>Back to Dashboard</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Patient Hero Section -->
+        <div class="patient-hero-card">
+            <div class="hero-gradient-bg"></div>
+            <div class="hero-content">
+                <div class="patient-avatar">
+                    <div class="avatar-circle">
+                        <span class="avatar-initials">
+                            <%= (patient.first_name || 'A').charAt(0) %><%= (patient.last_name || 'A').charAt(0) %>
+                        </span>
+                    </div>
+                    <div class="avatar-status <%= referrals.length > 0 ? 'status-active' : 'status-pending' %>">
+                        <i class="fas fa-circle"></i>
+                    </div>
+                </div>
+                
+                <div class="patient-info">
+                    <div class="patient-header">
+                        <h1 class="patient-name">
+                            <%= patient.first_name || 'Anonymous' %> <%= patient.last_name || 'User' %>
+                        </h1>
+                        <div class="patient-status">
+                            <% if (referrals.length > 0) { %>
+                                <span class="status-badge status-active">
+                                    <i class="fas fa-check-circle me-2"></i>
+                                    Active Patient
+                                </span>
+                            <% } else { %>
+                                <span class="status-badge status-pending">
+                                    <i class="fas fa-clock me-2"></i>
+                                    Setup Pending
+                                </span>
+                            <% } %>
+                        </div>
+                    </div>
+                    
+                    <div class="patient-contact-info">
+                        <div class="contact-item">
+                            <i class="fas fa-envelope contact-icon"></i>
+                            <span class="contact-text"><%= patient.user_email || patient.email %></span>
+                        </div>
+                        <% if (patient.user_phone || patient.phone_number) { %>
+                        <div class="contact-item">
+                            <i class="fas fa-phone contact-icon"></i>
+                            <span class="contact-text"><%= patient.user_phone || patient.phone_number %></span>
+                        </div>
+                        <% } %>
+                        <div class="contact-item">
+                            <i class="fas fa-calendar-alt contact-icon"></i>
+                            <span class="contact-text">Registered <%= new Date(patient.created_at).toLocaleDateString() %></span>
+                        </div>
+                    </div>
+                    
+                    <div class="patient-status-badges">
+                        <span class="status-pill <%= patient.profile_completed ? 'status-complete' : 'status-incomplete' %>">
+                            <i class="fas fa-<%= patient.profile_completed ? 'check-circle' : 'clock' %> me-1"></i>
+                            Profile <%= patient.profile_completed ? 'Complete' : 'Incomplete' %>
+                        </span>
+                        <% if (referrals.length === 0) { %>
+                            <span class="status-pill status-pending">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                No Centers Selected
+                            </span>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions Bar -->
+        <div class="quick-actions-bar" id="actionBar">
+            <div class="action-group">
+                <button class="action-btn primary" onclick="contactPatient('<%= patient.user_email || patient.email %>')" 
+                        title="Send email to <%= patient.first_name || 'patient' %>" 
+                        aria-label="Send message to <%= patient.first_name || 'patient' %> <%= patient.last_name || '' %>">
+                    <i class="fas fa-envelope" aria-hidden="true"></i>
+                    <span>Send Message</span>
+                </button>
+                <% if (patient.user_phone || patient.phone_number) { %>
+                <button class="action-btn secondary" onclick="callPatient('<%= patient.user_phone || patient.phone_number %>')"
+                        title="Call <%= patient.first_name || 'patient' %>" 
+                        aria-label="Call <%= patient.first_name || 'patient' %> <%= patient.last_name || '' %>">
+                    <i class="fas fa-phone" aria-hidden="true"></i>
+                    <span>Call Patient</span>
+                </button>
+                <% } %>
+                <button class="action-btn secondary" onclick="scheduleFollowup()"
+                        title="Schedule follow-up appointment" 
+                        aria-label="Schedule follow-up with <%= patient.first_name || 'patient' %> <%= patient.last_name || '' %>">
+                    <i class="fas fa-calendar-plus" aria-hidden="true"></i>
+                    <span>Schedule Follow-up</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content Sections -->
+        <div class="content-grid">
+            <!-- Transplant Centers Section -->
+            <div class="content-section full-width">
+                <div class="section-header">
+                    <div class="header-content">
+                        <div class="header-icon transplant-icon">
+                            <i class="fas fa-hospital"></i>
+                        </div>
+                        <div class="header-text">
+                            <h3 class="section-title">Transplant Center Selections</h3>
+                            <p class="section-subtitle">Centers selected by the patient through the mobile app</p>
+                        </div>
+                    </div>
+                    <% if (referrals.length > 0) { %>
+                        <div class="header-badge">
+                            <span class="count-badge"><%= referrals.length %></span>
+                        </div>
+                    <% } %>
+                </div>
+                
+                <div class="section-content">
+                    <% if (referrals.length === 0) { %>
+                        <div class="empty-state">
+                            <div class="empty-icon">
+                                <i class="fas fa-hospital"></i>
+                            </div>
+                            <h4 class="empty-title">No transplant centers selected</h4>
+                            <p class="empty-description">
+                                This patient hasn't selected any transplant centers through the mobile app yet. 
+                                Once they complete their selection, the centers will appear here.
+                            </p>
+                        </div>
+                    <% } else { %>
+                        <div class="referrals-list">
+                            <% referrals.forEach((referral, index) => { %>
+                                <div class="referral-item">
+                                    <div class="referral-icon">
+                                        <i class="fas fa-hospital"></i>
+                                    </div>
+                                    <div class="referral-content">
+                                        <div class="referral-header">
+                                            <h4 class="referral-name"><%= referral.center_name %></h4>
+                                        </div>
+                                        <div class="referral-details">
+                                            <span class="location">
+                                                <i class="fas fa-map-marker-alt me-1"></i>
+                                                <%= referral.city %>, <%= referral.state %>
+                                            </span>
+                                            <span class="date">
+                                                <i class="fas fa-calendar me-1"></i>
+                                                Selected <%= new Date(referral.submitted_at).toLocaleDateString() %>
+                                            </span>
+                                        </div>
+                                        <div class="referral-meta">
+                                            <span class="referral-status <%= referral.status %>">
+                                                <i class="fas fa-<%= referral.status === 'submitted' ? 'paper-plane' : referral.status === 'pending' ? 'clock' : 'check' %>"></i>
+                                                <%= referral.status.charAt(0).toUpperCase() + referral.status.slice(1) %>
+                                            </span>
+                                            <div class="referral-actions">
+                                                <button class="mini-btn" onclick="viewCenterDetails('<%= referral.center_name %>')" title="View Details">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                <button class="mini-btn" onclick="contactCenter('<%= referral.center_name %>')" title="Contact Center">
+                                                    <i class="fas fa-phone"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            <% }); %>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+
+            <!-- Patient Information Section -->
+            <div class="content-section">
+                <div class="section-header">
+                    <div class="header-content">
+                        <div class="header-icon profile-icon">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="header-text">
+                            <h3 class="section-title">Patient Information</h3>
+                            <p class="section-subtitle">Personal and medical details</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="section-content">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Full Name</div>
+                            <div class="info-value"><%= patient.first_name || 'Anonymous' %> <%= patient.last_name || 'User' %></div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Email Address</div>
+                            <div class="info-value"><%= patient.user_email || patient.email %></div>
+                        </div>
+                        <% if (patient.user_phone || patient.phone_number) { %>
+                        <div class="info-item">
+                            <div class="info-label">Phone Number</div>
+                            <div class="info-value"><%= patient.user_phone || patient.phone_number %></div>
+                        </div>
+                        <% } %>
+                        <% if (patient.date_of_birth) { %>
+                        <div class="info-item">
+                            <div class="info-label">Date of Birth</div>
+                            <div class="info-value"><%= new Date(patient.date_of_birth).toLocaleDateString() %></div>
+                        </div>
+                        <% } %>
+                        <% if (patient.primary_care_physician) { %>
+                        <div class="info-item">
+                            <div class="info-label">Primary Care Physician</div>
+                            <div class="info-value"><%= patient.primary_care_physician %></div>
+                        </div>
+                        <% } %>
+                        <% if (patient.insurance_provider) { %>
+                        <div class="info-item">
+                            <div class="info-label">Insurance Provider</div>
+                            <div class="info-value"><%= patient.insurance_provider %></div>
+                        </div>
+                        <% } %>
+                        <div class="info-item">
+                            <div class="info-label">Profile Status</div>
+                            <div class="info-value">
+                                <span class="profile-status <%= patient.profile_completed ? 'complete' : 'incomplete' %>">
+                                    <i class="fas fa-<%= patient.profile_completed ? 'check-circle' : 'clock' %> me-1"></i>
+                                    <%= patient.profile_completed ? 'Complete' : 'Incomplete' %>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Registration Date</div>
+                            <div class="info-value"><%= new Date(patient.created_at).toLocaleDateString() %></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity Timeline Section -->
+            <div class="content-section">
+                <div class="section-header">
+                    <div class="header-content">
+                        <div class="header-icon activity-icon">
+                            <i class="fas fa-history"></i>
+                        </div>
+                        <div class="header-text">
+                            <h3 class="section-title">Recent Activity</h3>
+                            <p class="section-subtitle">Patient timeline and events</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="section-content">
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-icon registration">
+                                <i class="fas fa-user-plus"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <div class="timeline-date-header">
+                                    <%
+                                        const regDate = new Date(patient.created_at);
+                                        const now = new Date();
+                                        const isToday = regDate.toDateString() === now.toDateString();
+                                        const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+                                        const isYesterday = regDate.toDateString() === yesterday.toDateString();
+                                        
+                                        let dateLabel = '';
+                                        if (isToday) {
+                                            dateLabel = 'Today, ' + regDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                                        } else if (isYesterday) {
+                                            dateLabel = 'Yesterday, ' + regDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                                        } else {
+                                            dateLabel = regDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ', ' + regDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                                        }
+                                    %>
+                                    <%= dateLabel %>
+                                </div>
+                                <h5 class="timeline-title">Patient Registered</h5>
+                                <p class="timeline-description">Account created through mobile app</p>
+                            </div>
+                        </div>
+                        
+                        <% referrals.forEach(referral => { %>
+                        <div class="timeline-item">
+                            <div class="timeline-icon selection">
+                                <i class="fas fa-hospital"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <div class="timeline-date-header">
+                                    <%
+                                        const selDate = new Date(referral.submitted_at);
+                                        const isSelToday = selDate.toDateString() === now.toDateString();
+                                        const isSelYesterday = selDate.toDateString() === yesterday.toDateString();
+                                        
+                                        let selDateLabel = '';
+                                        if (isSelToday) {
+                                            selDateLabel = 'Today, ' + selDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                                        } else if (isSelYesterday) {
+                                            selDateLabel = 'Yesterday, ' + selDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                                        } else {
+                                            selDateLabel = selDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ', ' + selDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                                        }
+                                    %>
+                                    <%= selDateLabel %>
+                                </div>
+                                <h5 class="timeline-title">Transplant Center Selected</h5>
+                                <p class="timeline-description">Selected <%= referral.center_name %> in <%= referral.city %>, <%= referral.state %></p>
+                            </div>
+                        </div>
+                        <% }); %>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Patient Details Modern Theme */
+.patient-details-container {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    min-height: 100vh;
+    color: #1e293b; /* Dark text for readability */
+}
+
+/* Navigation */
+.modern-breadcrumb {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding: 1rem 0;
+}
+
+.breadcrumb {
+    background: none;
+    padding: 0;
+    margin: 0;
+}
+
+.breadcrumb-item {
+    font-size: 0.875rem;
+    color: #64748b;
+}
+
+.breadcrumb-link {
+    color: #64748b;
+    text-decoration: none;
+    transition: color 0.3s ease;
+    display: flex;
+    align-items: center;
+    font-weight: 500;
+}
+
+.breadcrumb-link:hover {
+    color: var(--primary-color);
+}
+
+.breadcrumb-item.active {
+    color: #1e293b;
+    font-weight: 600;
+}
+
+.btn-back {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1.5rem;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    text-decoration: none;
+    color: #1e293b;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.btn-back:hover {
+    background: #f8fafc;
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Hero Section */
+.patient-hero-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    margin-bottom: 2rem;
+    position: relative;
+}
+
+.hero-gradient-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 120px;
+    background: var(--primary-gradient);
+    opacity: 0.1;
+}
+
+.hero-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 2rem;
+    padding: 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+.patient-avatar {
+    position: relative;
+    flex-shrink: 0;
+    margin-top: 0.5rem;
+}
+
+.avatar-circle {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: var(--primary-gradient);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+    position: relative;
+}
+
+.avatar-initials {
+    font-size: 2rem;
+    font-weight: 700;
+    color: white;
+}
+
+.avatar-status {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 3px solid white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+}
+
+.avatar-status.status-active {
+    background: #22c55e;
+    color: white;
+}
+
+.avatar-status.status-pending {
+    background: #f59e0b;
+    color: white;
+}
+
+.patient-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.patient-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+}
+
+.patient-name {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border: none;
+}
+
+.status-badge.status-active {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+.status-badge.status-pending {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
+
+.patient-contact-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+}
+
+.contact-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.contact-icon {
+    color: var(--primary-color);
+    width: 16px;
+    text-align: center;
+}
+
+.contact-text {
+    color: #374151;
+    font-weight: 500;
+}
+
+.patient-status-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    align-items: center;
+}
+
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.375rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: 1px solid transparent;
+}
+
+.status-pill.status-complete {
+    background: #dcfce7;
+    color: #166534;
+    border-color: #bbf7d0;
+}
+
+.status-pill.status-incomplete {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fde68a;
+}
+
+.status-pill.status-pending {
+    background: #fef2f2;
+    color: #991b1b;
+    border-color: #fecaca;
+}
+
+/* Quick Actions Bar */
+.quick-actions-bar {
+    background: white;
+    padding: 1rem 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    margin-bottom: 2rem;
+    position: sticky;
+    top: 80px;
+    z-index: 100;
+    border: 1px solid #e5e7eb;
+    transition: all 0.3s ease;
+}
+
+.quick-actions-bar.sticky-active {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    border-color: #d1d5db;
+}
+
+.action-group {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    min-height: 44px;
+    min-width: 44px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.action-btn:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.action-btn.primary {
+    background: var(--primary-gradient);
+    color: white;
+    box-shadow: 0 4px 6px rgba(102, 126, 234, 0.25);
+}
+
+.action-btn.primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 12px rgba(102, 126, 234, 0.3);
+}
+
+.action-btn.secondary {
+    background: #f8fafc;
+    color: #374151;
+    border: 1px solid #e5e7eb;
+}
+
+.action-btn.secondary:hover {
+    background: #f1f5f9;
+    border-color: #d1d5db;
+    transform: translateY(-1px);
+}
+
+/* Content Grid */
+.content-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+}
+
+.content-section {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+.content-section.full-width {
+    grid-column: 1 / -1;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid #f1f5f9;
+    background: #fafbfc;
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.header-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.25rem;
+}
+
+.transplant-icon {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+}
+
+.profile-icon {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.activity-icon {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.section-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+}
+
+.section-subtitle {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin: 0;
+}
+
+.count-badge {
+    background: var(--primary-color);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.section-content {
+    padding: 2rem;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 3rem 2rem;
+}
+
+.empty-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    color: #9ca3af;
+    font-size: 2rem;
+}
+
+.empty-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 0.5rem;
+}
+
+.empty-description {
+    color: #6b7280;
+    max-width: 400px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
+/* Referrals List */
+.referrals-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.referral-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.5rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fafbfc;
+    transition: all 0.3s ease;
+}
+
+.referral-item:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-color: #d1d5db;
+    background: #f9fafb;
+}
+
+.referral-item:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.referral-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: var(--primary-gradient);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.referral-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.referral-header {
+    margin-bottom: 0.75rem;
+}
+
+.referral-name {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0;
+}
+
+.referral-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 16px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.referral-status.submitted {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.referral-status.pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.referral-status.completed {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.referral-details {
+    display: flex;
+    gap: 1.5rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin-bottom: 1rem;
+}
+
+.referral-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.referral-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    align-items: center;
+}
+
+.mini-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    color: #6b7280;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.mini-btn:hover {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+/* Info Grid */
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.info-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.info-value {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #1e293b;
+}
+
+.profile-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.profile-status.complete {
+    color: #059669;
+}
+
+.profile-status.incomplete {
+    color: #d97706;
+}
+
+/* Timeline */
+.timeline {
+    position: relative;
+    padding-left: 2rem;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 20px;
+    top: 40px;
+    bottom: 0;
+    width: 2px;
+    background: #e5e7eb;
+    z-index: 1;
+}
+
+.timeline-item {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+}
+
+.timeline-item:last-child {
+    margin-bottom: 0;
+}
+
+.timeline-icon {
+    position: absolute;
+    left: -2rem;
+    top: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1rem;
+    z-index: 2;
+    border: 3px solid white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.timeline-icon.registration {
+    background: #059669;
+}
+
+.timeline-icon.selection {
+    background: var(--primary-color);
+}
+
+.timeline-content {
+    flex: 1;
+    min-width: 0;
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid #f3f4f6;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.timeline-date-header {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 0.25rem;
+}
+
+.timeline-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0 0 0.25rem 0;
+}
+
+.timeline-description {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin: 0 0 0.5rem 0;
+}
+
+.timeline-date {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .content-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .hero-content {
+        flex-direction: column;
+        text-align: center;
+        gap: 1.5rem;
+    }
+    
+    .patient-header {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .patient-name {
+        font-size: 2rem;
+    }
+    
+    .patient-contact-info {
+        justify-content: center;
+    }
+    
+    .patient-stats {
+        flex-direction: row;
+        justify-content: center;
+    }
+    
+    .action-group {
+        justify-content: center;
+    }
+    
+    .action-btn {
+        flex: 1;
+        justify-content: center;
+    }
+    
+    .section-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
+    }
+    
+    .referral-item {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .referral-header {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .referral-details {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 576px) {
+    .modern-breadcrumb {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
+    }
+    
+    .hero-content,
+    .section-content {
+        padding: 1.5rem;
+    }
+    
+    .quick-actions-bar {
+        padding: 1.5rem;
+    }
+    
+    .patient-name {
+        font-size: 1.75rem;
+    }
+}
+</style>
+
+<script>
+function contactPatient(email) {
+    window.open(`mailto:${email}`, '_blank');
+}
+
+function callPatient(phone) {
+    window.open(`tel:${phone}`, '_blank');
+}
+
+function scheduleFollowup() {
+    alert('Schedule follow-up feature coming soon!');
+}
+
+function viewCenterDetails(centerName) {
+    alert(`Viewing details for: ${centerName}`);
+}
+
+function contactCenter(centerName) {
+    alert(`Contacting: ${centerName}`);
+}
+
+// Sticky action bar behavior
+document.addEventListener('DOMContentLoaded', function() {
+    const actionBar = document.getElementById('actionBar');
+    if (!actionBar) return;
+    
+    const originalPosition = actionBar.offsetTop;
+    let isSticky = false;
+    
+    function handleScroll() {
+        if (window.pageYOffset > originalPosition + 100) {
+            if (!isSticky) {
+                actionBar.classList.add('sticky-active');
+                isSticky = true;
+            }
+        } else {
+            if (isSticky) {
+                actionBar.classList.remove('sticky-active');
+                isSticky = false;
+            }
+        }
+    }
+    
+    window.addEventListener('scroll', handleScroll);
+    handleScroll(); // Check initial state
+});
+</script>
+
+<%- include('partials/footer') %>

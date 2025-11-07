@@ -1,0 +1,235 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'HIPAA-Compliant RDS PostgreSQL Database for Transplant Platform'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: transplant-platform
+    Description: Name of the project for resource tagging
+  
+  DBUsername:
+    Type: String
+    Default: transplant_admin
+    Description: Database administrator username
+    NoEcho: true
+  
+  DBPassword:
+    Type: String
+    Description: Database administrator password
+    NoEcho: true
+    MinLength: 12
+    MaxLength: 41
+    AllowedPattern: '^[a-zA-Z0-9]*$'
+    ConstraintDescription: Must contain only alphanumeric characters, minimum 12 characters
+
+Resources:
+  # KMS Key for Database Encryption
+  DatabaseKMSKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: KMS key for RDS database encryption
+      KeyPolicy:
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: Allow use of the key for RDS
+            Effect: Allow
+            Principal:
+              Service: rds.amazonaws.com
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-db-key
+        - Key: HIPAA
+          Value: compliant
+
+  DatabaseKMSKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub alias/${ProjectName}-database-key
+      TargetKeyId: !Ref DatabaseKMSKey
+
+  # DB Subnet Group
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group for RDS database
+      SubnetIds:
+        - !ImportValue 
+          Fn::Sub: ${ProjectName}-private-subnets
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-db-subnet-group
+
+  # DB Parameter Group for HIPAA Compliance
+  DBParameterGroup:
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      Description: PostgreSQL parameter group for HIPAA compliance
+      Family: postgres15
+      Parameters:
+        # Enable connection logging
+        log_connections: '1'
+        log_disconnections: '1'
+        log_duration: '1'
+        log_statement: 'all'
+        # Enable SSL
+        ssl: '1'
+        # Set password encryption
+        password_encryption: 'scram-sha-256'
+        # Enable row security
+        row_security: '1'
+        # Set shared_preload_libraries for audit
+        shared_preload_libraries: 'pg_stat_statements'
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-db-params
+        - Key: HIPAA
+          Value: compliant
+
+  # RDS Instance
+  Database:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    Properties:
+      DBInstanceIdentifier: !Sub ${ProjectName}-database
+      DBInstanceClass: db.t3.micro
+      Engine: postgres
+      EngineVersion: '15.4'
+      AllocatedStorage: 20
+      StorageType: gp3
+      StorageEncrypted: true
+      KmsKeyId: !Ref DatabaseKMSKey
+      
+      # Database Configuration
+      DBName: transplant_platform
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBPassword
+      
+      # Network Configuration
+      VPCSecurityGroups:
+        - !ImportValue 
+          Fn::Sub: ${ProjectName}-db-security-group
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      DBParameterGroupName: !Ref DBParameterGroup
+      
+      # Backup Configuration (HIPAA Requirement)
+      BackupRetentionPeriod: 30
+      PreferredBackupWindow: "03:00-04:00"
+      PreferredMaintenanceWindow: "sun:04:00-sun:05:00"
+      
+      # Monitoring and Logging
+      MonitoringInterval: 60
+      MonitoringRoleArn: !GetAtt DatabaseMonitoringRole.Arn
+      EnablePerformanceInsights: true
+      PerformanceInsightsKMSKeyId: !Ref DatabaseKMSKey
+      PerformanceInsightsRetentionPeriod: 7
+      
+      # Security
+      MultiAZ: false  # Set to true for production
+      PubliclyAccessible: false
+      DeletionProtection: true
+      
+      # Enable automated minor version upgrades
+      AutoMinorVersionUpgrade: false
+      
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-database
+        - Key: Environment
+          Value: production
+        - Key: HIPAA
+          Value: compliant
+
+  # IAM Role for Enhanced Monitoring
+  DatabaseMonitoringRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: monitoring.rds.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-db-monitoring-role
+
+  # CloudWatch Log Groups for Database Logs
+  DatabaseLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/rds/instance/${ProjectName}-database/postgresql
+      RetentionInDays: 2555  # 7 years for HIPAA compliance
+      KmsKeyId: !GetAtt DatabaseLogGroupKMSKey.Arn
+
+  # KMS Key for CloudWatch Logs
+  DatabaseLogGroupKMSKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: KMS key for database CloudWatch logs encryption
+      KeyPolicy:
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: Allow CloudWatch Logs
+            Effect: Allow
+            Principal:
+              Service: !Sub logs.${AWS::Region}.amazonaws.com
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-logs-key
+
+  DatabaseLogGroupKMSKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub alias/${ProjectName}-logs-key
+      TargetKeyId: !Ref DatabaseLogGroupKMSKey
+
+Outputs:
+  DatabaseEndpoint:
+    Description: RDS database endpoint
+    Value: !GetAtt Database.Endpoint.Address
+    Export:
+      Name: !Sub ${ProjectName}-db-endpoint
+
+  DatabasePort:
+    Description: RDS database port
+    Value: !GetAtt Database.Endpoint.Port
+    Export:
+      Name: !Sub ${ProjectName}-db-port
+
+  DatabaseName:
+    Description: RDS database name
+    Value: transplant_platform
+    Export:
+      Name: !Sub ${ProjectName}-db-name
+
+  DatabaseKMSKey:
+    Description: KMS key for database encryption
+    Value: !Ref DatabaseKMSKey
+    Export:
+      Name: !Sub ${ProjectName}-db-kms-key

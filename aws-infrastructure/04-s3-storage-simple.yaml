@@ -1,0 +1,60 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Simplified S3 Storage for Transplant Platform'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: transplant-platform
+
+Resources:
+  # S3 Bucket for Patient Documents
+  PatientDocumentsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${ProjectName}-patient-docs-${AWS::AccountId}
+      
+      # Encryption
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      
+      # Versioning
+      VersioningConfiguration:
+        Status: Enabled
+      
+      # Block public access
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-patient-documents
+
+  # Bucket Policy
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref PatientDocumentsBucket
+      PolicyDocument:
+        Statement:
+          - Sid: DenyInsecureConnections
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt PatientDocumentsBucket.Arn
+              - !Sub '${PatientDocumentsBucket.Arn}/*'
+            Condition:
+              Bool:
+                'aws:SecureTransport': 'false'
+
+Outputs:
+  PatientDocumentsBucket:
+    Description: S3 bucket for patient documents
+    Value: !Ref PatientDocumentsBucket
+    Export:
+      Name: !Sub ${ProjectName}-patient-documents-bucket

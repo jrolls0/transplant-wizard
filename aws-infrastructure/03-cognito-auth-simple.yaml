@@ -1,0 +1,110 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Simplified Cognito Authentication for Transplant Platform'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: transplant-platform
+
+Resources:
+  # Cognito User Pool
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub ${ProjectName}-user-pool
+      
+      # Auto-verified attributes
+      AutoVerifiedAttributes:
+        - email
+      
+      # Username attributes
+      UsernameAttributes:
+        - email
+      
+      # Password Policy
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+      
+      # Schema for custom attributes
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Mutable: true
+          Required: true
+        - Name: given_name
+          AttributeDataType: String
+          Mutable: true
+          Required: true
+        - Name: family_name
+          AttributeDataType: String
+          Mutable: true
+          Required: true
+        - Name: user_role
+          AttributeDataType: String
+          Mutable: true
+        - Name: dialysis_clinic
+          AttributeDataType: String
+          Mutable: true
+        - Name: assigned_social_worker
+          AttributeDataType: String
+          Mutable: true
+
+  # Web Client
+  UserPoolWebClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      ClientName: !Sub ${ProjectName}-web-client
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+      AccessTokenValidity: 1
+      IdTokenValidity: 1
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: hours
+        IdToken: hours
+        RefreshToken: days
+
+  # Mobile Client
+  UserPoolMobileClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      ClientName: !Sub ${ProjectName}-mobile-client
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+      AccessTokenValidity: 1
+      IdTokenValidity: 1
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: hours
+        IdToken: hours
+        RefreshToken: days
+
+Outputs:
+  UserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref UserPool
+    Export:
+      Name: !Sub ${ProjectName}-user-pool-id
+
+  UserPoolWebClientId:
+    Description: Web Client ID
+    Value: !Ref UserPoolWebClient
+    Export:
+      Name: !Sub ${ProjectName}-web-client-id
+
+  UserPoolMobileClientId:
+    Description: Mobile Client ID
+    Value: !Ref UserPoolMobileClient
+    Export:
+      Name: !Sub ${ProjectName}-mobile-client-id

@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(xcode-select:*)",
+      "Bash(./setup-database.sh:*)",
+      "Bash(pkill:*)",
+      "Bash(curl:*)",
+      "Bash(cloudflared tunnel:*)",
+      "Bash(aws sts:*)",
+      "Bash(aws rds describe-db-instances:*)",
+      "Bash(aws ec2 describe-instances:*)",
+      "Bash(node server.js)",
+      "Bash(AWS_PROFILE=Jeremy node src/simple-auth-server.js)",
+      "Bash(AWS_PROFILE=Jeremy node add-roi-consents.js)",
+      "Bash(grep:*)",
+      "Bash(psql:*)",
+      "Bash(PGPASSWORD='$ball9Base' psql -h transplant-platform-db.c90ca0kcwjsh.us-east-1.rds.amazonaws.com -p 5432 -U transplant_admin -d transplant_platform -c \"\\dt\")",
+      "Bash(mkdir:*)",
+      "Bash(nslookup:*)",
+      "Bash(dig:*)",
+      "Bash(npm install)",
+      "WebFetch(domain:transplantwizard.com)"
+    ],
+    "deny": []
+  }
+}

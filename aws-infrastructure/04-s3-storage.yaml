@@ -1,0 +1,298 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'HIPAA-Compliant S3 Storage for Transplant Platform'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: transplant-platform
+    Description: Name of the project for resource tagging
+
+Resources:
+  # KMS Key for S3 Bucket Encryption
+  S3KMSKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: KMS key for S3 bucket encryption
+      KeyPolicy:
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: Allow use of the key for S3
+            Effect: Allow
+            Principal:
+              Service: s3.amazonaws.com
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-s3-key
+        - Key: HIPAA
+          Value: compliant
+
+  S3KMSKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub alias/${ProjectName}-s3-key
+      TargetKeyId: !Ref S3KMSKey
+
+  # S3 Bucket for Patient Documents and ROI Forms
+  PatientDocumentsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${ProjectName}-patient-documents-${AWS::AccountId}
+      
+      # Encryption Configuration
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !Ref S3KMSKey
+            BucketKeyEnabled: true
+      
+      # Versioning for document history
+      VersioningConfiguration:
+        Status: Enabled
+      
+      # Lifecycle Configuration
+      LifecycleConfiguration:
+        Rules:
+          - Id: ArchiveOldVersions
+            Status: Enabled
+            NoncurrentVersionTransitions:
+              - TransitionInDays: 30
+                StorageClass: STANDARD_IA
+              - TransitionInDays: 90
+                StorageClass: GLACIER
+              - TransitionInDays: 365
+                StorageClass: DEEP_ARCHIVE
+            NoncurrentVersionExpirationInDays: 3653  # 10 years retention
+          - Id: DeleteIncompleteMultipartUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+      
+      # Access Control
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      
+      # Access Logging
+      LoggingConfiguration:
+        DestinationBucketName: !Ref AccessLogsBucket
+        LogFilePrefix: patient-documents/
+      
+      # Notification Configuration (for audit trail)
+      NotificationConfiguration:
+        CloudWatchConfigurations:
+          - Event: s3:ObjectCreated:*
+            CloudWatchConfiguration:
+              LogGroupName: !Ref S3AccessLogGroup
+          - Event: s3:ObjectRemoved:*
+            CloudWatchConfiguration:
+              LogGroupName: !Ref S3AccessLogGroup
+      
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-patient-documents
+        - Key: Environment
+          Value: production
+        - Key: HIPAA
+          Value: compliant
+        - Key: DataClassification
+          Value: PHI
+
+  # S3 Bucket for Access Logs
+  AccessLogsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${ProjectName}-access-logs-${AWS::AccountId}
+      
+      # Encryption Configuration
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !Ref S3KMSKey
+            BucketKeyEnabled: true
+      
+      # Lifecycle Configuration for log retention
+      LifecycleConfiguration:
+        Rules:
+          - Id: LogRetention
+            Status: Enabled
+            ExpirationInDays: 2555  # 7 years for HIPAA compliance
+            Transitions:
+              - TransitionInDays: 30
+                StorageClass: STANDARD_IA
+              - TransitionInDays: 90
+                StorageClass: GLACIER
+              - TransitionInDays: 180
+                StorageClass: DEEP_ARCHIVE
+      
+      # Access Control
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-access-logs
+        - Key: Environment
+          Value: production
+        - Key: HIPAA
+          Value: compliant
+
+  # CloudWatch Log Group for S3 Access Events
+  S3AccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/s3/${ProjectName}-access-events
+      RetentionInDays: 2555  # 7 years for HIPAA compliance
+      KmsKeyId: !Ref S3KMSKey
+
+  # IAM Policy for S3 Access
+  S3AccessPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub ${ProjectName}-s3-access-policy
+      Description: Policy for accessing patient documents S3 bucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowListBucket
+            Effect: Allow
+            Action:
+              - s3:ListBucket
+              - s3:GetBucketLocation
+            Resource: !GetAtt PatientDocumentsBucket.Arn
+            Condition:
+              StringLike:
+                's3:prefix':
+                  - 'patient-documents/*'
+                  - 'roi-forms/*'
+          
+          - Sid: AllowObjectAccess
+            Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:PutObject
+              - s3:PutObjectAcl
+              - s3:DeleteObject
+              - s3:DeleteObjectVersion
+            Resource: !Sub '${PatientDocumentsBucket.Arn}/*'
+          
+          - Sid: AllowKMSAccess
+            Effect: Allow
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Resource: !GetAtt S3KMSKey.Arn
+
+  # S3 Bucket Policy for additional security
+  PatientDocumentsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref PatientDocumentsBucket
+      PolicyDocument:
+        Statement:
+          - Sid: DenyInsecureConnections
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt PatientDocumentsBucket.Arn
+              - !Sub '${PatientDocumentsBucket.Arn}/*'
+            Condition:
+              Bool:
+                'aws:SecureTransport': 'false'
+          
+          - Sid: DenyUnencryptedObjectUploads
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:PutObject'
+            Resource: !Sub '${PatientDocumentsBucket.Arn}/*'
+            Condition:
+              StringNotEquals:
+                's3:x-amz-server-side-encryption': 'aws:kms'
+          
+          - Sid: RequireKMSEncryption
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:PutObject'
+            Resource: !Sub '${PatientDocumentsBucket.Arn}/*'
+            Condition:
+              StringNotEquals:
+                's3:x-amz-server-side-encryption-aws-kms-key-id': !GetAtt S3KMSKey.Arn
+
+  # Lambda function for S3 event processing (audit trail)
+  S3EventProcessorRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: CloudWatchLogsAccess
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !GetAtt S3AccessLogGroup.Arn
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-s3-event-processor-role
+
+Outputs:
+  PatientDocumentsBucket:
+    Description: S3 bucket for patient documents
+    Value: !Ref PatientDocumentsBucket
+    Export:
+      Name: !Sub ${ProjectName}-patient-documents-bucket
+
+  AccessLogsBucket:
+    Description: S3 bucket for access logs
+    Value: !Ref AccessLogsBucket
+    Export:
+      Name: !Sub ${ProjectName}-access-logs-bucket
+
+  S3KMSKey:
+    Description: KMS key for S3 encryption
+    Value: !Ref S3KMSKey
+    Export:
+      Name: !Sub ${ProjectName}-s3-kms-key
+
+  S3AccessPolicy:
+    Description: IAM policy for S3 access
+    Value: !Ref S3AccessPolicy
+    Export:
+      Name: !Sub ${ProjectName}-s3-access-policy
+
+  S3AccessLogGroup:
+    Description: CloudWatch log group for S3 access events
+    Value: !Ref S3AccessLogGroup
+    Export:
+      Name: !Sub ${ProjectName}-s3-access-log-group

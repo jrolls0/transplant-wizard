@@ -1,0 +1,78 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Simplified RDS Database for Transplant Platform'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: transplant-platform
+  DBPassword:
+    Type: String
+    NoEcho: true
+    MinLength: 12
+
+Resources:
+  # DB Subnet Group
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group for RDS database
+      SubnetIds: !Split
+        - ','
+        - !ImportValue
+          Fn::Sub: ${ProjectName}-private-subnets
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-db-subnet-group
+
+  # RDS Instance
+  Database:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: !Sub ${ProjectName}-database
+      DBInstanceClass: db.t3.micro
+      Engine: postgres
+      EngineVersion: '15.4'
+      AllocatedStorage: 20
+      StorageType: gp3
+      StorageEncrypted: true
+      
+      # Database Configuration
+      DBName: transplant_platform
+      MasterUsername: transplant_admin
+      MasterUserPassword: !Ref DBPassword
+      
+      # Network Configuration
+      VPCSecurityGroups:
+        - !ImportValue 
+          Fn::Sub: ${ProjectName}-db-security-group
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      
+      # Backup Configuration
+      BackupRetentionPeriod: 7
+      
+      # Security
+      PubliclyAccessible: false
+      DeletionProtection: false  # Set to true for production
+      
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-database
+
+Outputs:
+  DatabaseEndpoint:
+    Description: RDS database endpoint
+    Value: !GetAtt Database.Endpoint.Address
+    Export:
+      Name: !Sub ${ProjectName}-db-endpoint
+
+  DatabasePort:
+    Description: RDS database port
+    Value: !GetAtt Database.Endpoint.Port
+    Export:
+      Name: !Sub ${ProjectName}-db-port
+
+  DatabaseName:
+    Description: RDS database name
+    Value: transplant_platform
+    Export:
+      Name: !Sub ${ProjectName}-db-name

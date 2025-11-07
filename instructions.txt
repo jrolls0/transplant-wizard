@@ -1,0 +1,161 @@
+I want you to create an IOS mobile app and a website  that will simplify and automate a current process within the existing transplant referral process. Everything that is built in the platform must be COMPLETELY HIPPA compliant (this platform will be sold to medical offices/hospitals who require HIPPA compliant software). Here is the process that I want this platform to be able to handle/automate:
+1. Platforms & Technology
+iOS Mobile App
+Target: iOS 14 and above
+Native implementation in Swift
+Web Application
+Responsive front-end (e.g. React or Vue.js)
+Back-end API (e.g. Node.js/Express or Python/Flask)
+Cloud & Compliance
+Host ALL user data (usernames, passwords, patient info, DUSW info, etc…) on a HIPAA-compliant cloud (AWS)
+Encrypt all PHI in transit (TLS 1.2+) and at rest (AES-256)
+Audit logging for all PHI access
+2. Security & Authentication
+User Authentication
+Secure username/password using AWS cognito
+Password reset via secure, time-limited links
+Data Protection
+Role-based access control (patients vs. DUSWs)
+Automatic session timeout after inactivity
+3. User Roles
+Dialysis Unit Social Worker (DUSW) – uses the website
+Patient – uses the iOS mobile app
+4. DUSW Website (Social Worker Portal)
+Step 0 – Registration & Profile Setup on an initial login screen
+Form fields (required):
+Title
+First Name
+Last Name
+Phone Number
+Email
+Secure Username & Password
+Data Storage:
+All information stored on a HIPAA-compliant, highly secure cloud database
+Post-Registration UI:
+Visually appealing, professional medical aesthetic
+Tabs for:
+Dashboard (overview of referred patients)
+Patient Referrals (list and status)
+Notifications
+Settings (profile, password)
+5. Patient Mobile App
+Step 1 – Registration & Consent (include an initial login/registration screen)
+Form fields (required):
+Title
+First Name
+Last Name
+Address
+Birthdate
+Phone Number
+Email
+Primary Care Physician
+Insurance Provider
+Secure Username & Password
+Data Storage:
+All information stored on a HIPAA-compliant, highly secure cloud database
+Dialysis Clinic & Referrer Selection (before Consent step):
+Dialysis Clinic (dropdown – choose one):
+Metro Health Dialysis Center
+Lakeside Renal Unit
+Grand River Kidney Care
+Social Worker (dropdown – appears after clinic selection):
+Metro Health Dialysis Center
+Sarah Johnson
+Michael Lee
+Lakeside Renal Unit
+Nancy Davis
+Robert Smith
+Grand River Kidney Care
+Emily Chen
+Daniel Martinez
+Store the patient’s chosen clinic and social worker in their profile record, and associate that social worker’s user account with the patient.
+Consent & Release of Information
+When: On first sign-up only
+What to show: the following document:
+“AUTHORIZATION FOR RELEASE OF MEDICAL RECORDS
+I hereby authorize OrganOptima LLC to release/disclose my medical records.
+I understand that I may revoke this authorization at any time in writing.”
+How to capture consent:
+Render a single-line text input under the document, labeled
+“Type your full name to sign” (required).
+Render a button labeled
+“Confirm Authorization”.
+On tap “Confirm Authorization”:
+Validate that the input is non-empty.
+Save the entered name as the patient’s “signature” along with the current date/time.
+Mark both “Consent to communicate PHI” and “Release of Information” as completed in the user’s record.
+Proceed to the next step in onboarding
+6. Patient Portal & Chatbot
+Step 2 – Homepage & Virtual Coordinator
+After signup and ROI signature, show a medical-style dashboard with a chatbot widget.
+Chatbot Initial Prompt & Selection Form (exact content below; do not modify):
+““I’m Amelia, your virtual transplant coordinator. To begin your transplant referral process, please review the list of nearby transplant centers below and choose up to three by replying with their corresponding numbers. Once you’ve made your selections, I’ll contact those centers on your behalf to express your interest and get you next steps.
+
+**FORM**
+Central Texas Transplant Institute
+• Address: 1234 Health Drive, Austin, TX 78701 (2.3 miles)
+• Specialties: Kidney & Pancreas
+• Average Wait Time: 8 months
+• Contact: (512) 555-0101
+Hill Country Organ Transplant Center
+• Address: 5678 Hillview Blvd., Round Rock, TX 78665 (18.7 miles)
+• Specialties: Liver & Kidney
+• Average Wait Time: 10 months
+• Contact: (512) 555-0202
+Lone Star Transplant Hospital
+• Address: 9101 Lone Star Way, Cedar Park, TX 78613 (20.5 miles)
+• Specialties: Heart & Lung
+• Average Wait Time: 12 months
+• Contact: (512) 555-0303
+Austin Advanced Transplant Center
+• Address: 4321 Austin Avenue, Austin, TX 78702 (3.1 miles)
+• Specialties: Heart & Kidney
+• Average Wait Time: 9 months
+• Contact: (512) 555-0404
+Texas Memorial Transplant Center
+• Address: 8765 University Blvd., Austin, TX 78712 (5.0 miles)
+• Specialties: Liver & Lung
+• Average Wait Time: 11 months
+• Contact: (512) 555-0505
+Capital City Transplant Clinic
+• Address: 2345 Capitol St., Austin, TX 78703 (4.2 miles)
+• Specialties: Kidney & Pancreas
+• Average Wait Time: 7 months
+• Contact: (512) 555-0606
+Bluebonnet Transplant Services
+• Address: 3456 Bluebonnet Circle, Manor, TX 78653 (13.3 miles)
+• Specialties: Kidney
+• Average Wait Time: 6 months
+• Contact: (512) 555-0707
+Hilltop Transplant Alliance
+• Address: 7890 Hilltop Drive, Dripping Springs, TX 78620 (22.8 miles)
+• Specialties: Liver
+• Average Wait Time: 9 months
+• Contact: (512) 555-0808
+Riverside Transplant Center
+• Address: 1012 Riverside Way, Bastrop, TX 78602 (31.2 miles)
+• Specialties: Kidney & Heart
+• Average Wait Time: 10 months
+• Contact: (512) 555-0909
+Suburban Transplant Network
+• Address: 1112 Suburban Road, Pflugerville, TX 78660 (17.5 miles)
+• Specialties: Lung & Pancreas
+• Average Wait Time: 8 months
+• Contact: (512) 555-0010
+**Submit button**
+”
+Chatbot Submission Acknowledgment (exact content below; do not modify):
+“Thank you for your selections! I’ve reached out to those transplant centers and will update you as soon as I hear back. Do you have any initial questions for me?”
+
+7. Notifications & Workflow
+Step 3 – DUSW Notification
+Trigger: As soon as the patient submits their transplant-center selections and confirms authorization
+Target: Send a real-time notification to the social worker’s website account that the patient selected during registration
+Payload should include:
+Confirmation that the patient downloaded the app and completed their profile (automatic)
+List of selected transplant centers
+Proof of the signed ROI
+UX: On the DUSW dashboard the social worker sees a new alert/entry for that patient, with all above details and a link to open or download the ROI document.
+
+NOTE: If there is anything that you need to provide for you (e.g. account IDs, API keys, etc…) make sure to explicitly request the information from me and also provide explanations on how I can obtain the requested information. Likewise, if there are any actions you cannot perform yourself, and you need me to perform those actions on your behalf, then make sure to specifically provide me detailed instructions on what you need me to do for you in order to successfully build the project.
+
