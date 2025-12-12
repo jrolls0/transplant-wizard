@@ -593,9 +593,19 @@
                         <input type="hidden" id="duswName" name="duswName" value="<%= user.title %> <%= user.firstName %> <%= user.lastName %>">
 
                         <!-- Form Alerts -->
-                        <div id="successAlert" class="alert alert-success alert-dismissible fade show d-none" role="alert">
-                            <i class="fas fa-check-circle me-2"></i>
-                            <strong>Success!</strong> Referral sent successfully.
+                        <div id="successAlert" class="alert alert-success alert-dismissible fade show d-none" role="alert" style="border-left: 4px solid #28a745; background-color: #d4edda;">
+                            <div class="mb-2">
+                                <i class="fas fa-check-circle me-2" style="color: #28a745; font-size: 1.2rem;"></i>
+                                <strong style="font-size: 1.1rem; color: #155724;">Referral Sent Successfully!</strong>
+                            </div>
+                            <p class="mb-2" style="color: #155724; font-size: 0.95rem;">
+                                Patient referral has been created for:
+                                <br><strong id="successPatientName"></strong>
+                                <br><em id="successPatientEmail"></em>
+                            </p>
+                            <p class="mb-0" style="color: #155724; font-size: 0.9rem;">
+                                An invitation email has been sent to the patient's email address with a link to register on Transplant Wizard.
+                            </p>
                             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                         </div>
 
@@ -694,17 +704,30 @@
                     }
 
                     console.log('✅ Referral created successfully');
+
+                    // Update success message with patient details
+                    const patientName = document.getElementById('patientFirstName').value + ' ' + document.getElementById('patientLastName').value;
+                    const patientEmail = document.getElementById('patientEmail').value;
+                    document.getElementById('successPatientName').textContent = patientName;
+                    document.getElementById('successPatientEmail').textContent = patientEmail;
+
                     // Show success message
                     successAlert.classList.remove('d-none');
+
+                    // Scroll to top of modal to show success message
+                    const modalBody = document.querySelector('.modal-body');
+                    if (modalBody) {
+                        modalBody.scrollTop = 0;
+                    }
 
                     // Reset form
                     referralForm.reset();
 
-                    // Close modal after 2 seconds
+                    // Close modal after 4 seconds (user can also close manually)
                     setTimeout(() => {
                         const modal = bootstrap.Modal.getInstance(document.getElementById('referralModal'));
                         modal.hide();
-                    }, 2000);
+                    }, 4000);
 
                 } catch (error) {
                     console.error('❌ Referral error:', error);
