@@ -618,8 +618,12 @@
 
     <!-- JavaScript for Referral Form -->
     <script>
+        // Alert to confirm script is loading
+        alert('Dashboard script is loading...');
+
         document.addEventListener('DOMContentLoaded', function() {
             console.log('🔍 Dashboard script loaded - initializing referral form');
+            alert('DOMContentLoaded event fired');
 
             const referralForm = document.getElementById('referralForm');
             const submitButton = document.getElementById('submitReferral');
@@ -628,14 +632,20 @@
             const errorMessage = document.getElementById('errorMessage');
             const submitText = document.getElementById('submitText');
 
+            console.log('Form:', referralForm);
+            console.log('Button:', submitButton);
+
             if (!submitButton) {
                 console.error('❌ Submit button not found!');
+                alert('Submit button not found!');
                 return;
             }
 
             console.log('✅ Form elements found, attaching click handler');
+            alert('Form elements found, attaching click handler');
 
             submitButton.addEventListener('click', async function(e) {
+                alert('Button clicked!');
                 e.preventDefault();
                 console.log('🔗 Submit button clicked');
 
