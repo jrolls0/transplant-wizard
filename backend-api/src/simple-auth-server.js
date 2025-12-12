@@ -618,9 +618,10 @@ app.post('/api/v1/dusw/referrals/create', async (req, res) => {
             dusw: duswName || ''
         };
 
-        // Build referral link - use web-based registration page for better email compatibility
-        // This link works in email clients and will redirect to app if installed
-        const referralLink = `https://transplantwizard.com/register/patient?referralToken=${referralToken}`;
+        // Build universal link that works across all platforms
+        // iOS: Will open the app if installed, or show TestFlight/App Store prompt
+        // Web: Falls back to web registration if app isn't installed
+        const referralLink = `https://transplantwizard.com/register?referralToken=${referralToken}`;
 
         // Send email notification to patient with referral link and DUSW info
         const referralEmailSubject = `Welcome to Transplant Wizard - Referral from ${duswName}`;
@@ -676,20 +677,27 @@ app.post('/api/v1/dusw/referrals/create', async (req, res) => {
             </div>
 
             <div class="info-section">
-                <h2 style="color: #333; font-size: 18px; margin-bottom: 15px;">Get Started in 4 Easy Steps</h2>
+                <h2 style="color: #333; font-size: 18px; margin-bottom: 15px;">How to Get Started</h2>
                 <div class="steps">
                     <ol>
-                        <li><strong>Click the button below</strong> to open Transplant Wizard (or open it from your app store)</li>
+                        <li><strong>Click the button below</strong> - this will open the Transplant Wizard app on your iPhone</li>
+                        <li><strong>If you don't have the app yet</strong> - you'll be taken to TestFlight to install it (free, no approval needed)</li>
                         <li><strong>Review your pre-filled information</strong> - your details are already there</li>
-                        <li><strong>Create a secure password</strong> to protect your account</li>
-                        <li><strong>Complete your registration</strong> and start managing your health</li>
+                        <li><strong>Create a secure password</strong> and complete your registration</li>
                     </ol>
                 </div>
             </div>
 
             <div class="cta-section">
-                <a href="${referralLink}" class="cta-button">Complete Your Registration</a>
-                <p style="font-size: 13px; color: #666; margin-top: 15px;">Or copy this link: <code style="background: #f5f5f5; padding: 4px 8px; border-radius: 3px; word-break: break-all;">${referralLink}</code></p>
+                <a href="${referralLink}" class="cta-button" style="display: inline-block; text-decoration: none;">📱 Open Transplant Wizard App</a>
+                <p style="font-size: 12px; color: #999; margin-top: 20px; line-height: 1.6;">
+                    <strong>iPhone Users:</strong> Tap the button above to open the app or visit TestFlight.<br>
+                    <strong>Web Users:</strong> <a href="${referralLink}" style="color: #667eea; text-decoration: underline;">Click here to register on web</a>
+                </p>
+                <p style="font-size: 11px; color: #999; margin-top: 15px;">
+                    If the button doesn't work, copy and paste this link into your browser:<br>
+                    <code style="background: #f5f5f5; padding: 6px 10px; border-radius: 3px; word-break: break-all; display: block; margin-top: 8px;">${referralLink}</code>
+                </p>
             </div>
 
             <div class="expiration-warning">

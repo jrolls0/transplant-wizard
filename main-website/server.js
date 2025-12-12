@@ -306,7 +306,14 @@ app.get('/contact', (req, res) => {
     });
 });
 
-// Patient Referral Registration
+// Patient Referral Registration - Universal Link (handles /register for app universal links)
+app.get('/register', (req, res) => {
+    res.render('patient-referral-register', {
+        title: 'Complete Your Registration - Transplant Wizard'
+    });
+});
+
+// Patient Referral Registration - Legacy path for backward compatibility
 app.get('/register/patient', (req, res) => {
     res.render('patient-referral-register', {
         title: 'Complete Your Registration - Transplant Wizard'

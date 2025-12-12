@@ -1,0 +1,17 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "FKCQ48LT8U.com.transplantwizard.transplantplatform",
+        "paths": [
+          "/register/*",
+          "/patient/*"
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["FKCQ48LT8U.com.transplantwizard.transplantplatform"]
+  }
+}
