@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { SESv2Client, SendEmailCommand } = require('@aws-sdk/client-sesv2');
 
 // Load environment variables
 require('dotenv').config();
@@ -35,6 +36,85 @@ app.use(cors({
 }));
 
 app.use(express.json({ limit: '10mb' }));
+
+// AWS SES Client (using IAM-based authentication with default credential chain)
+const sesClient = new SESv2Client({
+    region: process.env.AWS_REGION || 'us-east-1'
+});
+
+// SES Configuration
+const SES_CONFIG = {
+    fromEmail: process.env.SES_FROM_EMAIL || 'noreply@transplantwizard.com',
+    sandboxMode: process.env.SES_SANDBOX_MODE !== 'false', // Default to sandbox mode for safety
+    sandboxRecipients: (process.env.SES_SANDBOX_RECIPIENTS || 'jrolls@umich.edu').split(',').map(e => e.trim())
+};
+
+console.log(`📧 SES Configuration: ${SES_CONFIG.sandboxMode ? 'SANDBOX MODE' : 'PRODUCTION MODE'}`);
+console.log(`📧 From Email: ${SES_CONFIG.fromEmail}`);
+if (SES_CONFIG.sandboxMode) {
+    console.log(`📧 Sandbox Recipients: ${SES_CONFIG.sandboxRecipients.join(', ')}`);
+}
+
+// Send Email Helper Function
+async function sendEmail(toEmail, subject, htmlContent, textContent) {
+    try {
+        // Validate recipient in sandbox mode
+        if (SES_CONFIG.sandboxMode) {
+            if (!SES_CONFIG.sandboxRecipients.includes(toEmail.toLowerCase())) {
+                console.warn(`⚠️  Email to ${toEmail} blocked - not in sandbox recipients list`);
+                console.warn(`⚠️  Sandbox recipients: ${SES_CONFIG.sandboxRecipients.join(', ')}`);
+                return {
+                    success: false,
+                    message: `Email blocked - recipient not verified in sandbox mode`,
+                    sandboxMode: true,
+                    recipientEmail: toEmail
+                };
+            }
+        }
+
+        const command = new SendEmailCommand({
+            FromEmailAddress: SES_CONFIG.fromEmail,
+            Destination: {
+                ToAddresses: [toEmail]
+            },
+            Content: {
+                Simple: {
+                    Subject: {
+                        Data: subject,
+                        Charset: 'UTF-8'
+                    },
+                    Body: {
+                        Html: {
+                            Data: htmlContent,
+                            Charset: 'UTF-8'
+                        },
+                        Text: {
+                            Data: textContent,
+                            Charset: 'UTF-8'
+                        }
+                    }
+                }
+            }
+        });
+
+        const response = await sesClient.send(command);
+        console.log(`✅ Email sent to ${toEmail}: ${response.MessageId}`);
+
+        return {
+            success: true,
+            messageId: response.MessageId,
+            recipient: toEmail
+        };
+
+    } catch (error) {
+        console.error(`❌ Email sending error for ${toEmail}:`, error.message);
+        return {
+            success: false,
+            error: error.message,
+            recipient: toEmail
+        };
+    }
+}
 
 // Database connection
 const pool = new Pool({
@@ -546,9 +626,152 @@ app.post('/api/v1/dusw/referrals/create', async (req, res) => {
 
         const referralLink = `app://register?${params.toString()}`;
 
-        // TODO: Send email notification to patient with referral link and DUSW info
-        console.log(`📧 TODO: Send referral email to ${patientEmail}`);
-        // This would typically call an email service (SES, SendGrid, etc.)
+        // Send email notification to patient with referral link and DUSW info
+        const referralEmailSubject = `Welcome to Transplant Wizard - Referral from ${duswName}`;
+
+        const referralEmailHTML = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; padding: 0; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 30px; text-align: center; border-radius: 10px 10px 0 0; }
+        .header h1 { margin: 0; font-size: 28px; font-weight: 300; letter-spacing: 0.5px; }
+        .header p { margin: 10px 0 0 0; font-size: 16px; opacity: 0.95; }
+        .content { background: #ffffff; padding: 40px 30px; }
+        .greeting { font-size: 16px; margin-bottom: 20px; line-height: 1.6; }
+        .info-section { margin: 30px 0; }
+        .info-box { background: #f0f4ff; border-left: 4px solid #667eea; padding: 20px; margin: 20px 0; border-radius: 4px; }
+        .info-box h3 { margin: 0 0 15px 0; color: #667eea; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+        .info-item { margin: 8px 0; font-size: 15px; }
+        .info-item strong { color: #333; }
+        .cta-section { text-align: center; margin: 30px 0; }
+        .cta-button { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 40px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: 600; font-size: 16px; transition: transform 0.2s; margin: 20px 0; }
+        .cta-button:hover { transform: translateY(-2px); }
+        .steps { margin: 30px 0; }
+        .steps ol { padding-left: 20px; }
+        .steps li { margin: 12px 0; line-height: 1.6; }
+        .expiration-warning { background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 15px; margin: 20px 0; font-size: 14px; color: #856404; }
+        .footer { background: #f5f5f5; padding: 30px; text-align: center; font-size: 12px; color: #666; border-radius: 0 0 10px 10px; }
+        .footer p { margin: 8px 0; }
+        .footer-link { color: #667eea; text-decoration: none; }
+        .hipaa-notice { background: #e8f4f8; border: 1px solid #b3d9e8; border-radius: 4px; padding: 12px; margin-top: 15px; font-size: 12px; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Welcome to Transplant Wizard</h1>
+            <p>Your Healthcare Team is Here to Support You</p>
+        </div>
+        <div class="content">
+            <div class="greeting">
+                <p>Hello ${patientTitle ? patientTitle + ' ' : ''}${patientFirstName} ${patientLastName},</p>
+                <p>You've been referred to <strong>Transplant Wizard</strong> by <strong>${duswName}</strong> at <strong>${dialysisClinicName}</strong>. This is a secure patient portal designed to help you manage your transplant journey and stay connected with your healthcare team.</p>
+            </div>
+
+            <div class="info-box">
+                <h3>Your Pre-filled Information</h3>
+                <div class="info-item"><strong>Name:</strong> ${patientTitle ? patientTitle + ' ' : ''}${patientFirstName} ${patientLastName}</div>
+                <div class="info-item"><strong>Email:</strong> ${patientEmail}</div>
+                <div class="info-item"><strong>Dialysis Clinic:</strong> ${dialysisClinicName}</div>
+                ${patientNephrologist ? `<div class="info-item"><strong>Nephrologist:</strong> ${patientNephrologist}</div>` : ''}
+            </div>
+
+            <div class="info-section">
+                <h2 style="color: #333; font-size: 18px; margin-bottom: 15px;">Get Started in 4 Easy Steps</h2>
+                <div class="steps">
+                    <ol>
+                        <li><strong>Click the button below</strong> to open Transplant Wizard (or open it from your app store)</li>
+                        <li><strong>Review your pre-filled information</strong> - your details are already there</li>
+                        <li><strong>Create a secure password</strong> to protect your account</li>
+                        <li><strong>Complete your registration</strong> and start managing your health</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="cta-section">
+                <a href="${referralLink}" class="cta-button">Complete Your Registration</a>
+                <p style="font-size: 13px; color: #666; margin-top: 15px;">Or copy this link: <code style="background: #f5f5f5; padding: 4px 8px; border-radius: 3px; word-break: break-all;">${referralLink}</code></p>
+            </div>
+
+            <div class="expiration-warning">
+                <strong>⏰ Important:</strong> This referral link expires on <strong>${new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</strong>. Please complete your registration before then.
+            </div>
+
+            <div class="info-section">
+                <p style="font-size: 15px; line-height: 1.8;">If you have any questions or need assistance, please don't hesitate to contact:</p>
+                <p style="margin: 15px 0; padding: 15px; background: #f9f9f9; border-radius: 4px;">
+                    <strong>${duswName}</strong><br>
+                    ${dialysisClinicName}
+                </p>
+            </div>
+
+            <p style="color: #666; font-size: 14px; margin-top: 30px;">Thank you for choosing Transplant Wizard. We're committed to supporting your transplant journey.</p>
+        </div>
+        <div class="footer">
+            <p><strong>Transplant Wizard Patient Portal</strong></p>
+            <div class="hipaa-notice">
+                <p style="margin: 0;">🔒 <strong>HIPAA Notice:</strong> This is a secure, encrypted communication containing protected health information. Do not forward this email or share this link with unauthorized persons.</p>
+            </div>
+            <p style="margin-top: 15px;">&copy; 2025 Transplant Wizard. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>`;
+
+        const referralEmailText = `Welcome to Transplant Wizard
+Your Healthcare Team is Here to Support You
+
+Hello ${patientTitle ? patientTitle + ' ' : ''}${patientFirstName} ${patientLastName},
+
+You've been referred to Transplant Wizard by ${duswName} at ${dialysisClinicName}. This is a secure patient portal designed to help you manage your transplant journey.
+
+YOUR PRE-FILLED INFORMATION:
+- Name: ${patientTitle ? patientTitle + ' ' : ''}${patientFirstName} ${patientLastName}
+- Email: ${patientEmail}
+- Dialysis Clinic: ${dialysisClinicName}
+${patientNephrologist ? `- Nephrologist: ${patientNephrologist}` : ''}
+
+GET STARTED IN 4 EASY STEPS:
+1. Click or copy the link below to open Transplant Wizard
+2. Review your pre-filled information
+3. Create a secure password
+4. Complete your registration
+
+REGISTRATION LINK:
+${referralLink}
+
+IMPORTANT: This referral link expires on ${new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+
+If you need assistance, please contact:
+${duswName}
+${dialysisClinicName}
+
+---
+HIPAA NOTICE: This is a secure, encrypted communication containing protected health information. Do not forward this email or share this link with unauthorized persons.
+
+© 2025 Transplant Wizard. All rights reserved.
+`;
+
+        // Send email via AWS SES
+        const emailResult = await sendEmail(
+            patientEmail,
+            referralEmailSubject,
+            referralEmailHTML,
+            referralEmailText
+        );
+
+        if (!emailResult.success) {
+            console.warn(`⚠️  Email sending failed for referral: ${emailResult.message || emailResult.error}`);
+            // Log but continue - referral is created even if email fails in sandbox mode
+            if (SES_CONFIG.sandboxMode && emailResult.sandboxMode) {
+                console.log(`📧 Note: Email blocked due to sandbox mode. Recipient must be in: ${SES_CONFIG.sandboxRecipients.join(', ')}`);
+            }
+        } else {
+            console.log(`✅ Referral email sent successfully to ${patientEmail}`);
+        }
 
         await client.query('COMMIT');
 

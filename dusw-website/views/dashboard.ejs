@@ -38,6 +38,9 @@
                                 </div>
                             </div>
                             <div class="d-flex flex-wrap gap-2">
+                                <button class="btn btn-success btn-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#referralModal">
+                                    <i class="fas fa-user-plus me-2"></i>Refer New Patient
+                                </button>
                                 <a href="/patients" class="btn btn-light btn-sm fw-semibold">
                                     <i class="fas fa-users me-2"></i>View All Patients
                                 </a>
@@ -508,6 +511,204 @@
             </div>
         </div>
     </div>
+
+    <!-- Referral Modal -->
+    <div class="modal fade" id="referralModal" tabindex="-1" aria-labelledby="referralModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-gradient border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <div>
+                        <h5 class="modal-title text-white fw-bold mb-0" id="referralModalLabel">
+                            <i class="fas fa-user-plus me-2"></i>Refer a New Patient
+                        </h5>
+                        <small class="text-white-50">Invite a patient to join Transplant Wizard</small>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="referralForm">
+                        <!-- Patient Information Section -->
+                        <div class="mb-4">
+                            <h6 class="text-uppercase fw-bold text-secondary mb-3" style="font-size: 0.85rem; letter-spacing: 1px;">
+                                Patient Information
+                            </h6>
+
+                            <!-- Title -->
+                            <div class="mb-3">
+                                <label for="patientTitle" class="form-label fw-semibold">Title (Optional)</label>
+                                <select class="form-select form-select-sm" id="patientTitle" name="patientTitle">
+                                    <option value="">Select title...</option>
+                                    <option value="Mr">Mr</option>
+                                    <option value="Mrs">Mrs</option>
+                                    <option value="Ms">Ms</option>
+                                    <option value="Dr">Dr</option>
+                                    <option value="Prof">Prof</option>
+                                </select>
+                            </div>
+
+                            <!-- First Name -->
+                            <div class="mb-3">
+                                <label for="patientFirstName" class="form-label fw-semibold">First Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" id="patientFirstName" name="patientFirstName" placeholder="John" required>
+                                <small class="text-muted">Patient's first name</small>
+                            </div>
+
+                            <!-- Last Name -->
+                            <div class="mb-3">
+                                <label for="patientLastName" class="form-label fw-semibold">Last Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" id="patientLastName" name="patientLastName" placeholder="Doe" required>
+                                <small class="text-muted">Patient's last name</small>
+                            </div>
+
+                            <!-- Email -->
+                            <div class="mb-3">
+                                <label for="patientEmail" class="form-label fw-semibold">Email Address <span class="text-danger">*</span></label>
+                                <input type="email" class="form-control form-control-sm" id="patientEmail" name="patientEmail" placeholder="john.doe@example.com" required>
+                                <small class="text-muted">Patient will receive referral link at this email</small>
+                            </div>
+
+                            <!-- Nephrologist -->
+                            <div class="mb-3">
+                                <label for="patientNephrologist" class="form-label fw-semibold">Nephrologist (Optional)</label>
+                                <input type="text" class="form-control form-control-sm" id="patientNephrologist" name="patientNephrologist" placeholder="Dr. Jane Smith">
+                                <small class="text-muted">Patient's nephrologist name</small>
+                            </div>
+                        </div>
+
+                        <!-- Clinic Information Section -->
+                        <div class="mb-4">
+                            <h6 class="text-uppercase fw-bold text-secondary mb-3" style="font-size: 0.85rem; letter-spacing: 1px;">
+                                Clinic Information
+                            </h6>
+
+                            <!-- Dialysis Clinic (Auto-filled) -->
+                            <div class="mb-3">
+                                <label for="dialysisClinic" class="form-label fw-semibold">Dialysis Clinic</label>
+                                <input type="text" class="form-control form-control-sm" id="dialysisClinic" name="dialysisClinic" value="<%= user.dialysisClinic %>" readonly>
+                                <small class="text-muted">Auto-populated from your clinic</small>
+                            </div>
+
+                            <!-- Dialysis Clinic ID (Hidden) -->
+                            <input type="hidden" id="dialysisClinicId" name="dialysisClinicId" value="<%= user.dialysisClinicId || 'default-clinic-id' %>">
+                        </div>
+
+                        <!-- DUSW Information Section (Hidden) -->
+                        <input type="hidden" id="duswId" name="duswId" value="<%= user.id %>">
+                        <input type="hidden" id="duswEmail" name="duswEmail" value="<%= user.email %>">
+                        <input type="hidden" id="duswName" name="duswName" value="<%= user.title %> <%= user.firstName %> <%= user.lastName %>">
+
+                        <!-- Form Alerts -->
+                        <div id="successAlert" class="alert alert-success alert-dismissible fade show d-none" role="alert">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong>Success!</strong> Referral sent successfully.
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+
+                        <div id="errorAlert" class="alert alert-danger alert-dismissible fade show d-none" role="alert">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            <strong>Error:</strong> <span id="errorMessage"></span>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer border-0 bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary btn-sm fw-semibold" id="submitReferral">
+                        <i class="fas fa-paper-plane me-2"></i><span id="submitText">Send Referral</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript for Referral Form -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const referralForm = document.getElementById('referralForm');
+            const submitButton = document.getElementById('submitReferral');
+            const successAlert = document.getElementById('successAlert');
+            const errorAlert = document.getElementById('errorAlert');
+            const errorMessage = document.getElementById('errorMessage');
+            const submitText = document.getElementById('submitText');
+
+            submitButton.addEventListener('click', async function() {
+                // Clear previous alerts
+                successAlert.classList.add('d-none');
+                errorAlert.classList.add('d-none');
+
+                // Validate form
+                if (!referralForm.checkValidity()) {
+                    referralForm.reportValidity();
+                    return;
+                }
+
+                // Disable button and show loading state
+                submitButton.disabled = true;
+                const originalText = submitText.textContent;
+                submitText.textContent = 'Sending...';
+                submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span><span id="submitText">Sending...</span>';
+
+                try {
+                    // Prepare form data
+                    const formData = {
+                        patientTitle: document.getElementById('patientTitle').value || null,
+                        patientFirstName: document.getElementById('patientFirstName').value,
+                        patientLastName: document.getElementById('patientLastName').value,
+                        patientEmail: document.getElementById('patientEmail').value,
+                        patientNephrologist: document.getElementById('patientNephrologist').value || null,
+                        dialysisClinicId: document.getElementById('dialysisClinicId').value,
+                        dialysisClinicName: document.getElementById('dialysisClinic').value,
+                        duswId: document.getElementById('duswId').value,
+                        duswEmail: document.getElementById('duswEmail').value,
+                        duswName: document.getElementById('duswName').value
+                    };
+
+                    // Make API request
+                    const response = await fetch('/api/v1/dusw/referrals/create', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(formData)
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Failed to send referral');
+                    }
+
+                    // Show success message
+                    successAlert.classList.remove('d-none');
+
+                    // Reset form
+                    referralForm.reset();
+
+                    // Close modal after 2 seconds
+                    setTimeout(() => {
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('referralModal'));
+                        modal.hide();
+                    }, 2000);
+
+                } catch (error) {
+                    console.error('Referral error:', error);
+                    errorMessage.textContent = error.message || 'An unexpected error occurred. Please try again.';
+                    errorAlert.classList.remove('d-none');
+                } finally {
+                    // Re-enable button
+                    submitButton.disabled = false;
+                    submitText.textContent = originalText;
+                    submitButton.innerHTML = '<i class="fas fa-paper-plane me-2"></i><span id="submitText">Send Referral</span>';
+                }
+            });
+
+            // Reset alerts when modal closes
+            document.getElementById('referralModal').addEventListener('hidden.bs.modal', function() {
+                successAlert.classList.add('d-none');
+                errorAlert.classList.add('d-none');
+            });
+        });
+    </script>
 </div>
 
 <%- include('partials/footer') %>
