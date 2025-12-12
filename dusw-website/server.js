@@ -268,6 +268,13 @@ app.post('/login', async (req, res) => {
             });
         }
 
+        // Get the first available dialysis clinic ID
+        const clinicResult = await queryWithRetry(`
+            SELECT id FROM dialysis_clinics LIMIT 1
+        `, []);
+
+        const clinicId = clinicResult.rows.length > 0 ? clinicResult.rows[0].id : null;
+
         // Set session
         req.session.user = {
             id: user.id,
@@ -277,7 +284,7 @@ app.post('/login', async (req, res) => {
             email: user.email,
             phoneNumber: user.phone_number,
             dialysisClinic: user.dialysis_clinic,
-            dialysis_clinic_id: user.id // For now, use social worker ID as clinic ID
+            dialysisClinicId: clinicId // Use actual clinic UUID from database
         };
 
         console.log(`✅ DUSW login successful: ${user.email}`);

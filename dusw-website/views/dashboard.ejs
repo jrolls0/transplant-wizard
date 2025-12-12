@@ -529,14 +529,14 @@
                     <form id="referralForm">
                         <!-- Patient Information Section -->
                         <div class="mb-4">
-                            <h6 class="text-uppercase fw-bold text-secondary mb-3" style="font-size: 0.85rem; letter-spacing: 1px;">
+                            <h5 class="fw-bold mb-3" style="color: #1f2937; font-size: 1.1rem;">
                                 Patient Information
-                            </h6>
+                            </h5>
 
                             <!-- Title -->
                             <div class="mb-3">
-                                <label for="patientTitle" class="form-label fw-semibold">Title (Optional)</label>
-                                <select class="form-select form-select-sm" id="patientTitle" name="patientTitle">
+                                <label for="patientTitle" class="form-label fw-bold" style="color: #374151; font-size: 0.95rem;">Title (Optional)</label>
+                                <select class="form-select form-select-sm" id="patientTitle" name="patientTitle" style="background-color: #f3f4f6; border-color: #d1d5db;">
                                     <option value="">Select title...</option>
                                     <option value="Mr">Mr</option>
                                     <option value="Mrs">Mrs</option>
@@ -548,44 +548,39 @@
 
                             <!-- First Name -->
                             <div class="mb-3">
-                                <label for="patientFirstName" class="form-label fw-semibold">First Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control form-control-sm" id="patientFirstName" name="patientFirstName" placeholder="John" required>
-                                <small class="text-muted">Patient's first name</small>
+                                <label for="patientFirstName" class="form-label fw-bold" style="color: #374151; font-size: 0.95rem;">First Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" id="patientFirstName" name="patientFirstName" placeholder="John" required style="background-color: #f3f4f6; border-color: #d1d5db; color: #111827;">
                             </div>
 
                             <!-- Last Name -->
                             <div class="mb-3">
-                                <label for="patientLastName" class="form-label fw-semibold">Last Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control form-control-sm" id="patientLastName" name="patientLastName" placeholder="Doe" required>
-                                <small class="text-muted">Patient's last name</small>
+                                <label for="patientLastName" class="form-label fw-bold" style="color: #374151; font-size: 0.95rem;">Last Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" id="patientLastName" name="patientLastName" placeholder="Doe" required style="background-color: #f3f4f6; border-color: #d1d5db; color: #111827;">
                             </div>
 
                             <!-- Email -->
                             <div class="mb-3">
-                                <label for="patientEmail" class="form-label fw-semibold">Email Address <span class="text-danger">*</span></label>
-                                <input type="email" class="form-control form-control-sm" id="patientEmail" name="patientEmail" placeholder="john.doe@example.com" required>
-                                <small class="text-muted">Patient will receive referral link at this email</small>
+                                <label for="patientEmail" class="form-label fw-bold" style="color: #374151; font-size: 0.95rem;">Email Address <span class="text-danger">*</span></label>
+                                <input type="email" class="form-control form-control-sm" id="patientEmail" name="patientEmail" placeholder="john.doe@example.com" required style="background-color: #f3f4f6; border-color: #d1d5db; color: #111827;">
                             </div>
 
                             <!-- Nephrologist -->
                             <div class="mb-3">
-                                <label for="patientNephrologist" class="form-label fw-semibold">Nephrologist (Optional)</label>
-                                <input type="text" class="form-control form-control-sm" id="patientNephrologist" name="patientNephrologist" placeholder="Dr. Jane Smith">
-                                <small class="text-muted">Patient's nephrologist name</small>
+                                <label for="patientNephrologist" class="form-label fw-bold" style="color: #374151; font-size: 0.95rem;">Nephrologist (Optional)</label>
+                                <input type="text" class="form-control form-control-sm" id="patientNephrologist" name="patientNephrologist" placeholder="Dr. Jane Smith" style="background-color: #f3f4f6; border-color: #d1d5db; color: #111827;">
                             </div>
                         </div>
 
                         <!-- Clinic Information Section -->
                         <div class="mb-4">
-                            <h6 class="text-uppercase fw-bold text-secondary mb-3" style="font-size: 0.85rem; letter-spacing: 1px;">
+                            <h5 class="fw-bold mb-3" style="color: #1f2937; font-size: 1.1rem;">
                                 Clinic Information
-                            </h6>
+                            </h5>
 
                             <!-- Dialysis Clinic (Auto-filled) -->
                             <div class="mb-3">
-                                <label for="dialysisClinic" class="form-label fw-semibold">Dialysis Clinic</label>
-                                <input type="text" class="form-control form-control-sm" id="dialysisClinic" name="dialysisClinic" value="<%= user.dialysisClinic %>" readonly>
-                                <small class="text-muted">Auto-populated from your clinic</small>
+                                <label for="dialysisClinic" class="form-label fw-bold" style="color: #374151; font-size: 0.95rem;">Dialysis Clinic</label>
+                                <input type="text" class="form-control form-control-sm" id="dialysisClinic" name="dialysisClinic" value="<%= user.dialysisClinic %>" readonly style="background-color: #f3f4f6; border-color: #d1d5db; color: #111827;">
                             </div>
 
                             <!-- Dialysis Clinic ID (Hidden) -->
@@ -663,8 +658,8 @@
                         duswName: document.getElementById('duswName').value
                     };
 
-                    // Make API request
-                    const response = await fetch('/api/v1/dusw/referrals/create', {
+                    // Make API request to backend API
+                    const response = await fetch('https://api.transplantwizard.com/api/v1/dusw/referrals/create', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
