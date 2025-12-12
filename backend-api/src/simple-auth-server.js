@@ -618,13 +618,9 @@ app.post('/api/v1/dusw/referrals/create', async (req, res) => {
             dusw: duswName || ''
         };
 
-        // Build referral link with query parameters
-        const params = new URLSearchParams();
-        Object.entries(preFilledData).forEach(([key, value]) => {
-            if (value) params.append(key, value);
-        });
-
-        const referralLink = `app://register?${params.toString()}`;
+        // Build referral link - use web-based registration page for better email compatibility
+        // This link works in email clients and will redirect to app if installed
+        const referralLink = `https://transplantwizard.com/register/patient?referralToken=${referralToken}`;
 
         // Send email notification to patient with referral link and DUSW info
         const referralEmailSubject = `Welcome to Transplant Wizard - Referral from ${duswName}`;

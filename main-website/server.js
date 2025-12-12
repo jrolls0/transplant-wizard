@@ -306,6 +306,13 @@ app.get('/contact', (req, res) => {
     });
 });
 
+// Patient Referral Registration
+app.get('/register/patient', (req, res) => {
+    res.render('patient-referral-register', {
+        title: 'Complete Your Registration - Transplant Wizard'
+    });
+});
+
 // 404 handler
 app.use((req, res) => {
     res.status(404).render('404', {
