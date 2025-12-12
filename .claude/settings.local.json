@@ -23,5 +23,20 @@
       "WebFetch(domain:transplantwizard.com)"
     ],
     "deny": []
+  },
+  "mcpServers": {
+    "awslabs.aws-api-mcp-server": {
+      "command": "python",
+      "args": [
+        "-m",
+        "awslabs.aws_api_mcp_server.server"
+      ],
+      "env": {
+        "AWS_REGION": "us-east-1",
+        "AWS_API_MCP_PROFILE_NAME": "transplant-platform-admin"
+      },
+      "disabled": false,
+      "autoApprove": []
+    }
   }
 }
