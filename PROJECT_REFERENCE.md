@@ -245,9 +245,68 @@ aws rds describe-db-instances --region us-east-1 --profile transplant-platform-a
 ### Patient Test Accounts
 - Created via registration form or by DUSW referral
 
+## DUSW Referral System Implementation Status (As of Dec 12, 2025)
+
+### ✅ COMPLETED
+- Database schema: Added nephrologist column, created patient_referral_invitations table
+- Backend API: Registration endpoint updated, two new referral endpoints created
+- Mobile App: Nephrologist field added, referral token support implemented
+- All changes committed to GitHub and ready for deployment
+
+### ⏳ PENDING (REQUIRES USER ACTION)
+1. **Email Service Setup** (CRITICAL - BLOCKS REFERRAL FEATURE)
+   - Choose provider: AWS SES, SendGrid, Mailgun, etc.
+   - Add credentials to backend .env
+   - Implement email sending in simple-auth-server.js line 549
+   - Email template with referral link and personalized greeting
+
+2. **Deep Linking** (MOBILE APP)
+   - Add URL scheme to Info.plist (CFBundleURLSchemes: "app")
+   - Implement URL parameter parsing in SceneDelegate
+   - Pre-fill registration form from URL parameters
+   - Fetch referral data from /api/v1/patient/referral/:token endpoint
+
+3. **DUSW Dashboard Referral Form** (WEB PORTAL)
+   - Location: dusw-website/ (structure TBD)
+   - Add "Refer New Patient" button and form
+   - POST to /api/v1/dusw/referrals/create endpoint
+   - Display referral link with copy/QR code options
+
+4. **Database Migration to Production**
+   - Apply production-schema-updates.sql
+   - Verify tables exist and columns created
+
+5. **Testing**
+   - Email delivery verification
+   - Deep link opening and form pre-fill
+   - End-to-end referral workflow
+
+### Key Implementation Details
+- **Referral Token**: UUID, expires in 30 days, checked before use
+- **Patient Email**: Must match exactly between referral and registration
+- **Pre-Fill URL Format**: `app://register?referralToken=uuid&firstName=John&lastName=Doe&email=...&nephrologist=...&dialysisClinic=...`
+- **API Endpoints**:
+  - `POST /api/v1/auth/register/patient` (updated - accepts nephrologist + referralToken)
+  - `POST /api/v1/dusw/referrals/create` (new)
+  - `GET /api/v1/patient/referral/:token` (new)
+
+### Files Modified in Latest Commit (948c289)
+- `backend-api/src/simple-auth-server.js` (lines 162-166 registration params, 171-185 referral handling, 453-629 new endpoints)
+- `backend-api/database/production-schema-updates.sql` (nephrologist column, referral table)
+- `Shakir-ClaudeCode/Views/Authentication/RegistrationView.swift` (nephrologist field, referral state)
+- `Shakir-ClaudeCode/Core/AuthenticationManager.swift` (PatientRegistrationData struct)
+- `Shakir-ClaudeCode/Core/APIService.swift` (PatientRegistrationRequest struct)
+
+### Documentation Files Created
+- `IMPLEMENTATION_PLAN.md` - Detailed step-by-step implementation guide
+- `DUSW_REFERRAL_COMPLETION_SUMMARY.md` - Completion status and deployment checklist
+- `PROJECT_REFERENCE.md` - This file (project overview and structure)
+
 ## Important Notes
 - All sensitive data (passwords, tokens) should be environment variables
 - HIPAA compliance required for patient data
 - Deep linking needs URL scheme configuration in Xcode (Info.plist)
-- Referral tokens should expire after a set period (e.g., 30 days)
+- Referral tokens are UUIDs with 30-day expiration
 - Patient email validation required before allowing registration from referral link
+- Email sending is critical path item - must be configured before DUSW referral feature is live
+- All referral actions logged to audit_logs table for HIPAA compliance
