@@ -7,6 +7,7 @@
 
 import Foundation
 import os.log
+import CryptoKit
 #if canImport(UIKit)
 import UIKit
 #endif
@@ -16,10 +17,15 @@ class AuditLogger {
     
     private let logger = Logger(subsystem: "com.organoptima.transplant-platform", category: "audit")
     private let dateFormatter: ISO8601DateFormatter
+    private let encryptionKey: SymmetricKey
+    private let offlineStoreURL: URL
     
     private init() {
         dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        encryptionKey = AuditLogger.loadOrCreateEncryptionKey()
+        offlineStoreURL = AuditLogger.buildOfflineStoreURL()
     }
     
     // MARK: - Authentication Events
@@ -184,20 +190,19 @@ class AuditLogger {
     }
     
     private func storeEventLocally(_ event: AuditEvent) {
-        // Store in local database/file for offline capability
-        // This ensures audit logs are not lost even when offline
-        let userDefaults = UserDefaults.standard
-        var storedEvents = userDefaults.array(forKey: "pending_audit_events") as? [Data] ?? []
-        
-        if let eventData = try? JSONEncoder().encode(event) {
-            storedEvents.append(eventData)
-            
-            // Keep only last 1000 events locally
-            if storedEvents.count > 1000 {
-                storedEvents = Array(storedEvents.suffix(1000))
-            }
-            
-            userDefaults.set(storedEvents, forKey: "pending_audit_events")
+        var storedEvents = loadStoredEvents()
+        storedEvents.append(event)
+
+        // Keep only last 1000 events locally
+        if storedEvents.count > 1000 {
+            storedEvents = Array(storedEvents.suffix(1000))
+        }
+
+        do {
+            let encrypted = try encrypt(events: storedEvents)
+            try encrypted.write(to: offlineStoreURL, options: [.atomic, .completeFileProtection])
+        } catch {
+            logger.error("AUDIT: Failed to persist encrypted audit events: \(error.localizedDescription)")
         }
     }
     
@@ -230,6 +235,60 @@ class AuditLogger {
         #else
         return "macOS_device"
         #endif
+    }
+
+    // MARK: - Secure Offline Storage
+
+    private func loadStoredEvents() -> [AuditEvent] {
+        guard FileManager.default.fileExists(atPath: offlineStoreURL.path) else { return [] }
+
+        do {
+            let data = try Data(contentsOf: offlineStoreURL)
+            let decrypted = try decrypt(data: data)
+            return try JSONDecoder().decode([AuditEvent].self, from: decrypted)
+        } catch {
+            logger.error("AUDIT: Failed to read encrypted audit events: \(error.localizedDescription)")
+            // If decryption fails, drop the corrupted file to avoid repeated failures
+            try? FileManager.default.removeItem(at: offlineStoreURL)
+            return []
+        }
+    }
+
+    private func encrypt(events: [AuditEvent]) throws -> Data {
+        let data = try JSONEncoder().encode(events)
+        let sealedBox = try AES.GCM.seal(data, using: encryptionKey)
+        guard let combined = sealedBox.combined else {
+            throw NSError(domain: "AuditLogger", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to combine encrypted audit payload"])
+        }
+        return combined
+    }
+
+    private func decrypt(data: Data) throws -> Data {
+        let sealedBox = try AES.GCM.SealedBox(combined: data)
+        return try AES.GCM.open(sealedBox, using: encryptionKey)
+    }
+
+    private static func loadOrCreateEncryptionKey() -> SymmetricKey {
+        if let keyData = KeychainManager.shared.getAuditEncryptionKey() {
+            return SymmetricKey(data: keyData)
+        }
+
+        let newKey = SymmetricKey(size: .bits256)
+        let keyData = newKey.withUnsafeBytes { Data($0) }
+        KeychainManager.shared.storeAuditEncryptionKey(keyData)
+        return newKey
+    }
+
+    private static func buildOfflineStoreURL() -> URL {
+        let baseDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first ?? FileManager.default.temporaryDirectory
+        var directory = baseDir.appendingPathComponent("AuditLogs", isDirectory: true)
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: nil)
+
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? directory.setResourceValues(values)
+
+        return directory.appendingPathComponent("audit_events.bin")
     }
 }
 

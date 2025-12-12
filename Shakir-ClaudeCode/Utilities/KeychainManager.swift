@@ -111,6 +111,16 @@ class KeychainManager {
     func getBiometricKey() -> String? {
         return retrieve(key: "biometric_key")
     }
+
+    // MARK: - Secure Key Storage (e.g., audit log encryption)
+
+    func storeAuditEncryptionKey(_ keyData: Data) {
+        store(key: "audit_encryption_key", data: keyData)
+    }
+
+    func getAuditEncryptionKey() -> Data? {
+        retrieveData(key: "audit_encryption_key")
+    }
     
     // MARK: - Private Methods
     

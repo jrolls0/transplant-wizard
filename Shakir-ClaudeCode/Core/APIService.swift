@@ -43,11 +43,13 @@ class APIService: ObservableObject {
             address: profile.address,
             primaryCarePhysician: profile.primaryCarePhysician,
             insuranceProvider: profile.insuranceProvider,
+            nephrologist: profile.nephrologist,
             dialysisClinic: profile.dialysisClinic,
             socialWorkerName: profile.socialWorkerName,
+            referralToken: profile.referralToken,
             password: password
         )
-        
+
         return try await performRequest(endpoint: endpoint, method: .POST, body: body)
     }
     
@@ -151,12 +153,13 @@ class APIService: ObservableObject {
     
     func signROIConsent(digitalSignature: String, accessToken: String) async throws -> EmptyResponse {
         let endpoint = "/patients/roi-consent"
+
+        let body = ROISignatureRequest(digitalSignature: digitalSignature)
         
-        // The backend doesn't expect any body data, it creates ROI from the authenticated user
         return try await performAuthenticatedRequest(
             endpoint: endpoint,
             method: .POST,
-            body: EmptyRequest(),
+            body: body,
             accessToken: accessToken
         )
     }
@@ -304,12 +307,6 @@ class APIService: ObservableObject {
         }
         
         let (data, response) = try await session.data(for: request)
-        
-        // Debug: Print raw response data
-        if let responseString = String(data: data, encoding: .utf8) {
-            print("📥 Raw response data for \(endpoint): \(responseString)")
-        }
-        print("📊 Response data size: \(data.count) bytes")
         
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.networkError
@@ -459,8 +456,10 @@ struct PatientRegistrationRequest: Codable {
     let address: String?
     let primaryCarePhysician: String?
     let insuranceProvider: String?
+    let nephrologist: String?
     let dialysisClinic: String
     let socialWorkerName: String
+    let referralToken: String?
     let password: String
 }
 
@@ -491,6 +490,10 @@ struct ResetPasswordRequest: Codable {
 
 struct TransplantCenterSelection: Codable {
     let transplantCenterIds: [String]
+}
+
+struct ROISignatureRequest: Codable {
+    let digitalSignature: String
 }
 
 struct AuthResponse: Codable {

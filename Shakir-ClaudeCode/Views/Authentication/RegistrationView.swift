@@ -24,7 +24,12 @@ struct RegistrationView: View {
     @State private var address = ""
     @State private var primaryCarePhysician = ""
     @State private var insuranceProvider = ""
-    
+    @State private var nephrologist = ""
+
+    // Referral information
+    @State private var referralToken: String?
+    @State private var isPrefilledFromReferral = false
+
     // UI state
     @State private var showDatePicker = false
     @State private var isLoading = false
@@ -223,7 +228,16 @@ struct RegistrationView: View {
                 keyboardType: .default,
                 errorMessage: fieldErrors["insuranceProvider"]
             )
-            
+
+            // Nephrologist
+            FormField(
+                title: "Nephrologist",
+                text: $nephrologist,
+                placeholder: "Dr. Jane Doe",
+                keyboardType: .default,
+                errorMessage: fieldErrors["nephrologist"]
+            )
+
             // Dialysis Clinic Selection
             VStack(alignment: .leading, spacing: 8) {
                 Text("Dialysis Clinic *")
@@ -523,8 +537,10 @@ struct RegistrationView: View {
             address: address.isEmpty ? nil : address,
             primaryCarePhysician: primaryCarePhysician.isEmpty ? nil : primaryCarePhysician,
             insuranceProvider: insuranceProvider.isEmpty ? nil : insuranceProvider,
+            nephrologist: nephrologist.isEmpty ? nil : nephrologist,
             dialysisClinic: selectedClinicName,
-            socialWorkerName: selectedWorkerName
+            socialWorkerName: selectedWorkerName,
+            referralToken: referralToken
         )
         
         Task {

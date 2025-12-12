@@ -159,14 +159,31 @@ app.post('/api/v1/auth/register/patient', async (req, res) => {
     try {
         await client.query('BEGIN');
         
-        const { 
-            title, firstName, lastName, email, phoneNumber, 
-            dateOfBirth, address, primaryCarePhysician, 
-            insuranceProvider, dialysisClinic, socialWorkerName, password 
+        const {
+            title, firstName, lastName, email, phoneNumber,
+            dateOfBirth, address, primaryCarePhysician,
+            insuranceProvider, dialysisClinic, socialWorkerName, password,
+            nephrologist, referralToken
         } = req.body;
         
         console.log(`📝 Registering patient: ${email}`);
-        
+
+        // If registering from a referral, fetch pre-filled data
+        let referralData = null;
+        if (referralToken) {
+            const referralResult = await client.query(
+                'SELECT * FROM patient_referral_invitations WHERE referral_token = $1 AND expires_at > NOW() AND redeemed = false',
+                [referralToken]
+            );
+
+            if (referralResult.rows.length > 0) {
+                referralData = referralResult.rows[0];
+                console.log(`✅ Found valid referral token: ${referralToken}`);
+            } else {
+                console.warn(`⚠️  Referral token invalid or expired: ${referralToken}`);
+            }
+        }
+
         // Validate required fields with detailed messages
         const missingFields = [];
         if (!firstName?.trim()) missingFields.push('First Name');
@@ -291,17 +308,18 @@ app.post('/api/v1/auth/register/patient', async (req, res) => {
         // Create patient record with social worker linkage
         const patientResult = await client.query(`
             INSERT INTO patients (
-                user_id, date_of_birth, address, primary_care_physician, 
-                insurance_provider, profile_completed, onboarding_completed,
+                user_id, date_of_birth, address, primary_care_physician,
+                insurance_provider, nephrologist, profile_completed, onboarding_completed,
                 created_at, updated_at
-            ) VALUES ($1, $2, $3, $4, $5, false, false, NOW(), NOW()) 
+            ) VALUES ($1, $2, $3, $4, $5, $6, false, false, NOW(), NOW())
             RETURNING id
         `, [
             userId,
             dateOfBirth ? new Date(dateOfBirth) : null,
             address || '',
             primaryCarePhysician || '',
-            insuranceProvider || ''
+            insuranceProvider || '',
+            nephrologist || ''
         ]);
         
         // Store the social worker and clinic info in a separate table for DUSW linkage
@@ -336,12 +354,23 @@ app.post('/api/v1/auth/register/patient', async (req, res) => {
             VALUES ($1, $2, $3, NOW(), NOW())
         `, [email.toLowerCase(), passwordHash, patientId]);
         
+        // Mark referral as redeemed if it was used
+        if (referralData) {
+            await client.query(`
+                UPDATE patient_referral_invitations
+                SET redeemed = true, redeemed_at = NOW(), redeemed_patient_id = $1
+                WHERE referral_token = $2
+            `, [patientId, referralToken]);
+
+            console.log(`✅ Marked referral as redeemed: ${referralToken}`);
+        }
+
         // Log audit
         await client.query(`
             INSERT INTO audit_logs (user_id, action, resource_type, description, occurred_at)
             VALUES ($1, 'CREATE', 'user', 'Patient registered successfully', NOW())
         `, [userId]);
-        
+
         await client.query('COMMIT');
         
         console.log(`✅ Registration successful: ${userId}`);
@@ -418,6 +447,184 @@ app.post('/api/v1/auth/register/patient', async (req, res) => {
         });
     } finally {
         client.release();
+    }
+});
+
+// DUSW Create Patient Referral Endpoint
+app.post('/api/v1/dusw/referrals/create', async (req, res) => {
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        const {
+            patientTitle,
+            patientFirstName,
+            patientLastName,
+            patientEmail,
+            patientNephrologist,
+            dialysisClinicId,
+            dialysisClinicName,
+            duswId,
+            duswEmail,
+            duswName
+        } = req.body;
+
+        console.log(`📝 DUSW creating referral for: ${patientEmail}`);
+
+        // Validate required fields
+        const missingFields = [];
+        if (!patientFirstName?.trim()) missingFields.push('Patient First Name');
+        if (!patientLastName?.trim()) missingFields.push('Patient Last Name');
+        if (!patientEmail?.trim()) missingFields.push('Patient Email');
+        if (!dialysisClinicName?.trim()) missingFields.push('Dialysis Clinic');
+        if (!duswEmail?.trim()) missingFields.push('DUSW Email');
+
+        if (missingFields.length > 0) {
+            return res.status(400).json({
+                success: false,
+                error: `Please fill in the following required fields: ${missingFields.join(', ')}`
+            });
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(patientEmail.trim())) {
+            return res.status(400).json({
+                success: false,
+                error: 'Please enter a valid patient email address'
+            });
+        }
+
+        // Create referral invitation record
+        const referralResult = await client.query(`
+            INSERT INTO patient_referral_invitations (
+                referral_token, patient_email, patient_title, patient_first_name,
+                patient_last_name, patient_nephrologist, dialysis_clinic_name,
+                dialysis_clinic_id, dusw_id, dusw_email, dusw_name,
+                redeemed, created_at, expires_at
+            ) VALUES (
+                gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+                false, NOW(), NOW() + INTERVAL '30 days'
+            )
+            RETURNING referral_token, referral_token::text as token
+        `, [
+            patientEmail.toLowerCase(),
+            patientTitle || '',
+            patientFirstName.trim(),
+            patientLastName.trim(),
+            patientNephrologist || '',
+            dialysisClinicName.trim(),
+            dialysisClinicId || null,
+            duswId || null,
+            duswEmail.toLowerCase(),
+            duswName || ''
+        ]);
+
+        const referralToken = referralResult.rows[0].token;
+
+        console.log(`✅ Referral created: ${referralToken}`);
+
+        // Build pre-fill URL for the referral link
+        const appDownloadUrl = process.env.APP_DOWNLOAD_URL || 'https://apps.apple.com/app/transplant-wizard';
+        const preFilledData = {
+            referralToken,
+            firstName: patientFirstName.trim(),
+            lastName: patientLastName.trim(),
+            email: patientEmail.toLowerCase(),
+            title: patientTitle || '',
+            nephrologist: patientNephrologist || '',
+            dialysisClinic: dialysisClinicName.trim(),
+            dusw: duswName || ''
+        };
+
+        // Build referral link with query parameters
+        const params = new URLSearchParams();
+        Object.entries(preFilledData).forEach(([key, value]) => {
+            if (value) params.append(key, value);
+        });
+
+        const referralLink = `app://register?${params.toString()}`;
+
+        // TODO: Send email notification to patient with referral link and DUSW info
+        console.log(`📧 TODO: Send referral email to ${patientEmail}`);
+        // This would typically call an email service (SES, SendGrid, etc.)
+
+        await client.query('COMMIT');
+
+        res.status(201).json({
+            success: true,
+            message: 'Referral created successfully. Email sent to patient.',
+            data: {
+                referralToken,
+                referralLink,
+                patientEmail,
+                patientName: `${patientTitle ? patientTitle + ' ' : ''}${patientFirstName} ${patientLastName}`,
+                expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+            }
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('❌ Referral creation error:', error);
+
+        res.status(500).json({
+            success: false,
+            error: 'Failed to create referral. Please try again.'
+        });
+    } finally {
+        client.release();
+    }
+});
+
+// Get Referral Pre-Fill Data Endpoint
+app.get('/api/v1/patient/referral/:token', async (req, res) => {
+    try {
+        const { token } = req.params;
+
+        console.log(`🔍 Fetching referral data for token: ${token}`);
+
+        // Query referral invitation by token
+        const result = await pool.query(
+            `SELECT * FROM patient_referral_invitations
+             WHERE referral_token = $1 AND expires_at > NOW() AND redeemed = false`,
+            [token]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Referral not found or has expired. Please contact your DUSW for a new referral link.'
+            });
+        }
+
+        const referral = result.rows[0];
+
+        console.log(`✅ Found valid referral: ${token}`);
+
+        res.json({
+            success: true,
+            data: {
+                patientTitle: referral.patient_title,
+                patientFirstName: referral.patient_first_name,
+                patientLastName: referral.patient_last_name,
+                patientEmail: referral.patient_email,
+                patientNephrologist: referral.patient_nephrologist,
+                dialysisClinic: referral.dialysis_clinic_name,
+                dialysisClinicId: referral.dialysis_clinic_id,
+                duswName: referral.dusw_name,
+                duswEmail: referral.dusw_email,
+                expiresAt: referral.expires_at
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Referral fetch error:', error);
+
+        res.status(500).json({
+            success: false,
+            error: 'Failed to retrieve referral information.'
+        });
     }
 });
 

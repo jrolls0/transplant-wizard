@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleGetInfoString</key>
+	<string>Transplant Platform Patient App</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSFaceIDUsageDescription</key>
+	<string>We use Face ID to securely authenticate you and protect your medical information.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>We need camera access to scan and upload medical documents.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We need photo library access to upload medical documents and images.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We use your location to find nearby transplant centers and calculate distances.</string>
+</dict>
+</plist>

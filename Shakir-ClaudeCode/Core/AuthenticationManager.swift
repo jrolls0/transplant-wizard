@@ -453,6 +453,8 @@ struct PatientRegistrationData {
     let address: String?
     let primaryCarePhysician: String?
     let insuranceProvider: String?
+    let nephrologist: String?
     let dialysisClinic: String
     let socialWorkerName: String
+    let referralToken: String?
 }
