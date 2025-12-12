@@ -1,0 +1,352 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║      🧪 DUSW PATIENT REFERRAL SYSTEM - COMPLETE TESTING ROADMAP 🧪         ║
+║                                                                              ║
+║                           December 12, 2025                                 ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+📚 THREE TESTING DOCUMENTS AVAILABLE
+═══════════════════════════════════════════════════════════════════════════════
+
+1️⃣  TEST_EXECUTION_SUMMARY.md
+    ├─ 📋 Navigation guide for all testing
+    ├─ 🎯 Quick decision matrix (1-45 minutes)
+    ├─ 👥 Role-specific testing paths
+    ├─ ✅ Success criteria definitions
+    └─ 📊 Test report templates
+    
+    📌 READ THIS FIRST - It tells you what to read next!
+
+2️⃣  QUICK_TEST_COMMANDS.md
+    ├─ ⚡ Copy-paste ready commands
+    ├─ 📝 One-liner tests for each stage
+    ├─ 🔍 Quick status check (1 minute!)
+    ├─ 🐛 Troubleshooting quick fixes
+    └─ 📱 Role-specific command lists
+    
+    📌 BEST FOR - Quick verification, scripting, reference
+
+3️⃣  TESTING_GUIDE.md
+    ├─ 📖 Complete detailed procedures
+    ├─ 🔬 50+ individual test cases
+    ├─ 📸 Expected behavior descriptions
+    ├─ 🗂️  Database query templates
+    └─ 📋 Comprehensive troubleshooting
+    
+    📌 BEST FOR - QA, UAT, comprehensive testing
+
+
+🎯 QUICK DECISION MATRIX
+═══════════════════════════════════════════════════════════════════════════════
+
+TIME AVAILABLE?
+│
+├─ "5 minutes" ──────────────→ QUICK_TEST_COMMANDS.md "Quick Status Check"
+│                               (Just verify API and DB are up)
+│
+├─ "15-20 minutes" ─────────→ QUICK_TEST_COMMANDS.md (All stages)
+│                               (Key commands, light testing)
+│
+├─ "30-45 minutes" ─────────→ TESTING_GUIDE.md (All 9 stages)
+│                               (Comprehensive, detailed testing)
+│
+└─ "2+ hours" ──────────────→ TESTING_GUIDE.md + Full Regression
+                               (Complete QA, edge cases, performance)
+
+
+👥 TESTING BY ROLE
+═══════════════════════════════════════════════════════════════════════════════
+
+QA / TESTER
+  📌 Focus: Stages 3, 4, 5, 6, 7 (User workflows)
+  ⏱️  Time: 20-25 minutes
+  📄 Read: TESTING_GUIDE.md Stage 3-7
+  🎯 Goal: Verify end-user experience
+  
+  Key Tests:
+  ✓ DUSW dashboard form
+  ✓ Email sending and content
+  ✓ Deep link opening app
+  ✓ Form pre-fill
+  ✓ Registration completion
+
+
+MOBILE DEVELOPER
+  📌 Focus: Stages 5, 6, 7, 9 (App functionality)
+  ⏱️  Time: 15-20 minutes
+  📄 Read: TESTING_GUIDE.md Stage 5-9
+  🎯 Goal: Verify app features work correctly
+  
+  Key Tests:
+  ✓ Deep link URL parsing
+  ✓ Form pre-population
+  ✓ API integration
+  ✓ Registration flow
+  ✓ Error handling
+
+
+BACKEND DEVELOPER
+  📌 Focus: Stages 1, 2, 4, 8 (API & Database)
+  ⏱️  Time: 15-20 minutes
+  📄 Read: TESTING_GUIDE.md Stage 1,2,4,8
+  🎯 Goal: Verify API and data integrity
+  
+  Key Tests:
+  ✓ API health and responses
+  ✓ Database schema
+  ✓ Email sending
+  ✓ Data storage and retrieval
+
+
+DEVOPS / INFRASTRUCTURE
+  📌 Focus: Stages 1, 2, Health Checks
+  ⏱️  Time: 10-15 minutes
+  📄 Read: QUICK_TEST_COMMANDS.md
+  🎯 Goal: Verify infrastructure is healthy
+  
+  Key Tests:
+  ✓ API running
+  ✓ Database connected
+  ✓ EC2 instance healthy
+  ✓ SES configured
+
+
+PRODUCT MANAGER
+  📌 Focus: Stages 3-7 (User experience)
+  ⏱️  Time: 25 minutes
+  📄 Read: TESTING_GUIDE.md Stage 3-7
+  🎯 Goal: Verify feature works as designed
+  
+  Key Tests:
+  ✓ DUSW creates referral
+  ✓ Patient receives email
+  ✓ Patient can register
+  ✓ User experience is smooth
+
+
+🧪 THE 9 TESTING STAGES (30-45 min total)
+═══════════════════════════════════════════════════════════════════════════════
+
+STAGE 1: API Health Check
+├─ ⏱️  Time: 1 minute
+├─ 🎯 Goal: Verify backend is running
+├─ 🔧 Command: curl https://api.transplantwizard.com/health
+├─ ✅ Pass: Status = "healthy"
+└─ 📄 Details: TESTING_GUIDE.md Stage 1, or QUICK_TEST_COMMANDS.md
+
+STAGE 2: Database Schema
+├─ ⏱️  Time: 2 minutes
+├─ 🎯 Goal: Verify schema updates exist
+├─ 🔧 Command: psql ... \d patient_referral_invitations
+├─ ✅ Pass: Table exists with all columns
+└─ 📄 Details: TESTING_GUIDE.md Stage 2, or QUICK_TEST_COMMANDS.md
+
+STAGE 3: DUSW Dashboard Form
+├─ ⏱️  Time: 3 minutes
+├─ 🎯 Goal: Verify form is accessible and works
+├─ 🔧 Manual: Open DUSW dashboard, click "Refer New Patient"
+├─ ✅ Pass: Modal opens, form renders, validation works
+└─ 📄 Details: TESTING_GUIDE.md Stage 3
+
+STAGE 4: Email Sending
+├─ ⏱️  Time: 5 minutes
+├─ 🎯 Goal: Verify AWS SES sends email
+├─ 🔧 Manual: Submit referral form with email: jrolls@umich.edu
+├─ ✅ Pass: Email received with correct content
+└─ 📄 Details: TESTING_GUIDE.md Stage 4
+
+STAGE 5: Deep Linking
+├─ ⏱️  Time: 3 minutes
+├─ 🎯 Goal: Verify deep link opens app
+├─ 🔧 Command: xcrun simctl openurl booted "app://register?..."
+├─ ✅ Pass: App opens, navigates to registration
+└─ 📄 Details: TESTING_GUIDE.md Stage 5
+
+STAGE 6: Form Pre-Fill
+├─ ⏱️  Time: 3 minutes
+├─ 🎯 Goal: Verify form fields auto-populate
+├─ 🔧 Manual: Check form fields after deep link opens
+├─ ✅ Pass: First name, last name, email, title filled correctly
+└─ 📄 Details: TESTING_GUIDE.md Stage 6
+
+STAGE 7: Registration
+├─ ⏱️  Time: 5 minutes
+├─ 🎯 Goal: Verify patient can complete registration
+├─ 🔧 Manual: Fill remaining fields, click Register
+├─ ✅ Pass: Patient created, auto-logged in, dashboard shown
+└─ 📄 Details: TESTING_GUIDE.md Stage 7
+
+STAGE 8: Verification
+├─ ⏱️  Time: 3 minutes
+├─ 🎯 Goal: Verify data saved correctly
+├─ 🔧 Command: psql ... SELECT * FROM patients WHERE email = '...'
+├─ ✅ Pass: Patient record exists, referral marked as redeemed
+└─ 📄 Details: TESTING_GUIDE.md Stage 8
+
+STAGE 9: Error Handling
+├─ ⏱️  Time: 5 minutes
+├─ 🎯 Goal: Verify error cases handled
+├─ 🔧 Manual: Try invalid email, expired token, etc.
+├─ ✅ Pass: Errors displayed nicely, no crashes
+└─ 📄 Details: TESTING_GUIDE.md Stage 9
+
+
+⚡ QUICK 5-MINUTE CHECK
+═══════════════════════════════════════════════════════════════════════════════
+
+Run this to verify system is healthy right now:
+
+  curl -s https://api.transplantwizard.com/health | jq .
+  
+  Expected: status = "healthy", database = "connected"
+  
+If passes → System is healthy ✅
+If fails  → See QUICK_TEST_COMMANDS.md "Troubleshooting" section
+
+
+✅ SUCCESS CRITERIA
+═══════════════════════════════════════════════════════════════════════════════
+
+MINIMAL SUCCESS (Must haves)
+  ✓ Email sent to sandbox recipient
+  ✓ Deep link opens app
+  ✓ Registration with referral token succeeds
+  ✓ Patient auto-logged in
+
+FULL SUCCESS (Comprehensive)
+  ✓ All 9 stages pass
+  ✓ All 50+ tests pass
+  ✓ Zero errors in logs
+  ✓ Zero crashes
+  ✓ Database integrity maintained
+  ✓ Audit logs complete
+
+EXCELLENCE (Production ready)
+  ✓ All tests pass with full success criteria
+  ✓ Performance acceptable (< 2 sec per action)
+  ✓ Error handling graceful
+  ✓ Documentation complete
+  ✓ Scalability verified
+
+
+🐛 STUCK? HERE'S HOW TO GET HELP
+═══════════════════════════════════════════════════════════════════════════════
+
+Problem: ________________
+│
+├─ "How do I run test X?"
+│  └─ Look in TESTING_GUIDE.md Stage X for detailed steps
+│
+├─ "I need a command for test X"
+│  └─ Look in QUICK_TEST_COMMANDS.md for copy-paste
+│
+├─ "Which test should I run?"
+│  └─ Look above at "TESTING BY ROLE" for your role
+│
+├─ "What if a test fails?"
+│  └─ Look in TESTING_GUIDE.md "Troubleshooting" for that stage
+│
+└─ "API not responding"
+   └─ Run: QUICK_TEST_COMMANDS.md "Troubleshooting Quick Fixes"
+
+
+📊 TESTING CHECKLIST
+═══════════════════════════════════════════════════════════════════════════════
+
+Before testing:
+☐ EC2 instance running
+☐ Backend API running
+☐ Database connected
+☐ Have email access to jrolls@umich.edu
+☐ Have iOS simulator with app installed
+
+Stage 1: API Health ..................... ☐
+Stage 2: Database Schema ............... ☐
+Stage 3: DUSW Dashboard Form .......... ☐
+Stage 4: Email Sending ................. ☐
+Stage 5: Deep Linking .................. ☐
+Stage 6: Form Pre-Fill ................. ☐
+Stage 7: Registration .................. ☐
+Stage 8: Verification .................. ☐
+Stage 9: Error Handling ................ ☐
+
+OVERALL RESULT: ☐ PASS  ☐ FAIL  ☐ PARTIAL
+
+
+🚀 WHAT'S NEXT?
+═══════════════════════════════════════════════════════════════════════════════
+
+If all tests PASS ✅
+→ System is ready for production deployment
+→ Proceed with monitoring and user rollout
+
+If some tests FAIL ⚠️
+→ Document failures with issue numbers
+→ Prioritize by severity (critical/high/medium)
+→ Fix and re-test
+
+If all tests FAIL ❌
+→ Check EC2 instance is running
+→ Verify backend is running
+→ Check database connectivity
+→ See "Troubleshooting Quick Fixes" in QUICK_TEST_COMMANDS.md
+
+
+📞 NEED MORE INFO?
+═══════════════════════════════════════════════════════════════════════════════
+
+Architecture & Project Details
+→ PROJECT_REFERENCE.md
+
+Implementation Details
+→ DUSW_REFERRAL_FINAL_DEPLOYMENT.md
+
+Original Implementation Plan
+→ IMPLEMENTATION_PLAN.md
+
+Detailed Test Procedures (50+ tests)
+→ TESTING_GUIDE.md
+
+Quick Command Reference (Copy & paste)
+→ QUICK_TEST_COMMANDS.md
+
+High-level Overview
+→ TEST_EXECUTION_SUMMARY.md (Also navigation guide)
+
+This File (Quick reference)
+→ TESTING_ROADMAP.txt (You are here!)
+
+
+🎯 START HERE
+═══════════════════════════════════════════════════════════════════════════════
+
+Choose based on your situation:
+
+1. "I want the overview first"
+   → Read: TEST_EXECUTION_SUMMARY.md
+
+2. "Tell me the commands"
+   → Read: QUICK_TEST_COMMANDS.md
+
+3. "I need detailed procedures"
+   → Read: TESTING_GUIDE.md
+
+4. "Quick 1-minute status check"
+   → Run: curl -s https://api.transplantwizard.com/health | jq .
+
+5. "I want to test everything properly"
+   → Read: TEST_EXECUTION_SUMMARY.md first
+   → Then: TESTING_GUIDE.md for all 9 stages
+   → Estimated time: 30-45 minutes
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Last updated: December 12, 2025
+System Status: ✅ READY FOR TESTING
+Estimated Test Time: 30-45 minutes (comprehensive)
+Success Rate Target: 100% pass rate
+
+═══════════════════════════════════════════════════════════════════════════════
