@@ -1,0 +1,40 @@
+/Users/jeremy/Downloads/Shakir-ClaudeCode/Shakir-ClaudeCode/Views/Authentication/RegistrationView.swift:95:13 Cannot find 'prePopulateFromReferral' in scope
+
+/Users/jeremy/Downloads/Shakir-ClaudeCode/Shakir-ClaudeCode/Views/Authentication/RegistrationView.swift:304:26 'onChange(of:perform:)' was deprecated in iOS 17.0: Use `onChange` with a two or zero parameter action closure instead.
+
+/Users/jeremy/Downloads/Shakir-ClaudeCode/Shakir-ClaudeCode/Views/Authentication/RegistrationView.swift:883:16 Cannot find 'appState' in scope
+
+/Users/jeremy/Downloads/Shakir-ClaudeCode/Shakir-ClaudeCode/Views/Authentication/RegistrationView.swift:889:9 Cannot find 'isPrefilledFromReferral' in scope
+
+/Users/jeremy/Downloads/Shakir-ClaudeCode/Shakir-ClaudeCode/Views/Authentication/RegistrationView.swift:892:28 Cannot find 'appState' in scope
+
+/Users/jeremy/Downloads/Shakir-ClaudeCode/Shakir-ClaudeCode/Views/Authentication/RegistrationView.swift:893:18 Value of type 'EmailVerificationView' has no member 'firstName'
+
+/Users/jeremy/Downloads/Shakir-ClaudeCode/Shakir-ClaudeCode/Views/Authentication/RegistrationView.swift:896:27 Cannot find 'appState' in scope
+
+/Users/jeremy/Downloads/Shakir-ClaudeCode/Shakir-ClaudeCode/Views/Authentication/RegistrationView.swift:897:18 Value of type 'EmailVerificationView' has no member 'lastName'
+
+/Users/jeremy/Downloads/Shakir-ClaudeCode/Shakir-ClaudeCode/Views/Authentication/RegistrationView.swift:900:24 Cannot find 'appState' in scope
+
+/Users/jeremy/Downloads/Shakir-ClaudeCode/Shakir-ClaudeCode/Views/Authentication/RegistrationView.swift:901:18 Cannot assign to property: 'email' is a 'let' constant
+
+Change 'let' to 'var' to make it mutable
+/Users/jeremy/Downloads/Shakir-ClaudeCode/Shakir-ClaudeCode/Views/Authentication/RegistrationView.swift:904:24 Cannot find 'appState' in scope
+
+/Users/jeremy/Downloads/Shakir-ClaudeCode/Shakir-ClaudeCode/Views/Authentication/RegistrationView.swift:906:28 Cannot find 'titles' in scope
+
+/Users/jeremy/Downloads/Shakir-ClaudeCode/Shakir-ClaudeCode/Views/Authentication/RegistrationView.swift:907:17 Cannot find 'selectedTitle' in scope
+
+/Users/jeremy/Downloads/Shakir-ClaudeCode/Shakir-ClaudeCode/Views/Authentication/RegistrationView.swift:908:22 Value of type 'EmailVerificationView' has no member 'title'
+
+/Users/jeremy/Downloads/Shakir-ClaudeCode/Shakir-ClaudeCode/Views/Authentication/RegistrationView.swift:912:31 Cannot find 'appState' in scope
+
+/Users/jeremy/Downloads/Shakir-ClaudeCode/Shakir-ClaudeCode/Views/Authentication/RegistrationView.swift:913:18 Value of type 'EmailVerificationView' has no member 'nephrologist'
+
+/Users/jeremy/Downloads/Shakir-ClaudeCode/Shakir-ClaudeCode/Views/Authentication/RegistrationView.swift:917:32 Cannot find 'appState' in scope
+
+/Users/jeremy/Downloads/Shakir-ClaudeCode/Shakir-ClaudeCode/Views/Authentication/RegistrationView.swift:918:18 Value of type 'EmailVerificationView' has no member 'referralToken'
+
+/Users/jeremy/Downloads/Shakir-ClaudeCode/Shakir-ClaudeCode/Views/Authentication/RegistrationView.swift:923:33 Cannot find 'appState' in scope
+
+/Users/jeremy/Downloads/Shakir-ClaudeCode/Shakir-ClaudeCode/Views/Authentication/RegistrationView.swift:930:23 Cannot find 'appState' in scope

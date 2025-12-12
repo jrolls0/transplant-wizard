@@ -618,9 +618,10 @@ app.post('/api/v1/dusw/referrals/create', async (req, res) => {
             dusw: duswName || ''
         };
 
-        // Build universal link that works across all platforms
-        // iOS: Will open the app if installed, or show TestFlight/App Store prompt
-        // Web: Falls back to web registration if app isn't installed
+        // Build links for app and web
+        // App deep link: Opens the app directly on iOS (no browser prompt)
+        const appDeepLink = `app://register?referralToken=${referralToken}`;
+        // Web link: Falls back if app isn't installed
         const referralLink = `https://transplantwizard.com/register?referralToken=${referralToken}`;
 
         // Send email notification to patient with referral link and DUSW info
@@ -689,9 +690,9 @@ app.post('/api/v1/dusw/referrals/create', async (req, res) => {
             </div>
 
             <div class="cta-section">
-                <a href="${referralLink}" class="cta-button" style="display: inline-block; text-decoration: none;">📱 Open Transplant Wizard App</a>
+                <a href="${appDeepLink}" class="cta-button" style="display: inline-block; text-decoration: none;">📱 Open Transplant Wizard App</a>
                 <p style="font-size: 12px; color: #999; margin-top: 20px; line-height: 1.6;">
-                    <strong>iPhone Users:</strong> Tap the button above to open the app or visit TestFlight.<br>
+                    <strong>iPhone Users:</strong> Tap the button above to open the app directly. If you don't have the app yet, please install it first from TestFlight.<br>
                     <strong>Web Users:</strong> <a href="${referralLink}" style="color: #667eea; text-decoration: underline;">Click here to register on web</a>
                 </p>
                 <p style="font-size: 11px; color: #999; margin-top: 15px;">

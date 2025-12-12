@@ -301,7 +301,7 @@ struct RegistrationView: View {
                         .padding(.vertical, 8)
                         .background(Color(.systemGray6))
                         .cornerRadius(8)
-                        .onChange(of: selectedDialysisClinic) { _ in
+                        .onChange(of: selectedDialysisClinic) {
                             selectedSocialWorker = 0 // Reset social worker when clinic changes
                         }
                     }
@@ -636,6 +636,62 @@ struct RegistrationView: View {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         #endif
     }
+
+    private func prePopulateFromReferral() {
+        // Pre-fill form fields from referral data passed via deep link
+        guard !appState.referralData.isEmpty else {
+            print("ℹ️ No referral data found - standard registration")
+            return
+        }
+
+        print("🔗 Pre-populating form from referral data")
+        isPrefilledFromReferral = true
+
+        // Pre-fill text fields
+        if let firstName = appState.referralData["firstName"], !firstName.isEmpty {
+            self.firstName = firstName
+        }
+
+        if let lastName = appState.referralData["lastName"], !lastName.isEmpty {
+            self.lastName = lastName
+        }
+
+        if let email = appState.referralData["email"], !email.isEmpty {
+            self.email = email
+        }
+
+        if let title = appState.referralData["title"], !title.isEmpty {
+            // Find matching title in the titles array
+            if let index = titles.firstIndex(of: title) {
+                selectedTitle = index
+                self.title = title
+            }
+        }
+
+        if let nephrologist = appState.referralData["nephrologist"], !nephrologist.isEmpty {
+            self.nephrologist = nephrologist
+        }
+
+        // Pre-fill referral token for backend
+        if let referralToken = appState.referralData["referralToken"] {
+            self.referralToken = referralToken
+            print("✅ Referral token loaded: \(referralToken)")
+        }
+
+        // Pre-select dialysis clinic if available
+        if let dialysisClinic = appState.referralData["dialysisClinic"], !dialysisClinic.isEmpty {
+            print("📍 Pre-filled dialysis clinic: \(dialysisClinic)")
+            // The dialysis clinic will be set when it's available from social workers API
+            // For now, we just log that it's available
+        }
+
+        // Pre-select social worker if available
+        if let dusw = appState.referralData["dusw"], !dusw.isEmpty {
+            print("👤 Pre-filled DUSW name: \(dusw)")
+        }
+
+        print("✅ Form pre-population complete")
+    }
 }
 
 // MARK: - Supporting Views
@@ -876,62 +932,6 @@ struct EmailVerificationView: View {
                 }
             }
         }
-    }
-
-    private func prePopulateFromReferral() {
-        // Pre-fill form fields from referral data passed via deep link
-        guard !appState.referralData.isEmpty else {
-            print("ℹ️ No referral data found - standard registration")
-            return
-        }
-
-        print("🔗 Pre-populating form from referral data")
-        isPrefilledFromReferral = true
-
-        // Pre-fill text fields
-        if let firstName = appState.referralData["firstName"], !firstName.isEmpty {
-            self.firstName = firstName
-        }
-
-        if let lastName = appState.referralData["lastName"], !lastName.isEmpty {
-            self.lastName = lastName
-        }
-
-        if let email = appState.referralData["email"], !email.isEmpty {
-            self.email = email
-        }
-
-        if let title = appState.referralData["title"], !title.isEmpty {
-            // Find matching title in the titles array
-            if let index = titles.firstIndex(of: title) {
-                selectedTitle = index
-                self.title = title
-            }
-        }
-
-        if let nephrologist = appState.referralData["nephrologist"], !nephrologist.isEmpty {
-            self.nephrologist = nephrologist
-        }
-
-        // Pre-fill referral token for backend
-        if let referralToken = appState.referralData["referralToken"] {
-            self.referralToken = referralToken
-            print("✅ Referral token loaded: \(referralToken)")
-        }
-
-        // Pre-select dialysis clinic if available
-        if let dialysisClinic = appState.referralData["dialysisClinic"], !dialysisClinic.isEmpty {
-            print("📍 Pre-filled dialysis clinic: \(dialysisClinic)")
-            // The dialysis clinic will be set when it's available from social workers API
-            // For now, we just log that it's available
-        }
-
-        // Pre-select social worker if available
-        if let dusw = appState.referralData["dusw"], !dusw.isEmpty {
-            print("👤 Pre-filled DUSW name: \(dusw)")
-        }
-
-        print("✅ Form pre-population complete")
     }
 }
 
