@@ -19,7 +19,11 @@ class AppState: ObservableObject {
     // MARK: - Navigation State
     @Published var selectedTab: TabSelection = .dashboard
     @Published var navigationPath = NavigationPath()
-    
+    @Published var deepLinkPath: DeepLinkPath = .none
+
+    // MARK: - Referral Data (from deep linking)
+    @Published var referralData: [String: String] = [:]
+
     // MARK: - Patient Flow State
     @Published var onboardingCompleted = false
     @Published var profileCompleted = false
@@ -125,17 +129,23 @@ enum NetworkStatus {
     }
 }
 
+enum DeepLinkPath: Equatable {
+    case none
+    case register
+    case referral(token: String)
+}
+
 enum AppError: LocalizedError, Identifiable {
     case networkError(String)
     case authenticationError(String)
     case validationError(String)
     case serverError(String)
     case unknownError(String)
-    
+
     var id: String {
         errorDescription ?? "unknown"
     }
-    
+
     var errorDescription: String? {
         switch self {
         case .networkError(let message):
@@ -150,7 +160,7 @@ enum AppError: LocalizedError, Identifiable {
             return "Unexpected Error: \(message)"
         }
     }
-    
+
     var recoverySuggestion: String? {
         switch self {
         case .networkError:

@@ -14,5 +14,16 @@
 	<string>We need photo library access to upload medical documents and images.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We use your location to find nearby transplant centers and calculate distances.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.transplantwizard.transplantplatform</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>app</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
