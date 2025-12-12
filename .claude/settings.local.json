@@ -20,6 +20,11 @@
       "Bash(nslookup:*)",
       "Bash(dig:*)",
       "Bash(npm install)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(git status:*)",
       "WebFetch(domain:transplantwizard.com)"
     ],
     "deny": []
