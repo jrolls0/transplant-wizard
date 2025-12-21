@@ -1913,6 +1913,21 @@ app.get('/api/v1/todos', async (req, res) => {
 
         const patientId = patientResult.rows[0].id;
 
+        // Auto-sync document upload todos with actual documents
+        // Mark as complete if document exists, mark as pending if document was deleted
+        await pool.query(`
+            UPDATE patient_todos pt
+            SET status = 'completed', completed_at = NOW()
+            WHERE pt.patient_id = $1
+            AND pt.todo_type = 'document_upload'
+            AND pt.status = 'pending'
+            AND EXISTS (
+                SELECT 1 FROM patient_documents pd 
+                WHERE pd.patient_id = pt.patient_id 
+                AND pd.document_type = pt.metadata->>'documentType'
+            )
+        `, [patientId]);
+
         const todos = await pool.query(`
             SELECT id, title, description, todo_type, priority, status, due_date, 
                    completed_at, metadata, created_at
@@ -1967,6 +1982,43 @@ app.post('/api/v1/todos', async (req, res) => {
         }
 
         const patientId = patientResult.rows[0].id;
+
+        // For document upload todos, check if one already exists for this document type
+        if (todoType === 'document_upload' && metadata && metadata.documentType) {
+            const existingTodo = await pool.query(`
+                SELECT id FROM patient_todos 
+                WHERE patient_id = $1 
+                AND todo_type = 'document_upload' 
+                AND metadata->>'documentType' = $2
+            `, [patientId, metadata.documentType]);
+            
+            if (existingTodo.rows.length > 0) {
+                console.log(`⚠️ Todo already exists for ${metadata.documentType}, skipping creation`);
+                // Return the existing todo
+                const existing = await pool.query(`
+                    SELECT id, title, description, todo_type, priority, status, due_date, metadata, created_at
+                    FROM patient_todos WHERE id = $1
+                `, [existingTodo.rows[0].id]);
+                return res.json({ success: true, data: existing.rows[0] });
+            }
+            
+            // Also check if document already uploaded - if so, create as completed
+            const existingDoc = await pool.query(`
+                SELECT id FROM patient_documents 
+                WHERE patient_id = $1 AND document_type = $2
+            `, [patientId, metadata.documentType]);
+            
+            if (existingDoc.rows.length > 0) {
+                // Document already uploaded, create todo as completed
+                const result = await pool.query(`
+                    INSERT INTO patient_todos (patient_id, title, description, todo_type, priority, due_date, metadata, status, completed_at)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, 'completed', NOW())
+                    RETURNING id, title, description, todo_type, priority, status, due_date, metadata, created_at
+                `, [patientId, title, description, todoType, priority || 'medium', dueDate, metadata || {}]);
+                console.log(`✅ Todo created as completed (document already exists) for patient ${patientId}: ${title}`);
+                return res.json({ success: true, data: result.rows[0] });
+            }
+        }
 
         const result = await pool.query(`
             INSERT INTO patient_todos (patient_id, title, description, todo_type, priority, due_date, metadata)
