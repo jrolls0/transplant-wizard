@@ -1,15 +1,6 @@
 # Cloudflare DNS Module
 # Manages DNS records for transplantwizard.com
 
-terraform {
-  required_providers {
-    cloudflare = {
-      source  = "cloudflare/cloudflare"
-      version = "~> 4.0"
-    }
-  }
-}
-
 # Data source to get the zone ID
 data "cloudflare_zone" "main" {
   name = var.domain

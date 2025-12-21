@@ -45,11 +45,10 @@ provider "aws" {
   }
 }
 
-# Cloudflare provider - uses CLOUDFLARE_API_TOKEN environment variable
+# Cloudflare provider
+# API token is read from CLOUDFLARE_API_TOKEN environment variable automatically
+# If needed, can also be set via the api_token variable
 provider "cloudflare" {
-  # API token should be set via CLOUDFLARE_API_TOKEN environment variable
-  # Or uncomment below and set in terraform.tfvars (not recommended)
-  # api_token = var.cloudflare_api_token
 }
 
 # VPC and Networking
