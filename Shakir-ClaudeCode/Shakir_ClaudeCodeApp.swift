@@ -61,14 +61,21 @@ struct TransplantPatientApp: App {
     private func handleDeepLink(_ url: URL) {
         print("🔗 Deep link received: \(url.absoluteString)")
 
-        // Handle app://register URL scheme
-        guard url.scheme == "app" else {
-            print("❌ Invalid URL scheme: \(url.scheme ?? "none")")
+        // Handle both app:// scheme and https://transplantwizard.com universal links
+        let isAppScheme = url.scheme == "app"
+        let isUniversalLink = (url.scheme == "https" && url.host == "transplantwizard.com")
+
+        guard isAppScheme || isUniversalLink else {
+            print("❌ Invalid URL scheme: \(url.scheme ?? "none"), host: \(url.host ?? "none")")
             return
         }
 
-        guard url.host == "register" else {
-            print("❌ Unknown URL host: \(url.host ?? "none")")
+        // For app:// scheme, check if host is "register"
+        // For universal links, check if path starts with "/register"
+        let isRegisterPath = isAppScheme ? (url.host == "register") : url.path.hasPrefix("/register")
+
+        guard isRegisterPath else {
+            print("❌ Unknown path: \(isAppScheme ? (url.host ?? "none") : url.path)")
             return
         }
 

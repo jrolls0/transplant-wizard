@@ -26,7 +26,8 @@
       "Bash(git pull:*)",
       "Bash(git status:*)",
       "WebFetch(domain:transplantwizard.com)",
-      "Bash(aws ec2 describe-security-groups:*)"
+      "Bash(aws ec2 describe-security-groups:*)",
+      "Bash(ssh:*)"
     ],
     "deny": []
   },

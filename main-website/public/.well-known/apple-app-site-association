@@ -5,7 +5,9 @@
       {
         "appID": "FKCQ48LT8U.com.transplantwizard.transplantplatform",
         "paths": [
+          "/register",
           "/register/*",
+          "/register?*",
           "/patient/*"
         ]
       }
