@@ -204,7 +204,7 @@ struct ReferralEmailLookupView: View {
 }
 
 // Model for referral lookup data
-struct ReferralLookupData: Codable {
+struct ReferralLookupData: Codable, Equatable {
     let referralToken: String
     let email: String
     let firstName: String
