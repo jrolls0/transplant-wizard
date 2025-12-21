@@ -7,9 +7,12 @@
 
 import SwiftUI
 
+extension Notification.Name {
+    static let todosUpdated = Notification.Name("todosUpdated")
+}
+
 struct PatientDashboardView: View {
     @EnvironmentObject private var authManager: AuthenticationManager
-    @State private var todoRefreshTrigger = UUID()
     
     var body: some View {
         NavigationView {
@@ -29,12 +32,7 @@ struct PatientDashboardView: View {
                     .padding(.horizontal)
                     
                     // Amelia Chatbot - Takes up large portion of screen
-                    AmeliaChatbotView(onTodosCreated: {
-                        // Trigger todo list refresh
-                        print("🔴 PatientDashboardView: onTodosCreated callback invoked, updating refreshTrigger")
-                        todoRefreshTrigger = UUID()
-                        print("🔴 PatientDashboardView: refreshTrigger updated to \(todoRefreshTrigger)")
-                    })
+                    AmeliaChatbotView()
                         .frame(minHeight: 400)
                         .padding(.horizontal)
                     
@@ -64,7 +62,7 @@ struct PatientDashboardView: View {
                     
                     // Todo List Section
                     if authManager.currentUser?.transplantCentersSelected == true {
-                        TodoListSection(refreshTrigger: $todoRefreshTrigger)
+                        TodoListSection()
                             .padding(.horizontal)
                     }
                     
@@ -135,7 +133,6 @@ struct AmeliaChatbotView: View {
     @State private var documentPromptAnswered = false
     @State private var navigateToDocuments = false
     @State private var todosCreated = false
-    var onTodosCreated: (() -> Void)?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -223,7 +220,9 @@ struct AmeliaChatbotView: View {
                                     // Create todos AND navigate to Documents tab
                                     Task {
                                         await addDocumentTodos()
-                                        onTodosCreated?()
+                                        await MainActor.run {
+                                            NotificationCenter.default.post(name: .todosUpdated, object: nil)
+                                        }
                                     }
                                     appState.selectedTab = .documents
                                 }) {
@@ -249,10 +248,10 @@ struct AmeliaChatbotView: View {
                                     Task {
                                         print("🔵 Starting addDocumentTodos...")
                                         await addDocumentTodos()
-                                        print("🔵 addDocumentTodos completed, calling onTodosCreated...")
+                                        print("🔵 addDocumentTodos completed, posting notification...")
                                         await MainActor.run {
-                                            onTodosCreated?()
-                                            print("🔵 onTodosCreated called")
+                                            NotificationCenter.default.post(name: .todosUpdated, object: nil)
+                                            print("🔵 Notification posted")
                                         }
                                     }
                                 }) {
@@ -629,8 +628,6 @@ struct TodoListSection: View {
     @State private var todos: [PatientTodo] = []
     @State private var isLoading = true
     
-    @Binding var refreshTrigger: UUID
-    
     var pendingTodos: [PatientTodo] {
         todos.filter { $0.status == "pending" }
     }
@@ -699,9 +696,8 @@ struct TodoListSection: View {
         .onAppear {
             loadTodos()
         }
-        .onChange(of: refreshTrigger) { oldValue, newValue in
-            // Reload todos when trigger changes
-            print("🟢 TodoListSection: refreshTrigger changed from \(oldValue) to \(newValue)")
+        .onReceive(NotificationCenter.default.publisher(for: .todosUpdated)) { _ in
+            print("🟢 TodoListSection: Received todosUpdated notification")
             loadTodos()
         }
     }
