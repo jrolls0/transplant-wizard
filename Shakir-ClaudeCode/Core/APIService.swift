@@ -251,17 +251,53 @@ class APIService: ObservableObject {
     
     func getMyTransplantSelections(accessToken: String) async throws -> [PatientReferral] {
         let endpoint = "/transplant-centers/my-selections"
-        
+
         let response: APIResponse<[PatientReferral]> = try await performAuthenticatedRequest(
             endpoint: endpoint,
             method: .GET,
             body: EmptyRequest(),
             accessToken: accessToken
         )
-        
+
         return response.data ?? []
     }
-    
+
+    // MARK: - Referral Lookup
+
+    func lookupReferralByEmail(email: String) async throws -> ReferralLookupData? {
+        let endpoint = "/patient/referral/lookup"
+        let body = ReferralLookupRequest(email: email)
+
+        let url = URL(string: baseURL + endpoint)!
+        var request = URLRequest(url: url)
+        request.httpMethod = HTTPMethod.POST.rawValue
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("TransplantPatientApp/1.0", forHTTPHeaderField: "User-Agent")
+        request.httpBody = try JSONEncoder().encode(body)
+
+        let (data, response) = try await session.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.networkError
+        }
+
+        switch httpResponse.statusCode {
+        case 200...299:
+            let decoder = createJSONDecoder()
+            let apiResponse = try decoder.decode(ReferralLookupResponse.self, from: data)
+            return apiResponse.data
+        case 404:
+            // Not found - return nil instead of throwing
+            return nil
+        case 400...499:
+            return nil
+        case 500...599:
+            throw APIError.serverError
+        default:
+            throw APIError.networkError
+        }
+    }
+
     // MARK: - Private Methods
     
     private func createJSONDecoder() -> JSONDecoder {
@@ -557,6 +593,16 @@ struct SocialWorker: Codable {
 struct SocialWorkersResponse: Codable {
     let success: Bool
     let data: [String: [SocialWorker]]
+}
+
+// MARK: - Referral Lookup Models
+struct ReferralLookupRequest: Codable {
+    let email: String
+}
+
+struct ReferralLookupResponse: Codable {
+    let success: Bool
+    let data: ReferralLookupData?
 }
 
 // Extension for Date formatting

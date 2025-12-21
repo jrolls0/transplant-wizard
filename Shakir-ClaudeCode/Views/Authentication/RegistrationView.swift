@@ -11,7 +11,10 @@ struct RegistrationView: View {
     @EnvironmentObject private var authManager: AuthenticationManager
     @EnvironmentObject private var appState: AppState
     @Binding var selectedTab: AuthTab
-    
+
+    // Optional referral data from email lookup flow
+    var referralData: ReferralLookupData? = nil
+
     // Form fields
     @State private var title = ""
     @State private var firstName = ""
@@ -638,13 +641,53 @@ struct RegistrationView: View {
     }
 
     private func prePopulateFromReferral() {
-        // Pre-fill form fields from referral data passed via deep link
+        // First check for referralData from the new email lookup flow
+        if let data = referralData {
+            print("🔗 Pre-populating form from email lookup referral data")
+            isPrefilledFromReferral = true
+
+            // Pre-fill text fields from referral lookup data
+            self.firstName = data.firstName
+            self.lastName = data.lastName
+            self.email = data.email
+
+            // Pre-fill title if provided
+            if let titleValue = data.title, !titleValue.isEmpty {
+                if let index = titles.firstIndex(of: titleValue) {
+                    selectedTitle = index
+                    self.title = titleValue
+                }
+            }
+
+            // Pre-fill nephrologist if provided
+            if let nephrologistValue = data.nephrologist, !nephrologistValue.isEmpty {
+                self.nephrologist = nephrologistValue
+            }
+
+            // Store referral token for backend
+            self.referralToken = data.referralToken
+            print("✅ Referral token loaded: \(data.referralToken)")
+
+            // Store dialysis clinic and social worker info for later selection
+            // We'll select them once the social workers list is loaded
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.selectDialysisClinicAndWorker(
+                    clinicName: data.dialysisClinic,
+                    socialWorkerName: data.socialWorkerName
+                )
+            }
+
+            print("✅ Form pre-population from referral lookup complete")
+            return
+        }
+
+        // Fallback to legacy deep link data in appState
         guard !appState.referralData.isEmpty else {
             print("ℹ️ No referral data found - standard registration")
             return
         }
 
-        print("🔗 Pre-populating form from referral data")
+        print("🔗 Pre-populating form from deep link referral data")
         isPrefilledFromReferral = true
 
         // Pre-fill text fields
@@ -691,6 +734,26 @@ struct RegistrationView: View {
         }
 
         print("✅ Form pre-population complete")
+    }
+
+    private func selectDialysisClinicAndWorker(clinicName: String, socialWorkerName: String) {
+        // Find and select the dialysis clinic
+        if let clinicIndex = dialysisClinics.firstIndex(of: clinicName) {
+            selectedDialysisClinic = clinicIndex
+            print("✅ Auto-selected dialysis clinic: \(clinicName) at index \(clinicIndex)")
+
+            // After selecting clinic, find and select the social worker
+            if let workers = socialWorkers[clinicName] {
+                if let workerIndex = workers.firstIndex(where: { $0.fullName == socialWorkerName }) {
+                    selectedSocialWorker = workerIndex + 1 // +1 because index 0 is "Select your social worker"
+                    print("✅ Auto-selected social worker: \(socialWorkerName) at index \(workerIndex + 1)")
+                } else {
+                    print("⚠️ Social worker '\(socialWorkerName)' not found in clinic '\(clinicName)'")
+                }
+            }
+        } else {
+            print("⚠️ Dialysis clinic '\(clinicName)' not found in available clinics")
+        }
     }
 }
 

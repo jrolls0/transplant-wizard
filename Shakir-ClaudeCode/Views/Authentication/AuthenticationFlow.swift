@@ -8,9 +8,16 @@
 import SwiftUI
 
 struct AuthenticationFlow: View {
+    @EnvironmentObject private var appState: AppState
     @State private var selectedTab: AuthTab = .login
     @State private var showingRegistration = false
-    
+
+    // First launch referral flow state
+    @AppStorage("hasCompletedReferralCheck") private var hasCompletedReferralCheck = false
+    @State private var showReferralFlow = true
+    @State private var wasReferred: Bool? = nil
+    @State private var referralData: ReferralLookupData? = nil
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -24,35 +31,79 @@ struct AuthenticationFlow: View {
                     endPoint: .bottomTrailing
                 )
                 .ignoresSafeArea()
-                
-                VStack(spacing: 0) {
-                    // Header
-                    AuthHeaderView()
-                        .padding(.bottom, 40)
-                    
-                    // Tab selector
-                    AuthTabSelector(selectedTab: $selectedTab)
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 30)
-                    
-                    // Content
-                    TabView(selection: $selectedTab) {
-                        LoginView()
-                            .tag(AuthTab.login)
-                        
-                        RegistrationView(selectedTab: $selectedTab)
-                            .tag(AuthTab.register)
-                    }
-                    .tabViewStyle(.page(indexDisplayMode: .never))
-                    .animation(.easeInOut(duration: 0.3), value: selectedTab)
-                    
-                    Spacer()
+
+                // Show referral flow on first launch, otherwise show normal auth
+                if !hasCompletedReferralCheck && showReferralFlow {
+                    referralFlowContent
+                } else {
+                    normalAuthContent
                 }
             }
         }
         .navigationBarHidden(true)
+        .onChange(of: showReferralFlow) { _, newValue in
+            if !newValue {
+                hasCompletedReferralCheck = true
+            }
+        }
     }
-    
+
+    // MARK: - Referral Flow Content
+    @ViewBuilder
+    private var referralFlowContent: some View {
+        if wasReferred == nil {
+            // Step 1: Ask if they were referred
+            WereYouReferredView(
+                showReferralFlow: $showReferralFlow,
+                wasReferred: $wasReferred
+            )
+        } else if wasReferred == true && referralData == nil {
+            // Step 2: Ask for email to lookup referral
+            ReferralEmailLookupView(
+                showReferralFlow: $showReferralFlow,
+                referralData: $referralData
+            )
+            .onChange(of: referralData) { _, newData in
+                if newData != nil {
+                    // Referral found - go to registration with pre-filled data
+                    selectedTab = .register
+                    showReferralFlow = false
+                }
+            }
+        } else {
+            // Should not reach here, but fallback to normal auth
+            normalAuthContent
+        }
+    }
+
+    // MARK: - Normal Auth Content
+    @ViewBuilder
+    private var normalAuthContent: some View {
+        VStack(spacing: 0) {
+            // Header
+            AuthHeaderView()
+                .padding(.bottom, 40)
+
+            // Tab selector
+            AuthTabSelector(selectedTab: $selectedTab)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 30)
+
+            // Content
+            TabView(selection: $selectedTab) {
+                LoginView()
+                    .tag(AuthTab.login)
+
+                RegistrationView(selectedTab: $selectedTab, referralData: referralData)
+                    .tag(AuthTab.register)
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .animation(.easeInOut(duration: 0.3), value: selectedTab)
+
+            Spacer()
+        }
+    }
+
     private func hideKeyboard() {
         #if canImport(UIKit)
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)

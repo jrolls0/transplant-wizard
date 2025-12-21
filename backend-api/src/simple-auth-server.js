@@ -1368,6 +1368,66 @@ app.get('/api/v1/patients/roi-consent', async (req, res) => {
     }
 });
 
+// Lookup Referral by Email - for mobile app first-launch flow
+app.post('/api/v1/patient/referral/lookup', async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        console.log(`🔍 Looking up referral by email: ${email}`);
+
+        if (!email?.trim()) {
+            return res.status(400).json({
+                success: false,
+                error: 'Email address is required'
+            });
+        }
+
+        // Query referral invitation by email
+        const result = await pool.query(
+            `SELECT * FROM patient_referral_invitations
+             WHERE patient_email = $1 AND expires_at > NOW() AND redeemed = false
+             ORDER BY created_at DESC
+             LIMIT 1`,
+            [email.toLowerCase().trim()]
+        );
+
+        if (result.rows.length === 0) {
+            console.log(`⚠️  No referral found for email: ${email}`);
+            return res.status(404).json({
+                success: false,
+                error: 'No referral found for this email address'
+            });
+        }
+
+        const referral = result.rows[0];
+
+        console.log(`✅ Found valid referral for: ${email}`);
+
+        res.json({
+            success: true,
+            data: {
+                referralToken: referral.referral_token,
+                email: referral.patient_email,
+                firstName: referral.patient_first_name,
+                lastName: referral.patient_last_name,
+                title: referral.patient_title || null,
+                nephrologist: referral.patient_nephrologist || null,
+                dialysisClinic: referral.dialysis_clinic_name,
+                socialWorkerName: referral.dusw_name,
+                socialWorkerId: referral.dusw_id || null
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Referral lookup error:', error);
+
+        res.status(500).json({
+            success: false,
+            error: 'Failed to lookup referral information'
+        });
+    }
+});
+
 // Get Social Workers endpoint - for mobile app DUSW selection
 app.get('/api/social-workers', async (req, res) => {
     try {
