@@ -222,6 +222,8 @@ document.addEventListener('DOMContentLoaded', function() {
     viewButtons.forEach(btn => {
         btn.addEventListener('click', async function() {
             const docId = this.dataset.docId;
+            const buttonElement = this;
+            const documentCard = buttonElement.closest('.col-md-6');
             
             // Show modal with loading state
             document.getElementById('docLoadingSpinner').style.display = 'block';
@@ -249,6 +251,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     
                     document.getElementById('docDownloadLink').href = data.url;
+                } else if (data.deleted) {
+                    // Document was deleted from S3 - remove from page
+                    modal.hide();
+                    if (documentCard) {
+                        documentCard.remove();
+                        // Show notification
+                        showToast('Document no longer exists and has been removed.', 'warning');
+                    }
                 } else {
                     throw new Error('Failed to get document URL');
                 }
@@ -259,6 +269,26 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+    
+    // Toast notification helper
+    function showToast(message, type = 'info') {
+        const toastHtml = `
+            <div class="toast align-items-center text-white bg-${type === 'warning' ? 'warning' : 'primary'} border-0 position-fixed bottom-0 end-0 m-3" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="fas fa-${type === 'warning' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', toastHtml);
+        const toastEl = document.body.lastElementChild;
+        const toast = new bootstrap.Toast(toastEl, { delay: 5000 });
+        toast.show();
+        toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+    }
 });
 </script>
 

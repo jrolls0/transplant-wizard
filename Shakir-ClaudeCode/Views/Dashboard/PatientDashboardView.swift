@@ -218,7 +218,11 @@ struct AmeliaChatbotView: View {
                                 Button(action: {
                                     documentPromptAnswered = true
                                     navigateToDocuments = true
-                                    // Navigate to Documents tab
+                                    // Create todos AND navigate to Documents tab
+                                    Task {
+                                        await addDocumentTodos()
+                                        onTodosCreated?()
+                                    }
                                     appState.selectedTab = .documents
                                 }) {
                                     Text("Yes, let's do it")

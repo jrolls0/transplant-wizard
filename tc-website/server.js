@@ -293,10 +293,27 @@ app.get('/api/documents/:documentId/url', requireAuth, async (req, res) => {
         const doc = docResult.rows[0];
         
         // Generate pre-signed URL using AWS SDK
-        const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+        const { S3Client, GetObjectCommand, HeadObjectCommand } = require('@aws-sdk/client-s3');
         const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
         
         const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
+        
+        // First check if the object exists in S3
+        try {
+            const headCommand = new HeadObjectCommand({
+                Bucket: doc.s3_bucket,
+                Key: doc.s3_key
+            });
+            await s3Client.send(headCommand);
+        } catch (headError) {
+            if (headError.name === 'NotFound' || headError.$metadata?.httpStatusCode === 404) {
+                // S3 object doesn't exist - delete from database
+                console.log(`S3 object not found for document ${documentId}, removing from database`);
+                await pool.query('DELETE FROM patient_documents WHERE id = $1', [documentId]);
+                return res.status(404).json({ success: false, error: 'Document no longer exists', deleted: true });
+            }
+            throw headError;
+        }
         
         const getCommand = new GetObjectCommand({
             Bucket: doc.s3_bucket,
