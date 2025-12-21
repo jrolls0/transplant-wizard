@@ -45,3 +45,6 @@ xcuserdata/
 # Sensitive
 credentials.json
 config/secrets.js
+docs/SECURITY_SECRETS.md
+terraform/terraform.tfvars
+.secrets/
