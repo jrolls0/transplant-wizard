@@ -125,6 +125,21 @@
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
 
+                <!-- Open in App Button (iOS only) -->
+                <div id="openInAppSection" class="d-none mb-4">
+                    <div class="text-center p-3" style="background: #f0f4ff; border-radius: 8px; border: 1px solid #667eea;">
+                        <p class="mb-2" style="font-size: 14px; color: #333;">
+                            <strong>📱 Have the Transplant Wizard app?</strong>
+                        </p>
+                        <button type="button" id="openAppBtn" class="btn btn-primary" style="background: #667eea; border: none;">
+                            Open in App
+                        </button>
+                        <p class="mt-2 mb-0" style="font-size: 12px; color: #666;">
+                            Or continue below to register on web
+                        </p>
+                    </div>
+                </div>
+
                 <!-- Pre-filled Information -->
                 <div id="preFilledInfo" class="pre-filled-info d-none">
                     <h6>Your Pre-filled Information</h6>
@@ -214,6 +229,34 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Detect iOS
+        function isIOS() {
+            return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        }
+
+        // Try to open app with deep link
+        function tryOpenApp(referralToken) {
+            const appDeepLink = `app://register?referralToken=${referralToken}`;
+
+            // Create a hidden iframe to try opening the app
+            // This method doesn't show an error if the app isn't installed
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = appDeepLink;
+            document.body.appendChild(iframe);
+
+            // Also try direct location change after a brief delay
+            setTimeout(() => {
+                window.location.href = appDeepLink;
+            }, 100);
+
+            // Clean up iframe
+            setTimeout(() => {
+                document.body.removeChild(iframe);
+            }, 2000);
+        }
+
         document.addEventListener('DOMContentLoaded', async function() {
             const urlParams = new URLSearchParams(window.location.search);
             const referralToken = urlParams.get('referralToken');
@@ -225,6 +268,19 @@
 
             // Store the referral token
             document.getElementById('referralToken').value = referralToken;
+
+            // On iOS, show the "Open in App" button and try to open the app
+            if (isIOS()) {
+                document.getElementById('openInAppSection').classList.remove('d-none');
+
+                // Set up the Open in App button
+                document.getElementById('openAppBtn').addEventListener('click', function() {
+                    tryOpenApp(referralToken);
+                });
+
+                // Try to open the app automatically (will silently fail if not installed)
+                tryOpenApp(referralToken);
+            }
 
             // Fetch referral data from API
             try {
