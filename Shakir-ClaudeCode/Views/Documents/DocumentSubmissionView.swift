@@ -15,6 +15,7 @@ struct DocumentSubmissionView: View {
     // Required documents checklist state
     @State private var uploadedDocuments: Set<DocumentType> = []
     @State private var isLoadingDocuments = true
+    @State private var patientTodos: [PatientTodo] = []
     
     // Current upload state
     @State private var currentUploadType: DocumentType?
@@ -34,6 +35,8 @@ struct DocumentSubmissionView: View {
     // For uploading other documents after required ones are done
     @State private var selectedDocumentType: DocumentType = .other
     @State private var showOtherDocumentUpload = false
+    @State private var additionalUploadedDocs: [(type: DocumentType, date: Date)] = []
+    @State private var showAdditionalUploadSuccess = false
     
     private let requiredDocuments: [DocumentType] = [.insuranceCard, .medicationList, .governmentId]
     
@@ -304,6 +307,22 @@ struct DocumentSubmissionView: View {
                 Text("Upload Additional Documents")
                     .font(.headline)
                 
+                // Success message for additional uploads
+                if showAdditionalUploadSuccess {
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                        Text("Document uploaded successfully!")
+                            .fontWeight(.medium)
+                            .foregroundColor(.green)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.green.opacity(0.1))
+                    .cornerRadius(12)
+                    .transition(.opacity.combined(with: .scale))
+                }
+                
                 Menu {
                     ForEach(DocumentType.allCases.filter { !requiredDocuments.contains($0) }, id: \.self) { type in
                         Button(action: {
@@ -331,8 +350,35 @@ struct DocumentSubmissionView: View {
                     .background(Color(.systemGray6))
                     .cornerRadius(12)
                 }
+                
+                // Show previously uploaded additional documents
+                if !additionalUploadedDocs.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Previously Uploaded")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .padding(.top, 8)
+                        
+                        ForEach(Array(additionalUploadedDocs.enumerated()), id: \.offset) { index, doc in
+                            HStack {
+                                Image(systemName: doc.type.icon)
+                                    .foregroundColor(Color(red: 0.2, green: 0.6, blue: 0.9))
+                                Text(doc.type.displayName)
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Text(formatDate(doc.date))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .cornerRadius(10)
+                        }
+                    }
+                }
             }
             .padding(.horizontal)
+            .animation(.easeInOut, value: showAdditionalUploadSuccess)
             
             // Show upload UI for additional docs
             if showOtherDocumentUpload, let currentType = currentUploadType {
@@ -340,6 +386,13 @@ struct DocumentSubmissionView: View {
                     .padding(.horizontal)
             }
         }
+    }
+    
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
     
     // MARK: - Helper Methods
@@ -380,7 +433,11 @@ struct DocumentSubmissionView: View {
         
         Task {
             do {
-                let documents = try await APIService.shared.getDocuments(accessToken: accessToken)
+                // Load documents and todos in parallel
+                async let documentsTask = APIService.shared.getDocuments(accessToken: accessToken)
+                async let todosTask = APIService.shared.getTodos(accessToken: accessToken)
+                
+                let (documents, todos) = try await (documentsTask, todosTask)
                 
                 await MainActor.run {
                     // Mark document types that have been uploaded
@@ -389,6 +446,10 @@ struct DocumentSubmissionView: View {
                             uploadedDocuments.insert(docType)
                         }
                     }
+                    
+                    // Store todos for marking complete later
+                    patientTodos = todos
+                    
                     isLoadingDocuments = false
                 }
             } catch {
@@ -408,6 +469,8 @@ struct DocumentSubmissionView: View {
         
         isUploading = true
         errorMessage = nil
+        
+        let isAdditionalDocument = !requiredDocuments.contains(type)
         
         Task {
             do {
@@ -431,10 +494,24 @@ struct DocumentSubmissionView: View {
                     accessToken: accessToken
                 )
                 
+                // Mark corresponding todo as complete
+                await markTodoComplete(for: type, accessToken: accessToken)
+                
                 await MainActor.run {
                     isUploading = false
                     uploadedDocuments.insert(type)
                     currentUploadType = nil
+                    
+                    if isAdditionalDocument {
+                        // Track additional uploaded document and show success
+                        additionalUploadedDocs.append((type: type, date: Date()))
+                        showAdditionalUploadSuccess = true
+                        // Hide success after 3 seconds
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                            showAdditionalUploadSuccess = false
+                        }
+                    }
+                    
                     showOtherDocumentUpload = false
                     clearSelections()
                 }
@@ -444,6 +521,35 @@ struct DocumentSubmissionView: View {
                     isUploading = false
                     errorMessage = "Upload failed: \(error.localizedDescription)"
                 }
+            }
+        }
+    }
+    
+    private func markTodoComplete(for documentType: DocumentType, accessToken: String) async {
+        // Find the todo that matches this document type
+        let docTypeMapping: [DocumentType: String] = [
+            .insuranceCard: "insurance_card",
+            .medicationList: "medication_list",
+            .governmentId: "government_id"
+        ]
+        
+        guard let docTypeString = docTypeMapping[documentType] else { return }
+        
+        // Find matching todo by metadata
+        if let matchingTodo = patientTodos.first(where: { todo in
+            todo.todoType == "document_upload" && 
+            todo.metadata?["documentType"] == docTypeString &&
+            todo.status != "completed"
+        }) {
+            do {
+                _ = try await APIService.shared.updateTodo(
+                    todoId: matchingTodo.id,
+                    status: "completed",
+                    accessToken: accessToken
+                )
+                print("✅ Marked todo as complete: \(matchingTodo.title)")
+            } catch {
+                print("❌ Failed to mark todo as complete: \(error)")
             }
         }
     }
