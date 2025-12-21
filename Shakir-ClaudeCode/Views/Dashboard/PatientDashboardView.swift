@@ -31,7 +31,9 @@ struct PatientDashboardView: View {
                     // Amelia Chatbot - Takes up large portion of screen
                     AmeliaChatbotView(onTodosCreated: {
                         // Trigger todo list refresh
+                        print("🔴 PatientDashboardView: onTodosCreated callback invoked, updating refreshTrigger")
                         todoRefreshTrigger = UUID()
+                        print("🔴 PatientDashboardView: refreshTrigger updated to \(todoRefreshTrigger)")
                     })
                         .frame(minHeight: 400)
                         .padding(.horizontal)
@@ -245,9 +247,13 @@ struct AmeliaChatbotView: View {
                                     todosCreated = true
                                     // Add to todo list via API
                                     Task {
+                                        print("🔵 Starting addDocumentTodos...")
                                         await addDocumentTodos()
-                                        // Trigger refresh of todo list
-                                        onTodosCreated?()
+                                        print("🔵 addDocumentTodos completed, calling onTodosCreated...")
+                                        await MainActor.run {
+                                            onTodosCreated?()
+                                            print("🔵 onTodosCreated called")
+                                        }
                                     }
                                 }) {
                                     Text("Later")
@@ -693,21 +699,29 @@ struct TodoListSection: View {
         .onAppear {
             loadTodos()
         }
-        .onChange(of: refreshTrigger) { _, _ in
+        .onChange(of: refreshTrigger) { oldValue, newValue in
             // Reload todos when trigger changes
+            print("🟢 TodoListSection: refreshTrigger changed from \(oldValue) to \(newValue)")
             loadTodos()
         }
     }
     
     private func loadTodos() {
-        guard let accessToken = KeychainManager.shared.getAccessToken() else { return }
+        print("🟡 loadTodos called")
+        guard let accessToken = KeychainManager.shared.getAccessToken() else {
+            print("🟡 loadTodos: No access token")
+            return
+        }
         
         Task {
             do {
+                print("🟡 loadTodos: Fetching todos from API...")
                 let fetchedTodos = try await APIService.shared.getTodos(accessToken: accessToken)
+                print("🟡 loadTodos: Fetched \(fetchedTodos.count) todos")
                 await MainActor.run {
                     todos = fetchedTodos
                     isLoading = false
+                    print("🟡 loadTodos: Updated state with \(fetchedTodos.count) todos, pending: \(pendingTodos.count)")
                 }
             } catch {
                 await MainActor.run {
