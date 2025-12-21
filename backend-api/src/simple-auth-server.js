@@ -1643,10 +1643,12 @@ app.get('/api/v1/documents/types', (req, res) => {
 });
 
 // Upload document
-app.post('/api/v1/documents/upload', upload.array('files', 2), async (req, res) => {
+app.post('/api/v1/documents/upload', upload.array('files', 10), async (req, res) => {
+    console.log('📄 Document upload request received');
     try {
         const authHeader = req.headers.authorization;
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            console.log('❌ Upload failed: No auth header');
             return res.status(401).json({ success: false, error: 'Authentication required' });
         }
 
@@ -1655,11 +1657,13 @@ app.post('/api/v1/documents/upload', upload.array('files', 2), async (req, res) 
         try {
             decoded = verifyToken(token);
         } catch (error) {
+            console.log('❌ Upload failed: Invalid token');
             return res.status(401).json({ success: false, error: 'Invalid token' });
         }
 
         const { documentType, isFront } = req.body;
         const files = req.files;
+        console.log(`📄 Upload: documentType=${documentType}, files=${files?.length || 0}`);
 
         if (!files || files.length === 0) {
             return res.status(400).json({ success: false, error: 'No files uploaded' });
@@ -1689,6 +1693,7 @@ app.post('/api/v1/documents/upload', upload.array('files', 2), async (req, res) 
             const s3Key = `patients/${patientId}/documents/${documentType}/${documentGroupId}/${i === 0 ? 'front' : 'back'}.${fileExtension}`;
 
             // Upload to S3
+            console.log(`📄 Uploading file ${i + 1}/${files.length} to S3: ${s3Key}`);
             const putCommand = new PutObjectCommand({
                 Bucket: S3_CONFIG.bucket,
                 Key: s3Key,
@@ -1696,13 +1701,14 @@ app.post('/api/v1/documents/upload', upload.array('files', 2), async (req, res) 
                 ContentType: file.mimetype,
                 ServerSideEncryption: 'AES256',
                 Metadata: {
-                    'patient-id': patientId,
-                    'document-type': documentType,
-                    'original-filename': file.originalname
+                    'patient-id': String(patientId),
+                    'document-type': String(documentType),
+                    'original-filename': String(file.originalname)
                 }
             });
 
             await s3Client.send(putCommand);
+            console.log(`✅ File ${i + 1} uploaded to S3 successfully`);
 
             // Save to database
             const docResult = await pool.query(`
