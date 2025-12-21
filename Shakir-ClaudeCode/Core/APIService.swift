@@ -471,7 +471,8 @@ class APIService: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("TransplantPatientApp/1.0", forHTTPHeaderField: "User-Agent")
         
-        if let body = body {
+        // Only add body for non-GET requests (iOS doesn't allow body in GET requests)
+        if method != .GET, let body = body {
             request.httpBody = try JSONEncoder().encode(body)
         }
         
@@ -533,7 +534,8 @@ class APIService: ObservableObject {
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("TransplantPatientApp/1.0", forHTTPHeaderField: "User-Agent")
         
-        if let body = body {
+        // Only add body for non-GET requests (iOS doesn't allow body in GET requests)
+        if method != .GET, let body = body {
             request.httpBody = try JSONEncoder().encode(body)
         }
         
