@@ -62,7 +62,7 @@ struct PatientDashboardView: View {
                     
                     // Todo List Section
                     if authManager.currentUser?.transplantCentersSelected == true {
-                        TodoListSection(refreshTrigger: todoRefreshTrigger)
+                        TodoListSection(refreshTrigger: $todoRefreshTrigger)
                             .padding(.horizontal)
                     }
                     
@@ -623,7 +623,7 @@ struct TodoListSection: View {
     @State private var todos: [PatientTodo] = []
     @State private var isLoading = true
     
-    var refreshTrigger: UUID = UUID()
+    @Binding var refreshTrigger: UUID
     
     var pendingTodos: [PatientTodo] {
         todos.filter { $0.status == "pending" }
