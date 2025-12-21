@@ -90,6 +90,7 @@ class AppState: ObservableObject {
 
 enum TabSelection: String, CaseIterable {
     case dashboard = "dashboard"
+    case documents = "documents"
     case profile = "profile"
     case centers = "centers"
     case help = "help"
@@ -97,6 +98,7 @@ enum TabSelection: String, CaseIterable {
     var title: String {
         switch self {
         case .dashboard: return "Dashboard"
+        case .documents: return "Documents"
         case .profile: return "Profile"
         case .centers: return "Centers"
         case .help: return "Help"
@@ -106,6 +108,7 @@ enum TabSelection: String, CaseIterable {
     var icon: String {
         switch self {
         case .dashboard: return "house.fill"
+        case .documents: return "doc.fill"
         case .profile: return "person.fill"
         case .centers: return "building.2.fill"
         case .help: return "questionmark.circle.fill"

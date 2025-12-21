@@ -9,6 +9,7 @@ import SwiftUI
 
 struct PatientDashboardView: View {
     @EnvironmentObject private var authManager: AuthenticationManager
+    @State private var todoRefreshTrigger = UUID()
     
     var body: some View {
         NavigationView {
@@ -28,7 +29,10 @@ struct PatientDashboardView: View {
                     .padding(.horizontal)
                     
                     // Amelia Chatbot - Takes up large portion of screen
-                    AmeliaChatbotView()
+                    AmeliaChatbotView(onTodosCreated: {
+                        // Trigger todo list refresh
+                        todoRefreshTrigger = UUID()
+                    })
                         .frame(minHeight: 400)
                         .padding(.horizontal)
                     
@@ -58,7 +62,7 @@ struct PatientDashboardView: View {
                     
                     // Todo List Section
                     if authManager.currentUser?.transplantCentersSelected == true {
-                        TodoListSection()
+                        TodoListSection(refreshTrigger: todoRefreshTrigger)
                             .padding(.horizontal)
                     }
                     
@@ -119,6 +123,7 @@ struct CompactProgressIndicator: View {
 
 struct AmeliaChatbotView: View {
     @EnvironmentObject private var authManager: AuthenticationManager
+    @EnvironmentObject private var appState: AppState
     @State private var selectedCenters: Set<String> = []
     @State private var isLoading = false
     @State private var hasSubmitted = false
@@ -127,6 +132,8 @@ struct AmeliaChatbotView: View {
     @State private var showDocumentPrompt = false
     @State private var documentPromptAnswered = false
     @State private var navigateToDocuments = false
+    @State private var todosCreated = false
+    var onTodosCreated: (() -> Void)?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -211,6 +218,8 @@ struct AmeliaChatbotView: View {
                                 Button(action: {
                                     documentPromptAnswered = true
                                     navigateToDocuments = true
+                                    // Navigate to Documents tab
+                                    appState.selectedTab = .documents
                                 }) {
                                     Text("Yes, let's do it")
                                         .fontWeight(.semibold)
@@ -229,9 +238,12 @@ struct AmeliaChatbotView: View {
                                 
                                 Button(action: {
                                     documentPromptAnswered = true
+                                    todosCreated = true
                                     // Add to todo list via API
                                     Task {
                                         await addDocumentTodos()
+                                        // Trigger refresh of todo list
+                                        onTodosCreated?()
                                     }
                                 }) {
                                     Text("Later")
@@ -246,12 +258,12 @@ struct AmeliaChatbotView: View {
                             .padding(.top, 8)
                         } else if navigateToDocuments {
                             ChatMessage(
-                                text: "Perfect! Let's get those documents uploaded. I'll guide you through the process.",
+                                text: "Perfect! Tap the Documents tab below to get started uploading your documents.",
                                 isFromAmelia: true
                             )
-                        } else {
+                        } else if todosCreated {
                             ChatMessage(
-                                text: "No problem! I've added these documents to your to-do list. You can upload them anytime from the Documents section. I'll continue monitoring your referral progress in the meantime.",
+                                text: "No problem! I've added these documents to your to-do list below. You can also upload them anytime from the Documents tab. I'll continue monitoring your referral progress in the meantime.",
                                 isFromAmelia: true
                             )
                         }
@@ -603,10 +615,11 @@ struct DocumentRequirementRow: View {
 // MARK: - Todo List Section
 
 struct TodoListSection: View {
+    @EnvironmentObject private var appState: AppState
     @State private var todos: [PatientTodo] = []
     @State private var isLoading = true
-    @State private var showDocumentUpload = false
-    @State private var selectedDocType: DocumentType?
+    
+    var refreshTrigger: UUID = UUID()
     
     var pendingTodos: [PatientTodo] {
         todos.filter { $0.status == "pending" }
@@ -656,10 +669,9 @@ struct TodoListSection: View {
                 VStack(spacing: 8) {
                     ForEach(pendingTodos) { todo in
                         TodoItemRow(todo: todo, onTap: {
-                            if todo.todoType == "document_upload",
-                               let docType = todo.metadata?["documentType"] {
-                                selectedDocType = DocumentType(rawValue: docType)
-                                showDocumentUpload = true
+                            // Navigate to Documents tab for document upload todos
+                            if todo.todoType == "document_upload" {
+                                appState.selectedTab = .documents
                             }
                         }, onComplete: {
                             Task {
@@ -669,23 +681,6 @@ struct TodoListSection: View {
                     }
                 }
             }
-            
-            // Upload Documents Button
-            Button(action: {
-                selectedDocType = nil
-                showDocumentUpload = true
-            }) {
-                HStack {
-                    Image(systemName: "doc.badge.plus")
-                    Text("Upload Documents")
-                        .fontWeight(.medium)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(Color(red: 0.2, green: 0.6, blue: 0.9).opacity(0.1))
-                .foregroundColor(Color(red: 0.2, green: 0.6, blue: 0.9))
-                .cornerRadius(10)
-            }
         }
         .padding()
         .background(Color(.systemBackground))
@@ -694,8 +689,9 @@ struct TodoListSection: View {
         .onAppear {
             loadTodos()
         }
-        .sheet(isPresented: $showDocumentUpload) {
-            DocumentSubmissionView(preselectedType: selectedDocType)
+        .onChange(of: refreshTrigger) { _, _ in
+            // Reload todos when trigger changes
+            loadTodos()
         }
     }
     
@@ -791,4 +787,5 @@ struct TodoItemRow: View {
 #Preview {
     PatientDashboardView()
         .environmentObject(AuthenticationManager())
+        .environmentObject(AppState())
 }

@@ -11,9 +11,13 @@ import UniformTypeIdentifiers
 
 struct DocumentSubmissionView: View {
     @EnvironmentObject private var authManager: AuthenticationManager
-    @Environment(\.dismiss) private var dismiss
     
-    @State private var selectedDocumentType: DocumentType = .insuranceCard
+    // Required documents checklist state
+    @State private var uploadedDocuments: Set<DocumentType> = []
+    @State private var isLoadingDocuments = true
+    
+    // Current upload state
+    @State private var currentUploadType: DocumentType?
     @State private var frontImage: UIImage?
     @State private var backImage: UIImage?
     @State private var pdfData: Data?
@@ -27,186 +31,32 @@ struct DocumentSubmissionView: View {
     @State private var isSelectingFront = true
     @State private var showSourceActionSheet = false
     
-    var preselectedType: DocumentType?
+    // For uploading other documents after required ones are done
+    @State private var selectedDocumentType: DocumentType = .other
+    @State private var showOtherDocumentUpload = false
+    
+    private let requiredDocuments: [DocumentType] = [.insuranceCard, .medicationList, .governmentId]
+    
+    private var allRequiredUploaded: Bool {
+        requiredDocuments.allSatisfy { uploadedDocuments.contains($0) }
+    }
     
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 24) {
                     // Header
-                    VStack(spacing: 8) {
-                        Image(systemName: "doc.badge.plus")
-                            .font(.system(size: 50))
-                            .foregroundColor(Color(red: 0.2, green: 0.6, blue: 0.9))
-                        
-                        Text("Upload Documents")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                        
-                        Text("Select document type and upload your files securely")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .padding(.top)
+                    headerSection
                     
-                    // Document Type Selector
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Document Type")
-                            .font(.headline)
-                        
-                        Menu {
-                            ForEach(DocumentType.allCases, id: \.self) { type in
-                                Button(action: {
-                                    selectedDocumentType = type
-                                    clearSelections()
-                                }) {
-                                    HStack {
-                                        Text(type.displayName)
-                                        if selectedDocumentType == type {
-                                            Image(systemName: "checkmark")
-                                        }
-                                    }
-                                }
-                            }
-                        } label: {
-                            HStack {
-                                Image(systemName: selectedDocumentType.icon)
-                                    .foregroundColor(Color(red: 0.2, green: 0.6, blue: 0.9))
-                                Text(selectedDocumentType.displayName)
-                                    .foregroundColor(.primary)
-                                Spacer()
-                                Image(systemName: "chevron.down")
-                                    .foregroundColor(.secondary)
-                            }
+                    if isLoadingDocuments {
+                        ProgressView("Loading documents...")
                             .padding()
-                            .background(Color(.systemGray6))
-                            .cornerRadius(12)
-                        }
-                    }
-                    .padding(.horizontal)
-                    
-                    // Upload Section
-                    if selectedDocumentType.requiresFrontBack {
-                        // Front and Back Upload for Insurance Card
-                        VStack(spacing: 16) {
-                            DocumentImageUploadCard(
-                                title: "Front Side",
-                                image: frontImage,
-                                onTap: {
-                                    isSelectingFront = true
-                                    showSourceActionSheet = true
-                                },
-                                onRemove: { frontImage = nil }
-                            )
-                            
-                            DocumentImageUploadCard(
-                                title: "Back Side",
-                                image: backImage,
-                                onTap: {
-                                    isSelectingFront = false
-                                    showSourceActionSheet = true
-                                },
-                                onRemove: { backImage = nil }
-                            )
-                        }
-                        .padding(.horizontal)
+                    } else if !allRequiredUploaded {
+                        // Required Documents Checklist
+                        requiredDocumentsChecklist
                     } else {
-                        // Single document upload
-                        VStack(spacing: 16) {
-                            if pdfData != nil {
-                                // PDF Selected
-                                HStack {
-                                    Image(systemName: "doc.fill")
-                                        .font(.title)
-                                        .foregroundColor(.red)
-                                    
-                                    VStack(alignment: .leading) {
-                                        Text(pdfFileName ?? "Document.pdf")
-                                            .font(.headline)
-                                        Text("PDF Document")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
-                                    
-                                    Spacer()
-                                    
-                                    Button(action: {
-                                        pdfData = nil
-                                        pdfFileName = nil
-                                    }) {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
-                                .padding()
-                                .background(Color(.systemGray6))
-                                .cornerRadius(12)
-                                .padding(.horizontal)
-                            } else {
-                                DocumentImageUploadCard(
-                                    title: "Upload Document",
-                                    image: frontImage,
-                                    onTap: {
-                                        isSelectingFront = true
-                                        showSourceActionSheet = true
-                                    },
-                                    onRemove: { frontImage = nil }
-                                )
-                                .padding(.horizontal)
-                            }
-                        }
-                    }
-                    
-                    // Upload Button
-                    Button(action: uploadDocuments) {
-                        HStack {
-                            if isUploading {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            } else {
-                                Image(systemName: "arrow.up.circle.fill")
-                                Text("Upload Document")
-                                    .fontWeight(.semibold)
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(
-                            canUpload ?
-                            LinearGradient(
-                                colors: [Color(red: 0.2, green: 0.6, blue: 0.9), Color(red: 0.1, green: 0.5, blue: 0.8)],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            ) :
-                            LinearGradient(colors: [Color.gray, Color.gray], startPoint: .leading, endPoint: .trailing)
-                        )
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
-                    }
-                    .disabled(!canUpload || isUploading)
-                    .padding(.horizontal)
-                    
-                    // Error Message
-                    if let error = errorMessage {
-                        Text(error)
-                            .font(.caption)
-                            .foregroundColor(.red)
-                            .padding(.horizontal)
-                    }
-                    
-                    // Success Message
-                    if uploadSuccess {
-                        HStack {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                            Text("Document uploaded successfully!")
-                                .foregroundColor(.green)
-                        }
-                        .padding()
-                        .background(Color.green.opacity(0.1))
-                        .cornerRadius(12)
-                        .padding(.horizontal)
+                        // All required uploaded - show success and other upload option
+                        allDocumentsUploadedSection
                     }
                     
                     Spacer(minLength: 40)
@@ -214,13 +64,6 @@ struct DocumentSubmissionView: View {
             }
             .navigationTitle("Documents")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-            }
             .confirmationDialog("Select Source", isPresented: $showSourceActionSheet) {
                 Button("Take Photo") {
                     showCamera = true
@@ -228,12 +71,16 @@ struct DocumentSubmissionView: View {
                 Button("Choose from Library") {
                     showImagePicker = true
                 }
-                if !selectedDocumentType.requiresFrontBack {
+                if currentUploadType != .insuranceCard {
                     Button("Select PDF") {
                         showFilePicker = true
                     }
                 }
-                Button("Cancel", role: .cancel) {}
+                Button("Cancel", role: .cancel) {
+                    if !isUploading {
+                        currentUploadType = nil
+                    }
+                }
             }
             .sheet(isPresented: $showImagePicker) {
                 ImagePicker(image: isSelectingFront ? $frontImage : $backImage, sourceType: .photoLibrary)
@@ -246,14 +93,270 @@ struct DocumentSubmissionView: View {
             }
         }
         .onAppear {
-            if let type = preselectedType {
-                selectedDocumentType = type
+            loadUploadedDocuments()
+        }
+    }
+    
+    // MARK: - Header Section
+    
+    private var headerSection: some View {
+        VStack(spacing: 8) {
+            Image(systemName: allRequiredUploaded ? "checkmark.circle.fill" : "doc.badge.plus")
+                .font(.system(size: 50))
+                .foregroundColor(allRequiredUploaded ? .green : Color(red: 0.2, green: 0.6, blue: 0.9))
+            
+            Text(allRequiredUploaded ? "All Documents Uploaded!" : "Upload Required Documents")
+                .font(.title2)
+                .fontWeight(.bold)
+            
+            Text(allRequiredUploaded ? 
+                 "You can upload additional documents if needed" :
+                 "Please upload the following documents to continue your referral")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+        }
+        .padding(.top)
+    }
+    
+    // MARK: - Required Documents Checklist
+    
+    private var requiredDocumentsChecklist: some View {
+        VStack(spacing: 16) {
+            ForEach(requiredDocuments, id: \.self) { docType in
+                RequiredDocumentRow(
+                    documentType: docType,
+                    isUploaded: uploadedDocuments.contains(docType),
+                    isCurrentlyUploading: currentUploadType == docType && isUploading,
+                    isActive: currentUploadType == docType,
+                    onTap: {
+                        if !uploadedDocuments.contains(docType) {
+                            startUpload(for: docType)
+                        }
+                    }
+                )
+            }
+            
+            // Current Upload UI
+            if let currentType = currentUploadType, !uploadedDocuments.contains(currentType) {
+                currentUploadSection(for: currentType)
+            }
+            
+            // Error Message
+            if let error = errorMessage {
+                Text(error)
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .padding(.horizontal)
+            }
+        }
+        .padding(.horizontal)
+    }
+    
+    // MARK: - Current Upload Section
+    
+    private func currentUploadSection(for docType: DocumentType) -> some View {
+        VStack(spacing: 16) {
+            Divider()
+            
+            Text("Upload \(docType.displayName)")
+                .font(.headline)
+            
+            if docType.requiresFrontBack {
+                // Front and Back Upload for Insurance Card
+                VStack(spacing: 12) {
+                    DocumentImageUploadCard(
+                        title: "Front Side",
+                        image: frontImage,
+                        onTap: {
+                            isSelectingFront = true
+                            showSourceActionSheet = true
+                        },
+                        onRemove: { frontImage = nil }
+                    )
+                    
+                    DocumentImageUploadCard(
+                        title: "Back Side",
+                        image: backImage,
+                        onTap: {
+                            isSelectingFront = false
+                            showSourceActionSheet = true
+                        },
+                        onRemove: { backImage = nil }
+                    )
+                }
+            } else {
+                // Single document upload
+                if pdfData != nil {
+                    // PDF Selected
+                    HStack {
+                        Image(systemName: "doc.fill")
+                            .font(.title)
+                            .foregroundColor(.red)
+                        
+                        VStack(alignment: .leading) {
+                            Text(pdfFileName ?? "Document.pdf")
+                                .font(.headline)
+                            Text("PDF Document")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Button(action: {
+                            pdfData = nil
+                            pdfFileName = nil
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                } else {
+                    DocumentImageUploadCard(
+                        title: "Tap to add photo or PDF",
+                        image: frontImage,
+                        onTap: {
+                            isSelectingFront = true
+                            showSourceActionSheet = true
+                        },
+                        onRemove: { frontImage = nil }
+                    )
+                }
+            }
+            
+            // Upload Button
+            HStack(spacing: 12) {
+                Button(action: {
+                    currentUploadType = nil
+                    clearSelections()
+                }) {
+                    Text("Cancel")
+                        .fontWeight(.medium)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color(.systemGray5))
+                        .foregroundColor(.primary)
+                        .cornerRadius(12)
+                }
+                
+                Button(action: { uploadDocument(type: docType) }) {
+                    HStack {
+                        if isUploading {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        } else {
+                            Image(systemName: "arrow.up.circle.fill")
+                            Text("Upload")
+                                .fontWeight(.semibold)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(
+                        canUpload(for: docType) ?
+                        Color(red: 0.2, green: 0.6, blue: 0.9) : Color.gray
+                    )
+                    .foregroundColor(.white)
+                    .cornerRadius(12)
+                }
+                .disabled(!canUpload(for: docType) || isUploading)
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6).opacity(0.5))
+        .cornerRadius(16)
+    }
+    
+    // MARK: - All Documents Uploaded Section
+    
+    private var allDocumentsUploadedSection: some View {
+        VStack(spacing: 20) {
+            // Success checkmarks
+            VStack(spacing: 12) {
+                ForEach(requiredDocuments, id: \.self) { docType in
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                        Text(docType.displayName)
+                            .foregroundColor(.primary)
+                        Spacer()
+                        Text("Uploaded")
+                            .font(.caption)
+                            .foregroundColor(.green)
+                    }
+                    .padding()
+                    .background(Color.green.opacity(0.1))
+                    .cornerRadius(12)
+                }
+            }
+            .padding(.horizontal)
+            
+            Divider()
+                .padding(.vertical)
+            
+            // Upload Additional Documents
+            VStack(spacing: 12) {
+                Text("Upload Additional Documents")
+                    .font(.headline)
+                
+                Menu {
+                    ForEach(DocumentType.allCases.filter { !requiredDocuments.contains($0) }, id: \.self) { type in
+                        Button(action: {
+                            selectedDocumentType = type
+                            showOtherDocumentUpload = true
+                            currentUploadType = type
+                        }) {
+                            HStack {
+                                Image(systemName: type.icon)
+                                Text(type.displayName)
+                            }
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundColor(Color(red: 0.2, green: 0.6, blue: 0.9))
+                        Text("Select Document Type")
+                            .foregroundColor(.primary)
+                        Spacer()
+                        Image(systemName: "chevron.down")
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                }
+            }
+            .padding(.horizontal)
+            
+            // Show upload UI for additional docs
+            if showOtherDocumentUpload, let currentType = currentUploadType {
+                currentUploadSection(for: currentType)
+                    .padding(.horizontal)
             }
         }
     }
     
-    private var canUpload: Bool {
-        if selectedDocumentType.requiresFrontBack {
+    // MARK: - Helper Methods
+    
+    private func startUpload(for docType: DocumentType) {
+        currentUploadType = docType
+        clearSelections()
+        
+        // Auto-show source action sheet
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            isSelectingFront = true
+            showSourceActionSheet = true
+        }
+    }
+    
+    private func canUpload(for docType: DocumentType) -> Bool {
+        if docType.requiresFrontBack {
             return frontImage != nil && backImage != nil
         } else {
             return frontImage != nil || pdfData != nil
@@ -269,7 +372,35 @@ struct DocumentSubmissionView: View {
         errorMessage = nil
     }
     
-    private func uploadDocuments() {
+    private func loadUploadedDocuments() {
+        guard let accessToken = KeychainManager.shared.getAccessToken() else {
+            isLoadingDocuments = false
+            return
+        }
+        
+        Task {
+            do {
+                let documents = try await APIService.shared.getDocuments(accessToken: accessToken)
+                
+                await MainActor.run {
+                    // Mark document types that have been uploaded
+                    for doc in documents {
+                        if let docType = DocumentType(rawValue: doc.documentType) {
+                            uploadedDocuments.insert(docType)
+                        }
+                    }
+                    isLoadingDocuments = false
+                }
+            } catch {
+                await MainActor.run {
+                    isLoadingDocuments = false
+                    print("❌ Failed to load documents: \(error)")
+                }
+            }
+        }
+    }
+    
+    private func uploadDocument(type: DocumentType) {
         guard let accessToken = KeychainManager.shared.getAccessToken() else {
             errorMessage = "Authentication required"
             return
@@ -277,11 +408,10 @@ struct DocumentSubmissionView: View {
         
         isUploading = true
         errorMessage = nil
-        uploadSuccess = false
         
         Task {
             do {
-                var files: [(Data, String, String)] = [] // (data, filename, mimeType)
+                var files: [(Data, String, String)] = []
                 
                 if let front = frontImage, let data = front.jpegData(compressionQuality: 0.8) {
                     files.append((data, "front.jpg", "image/jpeg"))
@@ -296,14 +426,16 @@ struct DocumentSubmissionView: View {
                 }
                 
                 try await APIService.shared.uploadDocument(
-                    documentType: selectedDocumentType.rawValue,
+                    documentType: type.rawValue,
                     files: files,
                     accessToken: accessToken
                 )
                 
                 await MainActor.run {
                     isUploading = false
-                    uploadSuccess = true
+                    uploadedDocuments.insert(type)
+                    currentUploadType = nil
+                    showOtherDocumentUpload = false
                     clearSelections()
                 }
                 
@@ -314,6 +446,70 @@ struct DocumentSubmissionView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Required Document Row
+
+struct RequiredDocumentRow: View {
+    let documentType: DocumentType
+    let isUploaded: Bool
+    let isCurrentlyUploading: Bool
+    let isActive: Bool
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 16) {
+                // Status Icon
+                ZStack {
+                    Circle()
+                        .fill(isUploaded ? Color.green : (isActive ? Color(red: 0.2, green: 0.6, blue: 0.9) : Color(.systemGray4)))
+                        .frame(width: 40, height: 40)
+                    
+                    if isCurrentlyUploading {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    } else if isUploaded {
+                        Image(systemName: "checkmark")
+                            .foregroundColor(.white)
+                            .fontWeight(.bold)
+                    } else {
+                        Image(systemName: documentType.icon)
+                            .foregroundColor(.white)
+                    }
+                }
+                
+                // Document Info
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(documentType.displayName)
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    
+                    Text(isUploaded ? "Uploaded ✓" : (isActive ? "Uploading..." : "Tap to upload"))
+                        .font(.caption)
+                        .foregroundColor(isUploaded ? .green : .secondary)
+                }
+                
+                Spacer()
+                
+                if !isUploaded && !isActive {
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding()
+            .background(
+                isActive ? Color(red: 0.2, green: 0.6, blue: 0.9).opacity(0.1) :
+                    (isUploaded ? Color.green.opacity(0.1) : Color(.systemGray6))
+            )
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isActive ? Color(red: 0.2, green: 0.6, blue: 0.9) : Color.clear, lineWidth: 2)
+            )
+        }
+        .disabled(isUploaded || isCurrentlyUploading)
     }
 }
 

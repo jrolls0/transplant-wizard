@@ -21,6 +21,14 @@ struct MainTabView: View {
                 }
                 .tag(TabSelection.dashboard)
             
+            // Documents Tab
+            DocumentSubmissionView()
+                .tabItem {
+                    Image(systemName: TabSelection.documents.icon)
+                    Text(TabSelection.documents.title)
+                }
+                .tag(TabSelection.documents)
+            
             // Profile Tab
             PatientProfileView()
                 .tabItem {
