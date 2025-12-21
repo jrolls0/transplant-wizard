@@ -17,6 +17,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+      version = "~> 4.0"
+    }
   }
 
   # Uncomment to use S3 backend for state storage (recommended for production)
@@ -39,6 +43,13 @@ provider "aws" {
       ManagedBy   = "terraform"
     }
   }
+}
+
+# Cloudflare provider - uses CLOUDFLARE_API_TOKEN environment variable
+provider "cloudflare" {
+  # API token should be set via CLOUDFLARE_API_TOKEN environment variable
+  # Or uncomment below and set in terraform.tfvars (not recommended)
+  # api_token = var.cloudflare_api_token
 }
 
 # VPC and Networking
@@ -106,4 +117,13 @@ module "ses" {
   source = "./modules/ses"
 
   domain = var.ses_domain
+}
+
+# Cloudflare DNS Configuration
+module "cloudflare" {
+  source = "./modules/cloudflare"
+
+  domain          = var.cloudflare_domain
+  ec2_public_ip   = module.ec2.public_ip
+  ses_dkim_tokens = module.ses.dkim_tokens
 }

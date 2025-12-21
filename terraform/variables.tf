@@ -115,3 +115,17 @@ variable "ses_domain" {
   type        = string
   default     = "transplantwizard.com"
 }
+
+# Cloudflare Configuration
+variable "cloudflare_domain" {
+  description = "Domain managed in Cloudflare"
+  type        = string
+  default     = "transplantwizard.com"
+}
+
+variable "cloudflare_api_token" {
+  description = "Cloudflare API token (prefer using CLOUDFLARE_API_TOKEN env var)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}

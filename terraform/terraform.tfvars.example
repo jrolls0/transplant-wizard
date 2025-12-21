@@ -30,3 +30,8 @@ rds_publicly_accessible = true
 
 # SES Configuration
 ses_domain = "transplantwizard.com"
+
+# Cloudflare Configuration
+cloudflare_domain = "transplantwizard.com"
+# Note: Set CLOUDFLARE_API_TOKEN environment variable instead of putting it here
+# cloudflare_api_token = "your-api-token-here"

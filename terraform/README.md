@@ -56,12 +56,14 @@ This Terraform configuration manages the complete AWS infrastructure for the Tra
 | Security Groups | EC2 and RDS security groups |
 | IAM Role | Allows EC2 to send emails via SES |
 | SES Domain | Email sending configured for transplantwizard.com |
+| Cloudflare DNS | DNS records for transplantwizard.com |
 
 ## Prerequisites
 
 1. **AWS CLI** installed and configured
 2. **Terraform** >= 1.0 installed
 3. **SSH Key Pair** created in AWS (default: `transplant-platform-key`)
+4. **Cloudflare API Token** with Zone:DNS:Edit permissions
 
 ## Quick Start
 
@@ -83,6 +85,19 @@ Edit `terraform.tfvars` with your values:
 ```hcl
 rds_password = "your-secure-password-here"
 ```
+
+### 2b. Set Cloudflare API Token
+
+```bash
+export CLOUDFLARE_API_TOKEN="your-cloudflare-api-token"
+```
+
+To create a Cloudflare API token:
+1. Go to https://dash.cloudflare.com/profile/api-tokens
+2. Click "Create Token"
+3. Use "Edit zone DNS" template
+4. Select your zone (transplantwizard.com)
+5. Copy the token
 
 ### 3. Preview Changes
 
@@ -119,6 +134,11 @@ terraform import module.rds.aws_db_instance.main transplant-platform-db
 # Import Security Groups
 terraform import module.security_groups.aws_security_group.ec2 sg-086b17e6bed8cd119
 terraform import module.security_groups.aws_security_group.rds sg-05661f0da8ebd85ce
+
+# Import Cloudflare DNS records (requires zone_id/record_id)
+# Get zone ID: cloudflare_zone_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=transplantwizard.com" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | jq -r '.result[0].id')
+# List records: curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$cloudflare_zone_id/dns_records" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | jq '.result[] | {id, name, type}'
+terraform import module.cloudflare.cloudflare_record.root <zone_id>/<record_id>
 ```
 
 ## Services Running on EC2
@@ -150,18 +170,20 @@ sudo journalctl -u transplant-backend -f
 
 ## DNS Configuration (Cloudflare)
 
-The following DNS records are managed in Cloudflare:
+DNS records are now managed by Terraform via the `cloudflare` module.
 
-| Type | Name | Value | Proxied |
-|------|------|-------|---------|
-| A | @ | 3.215.185.174 | Yes |
-| A | www | 3.215.185.174 | Yes |
-| A | api | 3.215.185.174 | Yes |
-| A | dusw | 3.215.185.174 | Yes |
-| A | tc | 3.215.185.174 | Yes |
-| CNAME | *._domainkey | *.dkim.amazonses.com | No |
-| TXT | @ | v=spf1 include:amazonses.com ~all | - |
-| TXT | _dmarc | v=DMARC1; p=quarantine; ... | - |
+| Type | Name | Value | Proxied | Managed by Terraform |
+|------|------|-------|---------|---------------------|
+| A | @ | EC2 Public IP | Yes | ✅ |
+| A | www | EC2 Public IP | Yes | ✅ |
+| A | api | EC2 Public IP | Yes | ✅ |
+| A | dusw | EC2 Public IP | Yes | ✅ |
+| A | tc | EC2 Public IP | Yes | ✅ |
+| CNAME | *._domainkey | *.dkim.amazonses.com | No | ✅ (3 records) |
+| TXT | @ | v=spf1 include:amazonses.com ~all | - | ✅ |
+| TXT | _dmarc | v=DMARC1; p=quarantine; ... | - | ✅ |
+| TXT | mail | v=spf1 include:amazonses.com ~all | - | ✅ |
+| MX | mail | feedback-smtp.us-east-1.amazonses.com | - | ✅ |
 
 ## Security Considerations
 
@@ -233,5 +255,6 @@ terraform/
     ├── rds/                # RDS PostgreSQL
     ├── ses/                # SES email configuration
     ├── security-groups/    # Security groups
-    └── iam/                # IAM roles and policies
+    ├── iam/                # IAM roles and policies
+    └── cloudflare/         # Cloudflare DNS records
 ```

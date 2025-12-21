@@ -78,3 +78,14 @@ output "database_connection_string" {
   value       = "postgresql://${var.rds_username}@${module.rds.endpoint}:${module.rds.port}/${var.rds_db_name}"
   sensitive   = false
 }
+
+# Cloudflare Outputs
+output "cloudflare_zone_id" {
+  description = "Cloudflare Zone ID"
+  value       = module.cloudflare.zone_id
+}
+
+output "cloudflare_nameservers" {
+  description = "Cloudflare nameservers"
+  value       = module.cloudflare.nameservers
+}
