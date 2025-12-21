@@ -1071,11 +1071,13 @@ app.post('/api/v1/transplant-centers/select', async (req, res) => {
             });
         }
 
-        // Get patient ID from user ID
-        const patientResult = await pool.query(
-            'SELECT id FROM patients WHERE user_id = $1',
-            [decoded.userId]
-        );
+        // Get patient ID and info from user ID
+        const patientResult = await pool.query(`
+            SELECT p.id, u.first_name, u.last_name, u.email, u.phone_number
+            FROM patients p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.user_id = $1
+        `, [decoded.userId]);
 
         if (patientResult.rows.length === 0) {
             return res.status(404).json({
@@ -1084,7 +1086,8 @@ app.post('/api/v1/transplant-centers/select', async (req, res) => {
             });
         }
 
-        const patientId = patientResult.rows[0].id;
+        const patient = patientResult.rows[0];
+        const patientId = patient.id;
 
         // Clear existing referrals for this patient
         await pool.query('DELETE FROM patient_referrals WHERE patient_id = $1', [patientId]);
@@ -1109,6 +1112,113 @@ app.post('/api/v1/transplant-centers/select', async (req, res) => {
 
         console.log(`✅ Saved ${transplantCenterIds.length} transplant center selections for patient ${patientId}`);
         console.log(`✅ Updated completion status for patient ${patientId}`);
+
+        // Notify TC admins for each selected transplant center
+        for (const centerId of transplantCenterIds) {
+            try {
+                // Get transplant center info and admin emails
+                const tcResult = await pool.query(`
+                    SELECT tc.name, tc.city, tc.state,
+                           tce.email as admin_email, tce.first_name as admin_first_name, tce.last_name as admin_last_name
+                    FROM transplant_centers tc
+                    LEFT JOIN transplant_center_employees tce ON tc.id = tce.transplant_center_id AND tce.role = 'admin'
+                    WHERE tc.id = $1
+                `, [centerId]);
+
+                if (tcResult.rows.length > 0) {
+                    const tcInfo = tcResult.rows[0];
+                    
+                    // Send notification email to each admin
+                    for (const row of tcResult.rows) {
+                        if (row.admin_email) {
+                            const notificationSubject = `New Patient Referral - ${patient.first_name} ${patient.last_name}`;
+                            
+                            const notificationHTML = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; padding: 0; }
+        .header { background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .content { background: #ffffff; padding: 30px; }
+        .patient-info { background: #f0fdf4; border-left: 4px solid #059669; padding: 20px; margin: 20px 0; border-radius: 4px; }
+        .patient-info h3 { margin: 0 0 15px 0; color: #059669; }
+        .info-item { margin: 8px 0; font-size: 15px; }
+        .cta-button { background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; padding: 14px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: 600; margin: 20px 0; }
+        .footer { background: #f5f5f5; padding: 20px; text-align: center; font-size: 12px; color: #666; border-radius: 0 0 10px 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏥 New Patient Referral</h1>
+        </div>
+        <div class="content">
+            <p>Hello ${row.admin_first_name || 'Admin'},</p>
+            <p>A new patient has selected <strong>${tcInfo.name}</strong> as one of their transplant centers.</p>
+            
+            <div class="patient-info">
+                <h3>Patient Information</h3>
+                <div class="info-item"><strong>Name:</strong> ${patient.first_name} ${patient.last_name}</div>
+                <div class="info-item"><strong>Email:</strong> ${patient.email}</div>
+                ${patient.phone_number ? `<div class="info-item"><strong>Phone:</strong> ${patient.phone_number}</div>` : ''}
+                <div class="info-item"><strong>Submitted:</strong> ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+            </div>
+            
+            <p>Please log in to the Transplant Center Portal to review this patient's full information and update their referral status.</p>
+            
+            <div style="text-align: center;">
+                <a href="https://tc.transplantwizard.com/dashboard" class="cta-button">View Patient Details</a>
+            </div>
+        </div>
+        <div class="footer">
+            <p><strong>Transplant Wizard</strong> - Streamlining Patient Referrals</p>
+            <p>🔒 This email contains patient information protected under HIPAA.</p>
+        </div>
+    </div>
+</body>
+</html>`;
+
+                            const notificationText = `New Patient Referral for ${tcInfo.name}
+
+Hello ${row.admin_first_name || 'Admin'},
+
+A new patient has selected ${tcInfo.name} as one of their transplant centers.
+
+Patient Information:
+- Name: ${patient.first_name} ${patient.last_name}
+- Email: ${patient.email}
+${patient.phone_number ? `- Phone: ${patient.phone_number}` : ''}
+- Submitted: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+
+Please log in to the Transplant Center Portal to review this patient's full information:
+https://tc.transplantwizard.com/dashboard
+
+---
+Transplant Wizard - Streamlining Patient Referrals
+This email contains patient information protected under HIPAA.`;
+
+                            const emailResult = await sendEmail(
+                                row.admin_email,
+                                notificationSubject,
+                                notificationHTML,
+                                notificationText
+                            );
+
+                            if (emailResult.success) {
+                                console.log(`✅ Notification sent to TC admin: ${row.admin_email} for ${tcInfo.name}`);
+                            } else {
+                                console.warn(`⚠️  Failed to notify TC admin ${row.admin_email}: ${emailResult.message || emailResult.error}`);
+                            }
+                        }
+                    }
+                }
+            } catch (notifyError) {
+                console.error(`⚠️  Error notifying TC admin for center ${centerId}:`, notifyError.message);
+            }
+        }
 
         res.json({
             success: true,

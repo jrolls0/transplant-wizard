@@ -1,0 +1,149 @@
+Project Overview
+
+
+
+  You are now working with Transplant Wizard - a HIPAA-compliant healthcare platform that connects kidney dialysis
+
+  patients with transplant centers.
+
+
+
+  What it does:
+
+  - iOS patient app (SwiftUI) for registration, consent signing, and transplant center selection
+
+  - Node.js backend API for authentication, data management, and referral processing
+
+  - Web portals for Dialysis Unit Social Workers (DUSWs) and Transplant Centers
+
+  - PostgreSQL database on AWS RDS
+
+  - Infrastructure on AWS (EC2, VPC, SES for email)
+
+
+
+  Your First Task: Project Analysis
+
+
+
+  Read this file first: WINDSURF_INSTRUCTIONS.md (at repo root)
+
+
+
+  This document contains:
+
+  - ✅ What the repo is
+
+  - ✅ High-level architecture diagram
+
+  - ✅ Documentation index ("Start Here" section)
+
+  - ✅ All important code files with paths
+
+  - ✅ How to run locally (summary)
+
+  - ✅ How to deploy to EC2 (summary)
+
+  - ✅ Key product flows (implemented & planned)
+
+  - ✅ Secrets/credentials policy
+
+  - ✅ API endpoints quick reference
+
+
+
+  Critical Documents
+
+
+
+  After reading WINDSURF_INSTRUCTIONS.md, review these in order:
+
+
+
+  1. docs/DATABASE_SCHEMA.md - READ THIS BEFORE ANY DATABASE WORK
+
+    - Complete schema with all tables and relationships
+
+    - Current production status (verified 2025-12-21)
+
+    - Critical for understanding data structure
+
+  2. docs/ARCHITECTURE.md - Understand system design
+
+    - Component overview
+
+    - Data flows
+
+    - Entry points for each service
+
+  3. docs/SETUP.md - How to run locally if needed
+
+  4. docs/DEPLOYMENT.md - If deploying changes to EC2
+
+
+
+  Secrets & Credentials
+
+
+
+  Important: All credentials are encrypted in .secrets/secrets.enc
+
+
+
+  To access them, follow instructions in docs/AGENT_SETUP.md:
+
+  openssl enc -aes-256-cbc -d -pbkdf2 -in .secrets/secrets.enc -out .secrets/secrets.txt -pass
+
+  pass:TransplantWizard2024
+
+  cat .secrets/secrets.txt
+
+  rm .secrets/secrets.txt
+
+
+
+  Never commit credentials to git - they're already gitignored.
+
+
+
+  Key Information
+
+
+
+  - iOS App Entry: Shakir-ClaudeCode/Shakir_ClaudeCodeApp.swift
+
+  - Backend Entry: backend-api/src/simple-auth-server.js
+
+  - API Base URL: https://api.transplantwizard.com/api/v1
+
+  - EC2 IP: 3.215.185.174
+
+  - Database: PostgreSQL on RDS (postgres database, transplant_admin user)
+
+  - Services: 4 Node.js services running on EC2 as systemd services
+
+
+
+  Your Next Steps
+
+
+
+  1. ✅ Read WINDSURF_INSTRUCTIONS.md thoroughly
+
+  2. ✅ Review docs/DATABASE_SCHEMA.md to understand data structure
+
+  3. ✅ Review docs/ARCHITECTURE.md to understand system design
+
+  4. ✅ Identify what you need to work on
+
+  5. ✅ Ask me if anything is unclear
+
+
+
+  Questions?
+
+
+
+  All documentation is in the docs/ folder and is up-to-date as of 2025-12-21. If you need specific credentials or
+
+  information, let me know and I can help.

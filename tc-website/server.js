@@ -185,7 +185,7 @@ app.post('/register', async (req, res) => {
     try {
         const { 
             title, firstName, lastName, phoneNumber, email, password, 
-            employeeId, role, department, transplantCenter 
+            employeeId, transplantCenter 
         } = req.body;
 
         // Validation
@@ -225,17 +225,17 @@ app.post('/register', async (req, res) => {
         // Hash password
         const passwordHash = await hashPassword(password);
 
-        // Create employee account
+        // Create employee account (all registrants are admins)
         const result = await pool.query(`
             INSERT INTO transplant_center_employees (
                 transplant_center_id, employee_id, title, first_name, last_name, 
-                phone_number, email, password_hash, role, department, status, 
+                phone_number, email, password_hash, role, status, 
                 created_at, updated_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', NOW(), NOW())
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'admin', 'active', NOW(), NOW())
             RETURNING id, email, first_name, last_name
         `, [
             centerResult.rows[0].id, employeeId, title, firstName.trim(), lastName.trim(), 
-            phoneNumber, email.toLowerCase(), passwordHash, role || 'coordinator', department
+            phoneNumber, email.toLowerCase(), passwordHash
         ]);
 
         console.log(`✅ TC registration successful: ${result.rows[0].email}`);
