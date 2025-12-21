@@ -129,10 +129,10 @@
                 <div id="openInAppSection" class="d-none mb-4">
                     <div class="text-center p-3" style="background: #f0f4ff; border-radius: 8px; border: 1px solid #667eea;">
                         <p class="mb-2" style="font-size: 14px; color: #333;">
-                            <strong>📱 Have the Transplant Wizard app?</strong>
+                            <strong>📱 Register with the Transplant Wizard app</strong>
                         </p>
                         <button type="button" id="openAppBtn" class="btn btn-primary" style="background: #667eea; border: none;">
-                            Open in App
+                            Open App or Install via TestFlight
                         </button>
                         <p class="mt-2 mb-0" style="font-size: 12px; color: #666;">
                             Or continue below to register on web
@@ -235,26 +235,32 @@
                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         }
 
-        // Try to open app with deep link
+        // TestFlight public link for app installation
+        const TESTFLIGHT_URL = 'https://testflight.apple.com/join/yxUFNBAZ';
+
+        // Try to open app with deep link, fallback to TestFlight
         function tryOpenApp(referralToken) {
             const appDeepLink = `app://register?referralToken=${referralToken}`;
 
-            // Create a hidden iframe to try opening the app
-            // This method doesn't show an error if the app isn't installed
-            const iframe = document.createElement('iframe');
-            iframe.style.display = 'none';
-            iframe.src = appDeepLink;
-            document.body.appendChild(iframe);
+            // Store the referral token in localStorage so the app can retrieve it after install
+            localStorage.setItem('pendingReferralToken', referralToken);
 
-            // Also try direct location change after a brief delay
-            setTimeout(() => {
-                window.location.href = appDeepLink;
-            }, 100);
+            // Record the time before attempting to open the app
+            const startTime = Date.now();
 
-            // Clean up iframe
+            // Try to open the app
+            window.location.href = appDeepLink;
+
+            // If we're still on this page after 1.5 seconds, the app isn't installed
+            // Redirect to TestFlight to install the app
             setTimeout(() => {
-                document.body.removeChild(iframe);
-            }, 2000);
+                // Check if we're still on this page (app didn't open)
+                // The page visibility check helps detect if app opened
+                if (document.visibilityState !== 'hidden' && (Date.now() - startTime) < 2000) {
+                    // App didn't open - redirect to TestFlight
+                    window.location.href = TESTFLIGHT_URL;
+                }
+            }, 1500);
         }
 
         document.addEventListener('DOMContentLoaded', async function() {
