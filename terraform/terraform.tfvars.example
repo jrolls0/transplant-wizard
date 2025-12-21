@@ -1,0 +1,32 @@
+# Transplant Wizard Terraform Variables
+#
+# Copy this file to terraform.tfvars and fill in your values.
+# NEVER commit terraform.tfvars to version control!
+
+# General Configuration
+project_name = "transplant-platform"
+environment  = "prod"
+aws_region   = "us-east-1"
+
+# VPC Configuration
+vpc_cidr           = "10.0.0.0/16"
+availability_zones = ["us-east-1a", "us-east-1b"]
+public_subnets     = ["10.0.1.0/24", "10.0.2.0/24"]
+private_subnets    = ["10.0.3.0/24", "10.0.4.0/24"]
+
+# EC2 Configuration
+ec2_instance_type = "t3.micro"
+ec2_ami_id        = "ami-0453ec754f44f9a4a"  # Amazon Linux 2023
+ec2_key_name      = "transplant-platform-key"
+
+# RDS Configuration
+rds_instance_class      = "db.t3.micro"
+rds_allocated_storage   = 20
+rds_engine_version      = "17.4"
+rds_db_name             = "transplant_platform"
+rds_username            = "transplant_admin"
+rds_password            = "YOUR_SECURE_PASSWORD_HERE"  # Change this!
+rds_publicly_accessible = true
+
+# SES Configuration
+ses_domain = "transplantwizard.com"
