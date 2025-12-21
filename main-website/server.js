@@ -306,6 +306,12 @@ app.get('/contact', (req, res) => {
     });
 });
 
+app.get('/privacy-policy', (req, res) => {
+    res.render('privacy-policy', {
+        title: 'Privacy Policy - TransplantWizard'
+    });
+});
+
 // Patient Referral Registration - Universal Link (handles /register for app universal links)
 app.get('/register', (req, res) => {
     res.render('patient-referral-register', {
