@@ -56,6 +56,12 @@ struct PatientDashboardView: View {
                         .padding(.horizontal)
                     }
                     
+                    // Todo List Section
+                    if authManager.currentUser?.transplantCentersSelected == true {
+                        TodoListSection()
+                            .padding(.horizontal)
+                    }
+                    
                     Spacer(minLength: 20)
                 }
             }
@@ -118,6 +124,9 @@ struct AmeliaChatbotView: View {
     @State private var hasSubmitted = false
     @State private var transplantCenters: [TransplantCenterOption] = []
     @State private var isLoadingCenters = true
+    @State private var showDocumentPrompt = false
+    @State private var documentPromptAnswered = false
+    @State private var navigateToDocuments = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -170,16 +179,82 @@ struct AmeliaChatbotView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     // Check if user has already completed transplant center selection
                     if authManager.currentUser?.transplantCentersSelected == true {
-                        // Show completed flow
+                        // Show completed flow with document submission prompt
                         ChatMessage(
                             text: "I'm Amelia, your virtual transplant coordinator. Welcome back!",
                             isFromAmelia: true
                         )
                         
                         ChatMessage(
-                            text: "I've already received your transplant center selections and have been coordinating with your chosen centers. I'll continue to monitor your referral progress and will notify you of any updates.",
+                            text: "Great news! I've successfully received your transplant center selections and have notified your chosen centers. To continue with the referral process, you'll need to submit the following important documents:",
                             isFromAmelia: true
                         )
+                        
+                        // Document requirements list
+                        VStack(alignment: .leading, spacing: 8) {
+                            DocumentRequirementRow(icon: "creditcard.fill", text: "Insurance card (front and back)")
+                            DocumentRequirementRow(icon: "pills.fill", text: "Medication card OR medication list")
+                            DocumentRequirementRow(icon: "person.text.rectangle.fill", text: "Government-issued ID")
+                        }
+                        .padding()
+                        .background(Color(.systemGray6))
+                        .cornerRadius(12)
+                        
+                        if !documentPromptAnswered {
+                            ChatMessage(
+                                text: "Would you like to upload these documents now?",
+                                isFromAmelia: true
+                            )
+                            
+                            // Yes/No buttons
+                            HStack(spacing: 16) {
+                                Button(action: {
+                                    documentPromptAnswered = true
+                                    navigateToDocuments = true
+                                }) {
+                                    Text("Yes, let's do it")
+                                        .fontWeight(.semibold)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 12)
+                                        .background(
+                                            LinearGradient(
+                                                colors: [Color(red: 0.2, green: 0.6, blue: 0.9), Color(red: 0.1, green: 0.5, blue: 0.8)],
+                                                startPoint: .leading,
+                                                endPoint: .trailing
+                                            )
+                                        )
+                                        .foregroundColor(.white)
+                                        .cornerRadius(10)
+                                }
+                                
+                                Button(action: {
+                                    documentPromptAnswered = true
+                                    // Add to todo list via API
+                                    Task {
+                                        await addDocumentTodos()
+                                    }
+                                }) {
+                                    Text("Later")
+                                        .fontWeight(.semibold)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 12)
+                                        .background(Color(.systemGray5))
+                                        .foregroundColor(.primary)
+                                        .cornerRadius(10)
+                                }
+                            }
+                            .padding(.top, 8)
+                        } else if navigateToDocuments {
+                            ChatMessage(
+                                text: "Perfect! Let's get those documents uploaded. I'll guide you through the process.",
+                                isFromAmelia: true
+                            )
+                        } else {
+                            ChatMessage(
+                                text: "No problem! I've added these documents to your to-do list. You can upload them anytime from the Documents section. I'll continue monitoring your referral progress in the meantime.",
+                                isFromAmelia: true
+                            )
+                        }
                         
                     } else {
                         // Show initial flow for new users
@@ -340,6 +415,33 @@ struct AmeliaChatbotView: View {
         }
     }
     
+    private func addDocumentTodos() async {
+        guard let accessToken = KeychainManager.shared.getAccessToken() else { return }
+        
+        // Create document upload todos via API
+        let todos = [
+            ("Upload Insurance Card", "Upload front and back of your insurance card", "insurance_card"),
+            ("Upload Medication List", "Upload your medication card or list of current medications", "medication_list"),
+            ("Upload Government ID", "Upload a government-issued photo ID", "government_id")
+        ]
+        
+        for (title, description, docType) in todos {
+            do {
+                try await APIService.shared.createTodo(
+                    title: title,
+                    description: description,
+                    todoType: "document_upload",
+                    priority: "high",
+                    metadata: ["documentType": docType],
+                    accessToken: accessToken
+                )
+            } catch {
+                print("❌ Failed to create todo: \(error)")
+            }
+        }
+        print("✅ Document todos created")
+    }
+    
     private func submitSelection() {
         guard !selectedCenters.isEmpty else { return }
         guard let accessToken = KeychainManager.shared.getAccessToken() else { return }
@@ -474,6 +576,216 @@ struct TransplantCenterOption {
     let location: String
     let distance: String
     let waitTime: String
+}
+
+// MARK: - Document Requirement Row
+
+struct DocumentRequirementRow: View {
+    let icon: String
+    let text: String
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 16))
+                .foregroundColor(Color(red: 0.2, green: 0.6, blue: 0.9))
+                .frame(width: 24)
+            
+            Text(text)
+                .font(.subheadline)
+                .foregroundColor(.primary)
+            
+            Spacer()
+        }
+    }
+}
+
+// MARK: - Todo List Section
+
+struct TodoListSection: View {
+    @State private var todos: [PatientTodo] = []
+    @State private var isLoading = true
+    @State private var showDocumentUpload = false
+    @State private var selectedDocType: DocumentType?
+    
+    var pendingTodos: [PatientTodo] {
+        todos.filter { $0.status == "pending" }
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "checklist")
+                    .foregroundColor(Color(red: 0.2, green: 0.6, blue: 0.9))
+                Text("To-Do List")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                
+                Spacer()
+                
+                if !pendingTodos.isEmpty {
+                    Text("\(pendingTodos.count) pending")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(8)
+                }
+            }
+            
+            if isLoading {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                }
+                .padding()
+            } else if pendingTodos.isEmpty {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                    Text("All tasks completed!")
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(Color(.systemGray6))
+                .cornerRadius(12)
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(pendingTodos) { todo in
+                        TodoItemRow(todo: todo, onTap: {
+                            if todo.todoType == "document_upload",
+                               let docType = todo.metadata?["documentType"] {
+                                selectedDocType = DocumentType(rawValue: docType)
+                                showDocumentUpload = true
+                            }
+                        }, onComplete: {
+                            Task {
+                                await markTodoComplete(todo)
+                            }
+                        })
+                    }
+                }
+            }
+            
+            // Upload Documents Button
+            Button(action: {
+                selectedDocType = nil
+                showDocumentUpload = true
+            }) {
+                HStack {
+                    Image(systemName: "doc.badge.plus")
+                    Text("Upload Documents")
+                        .fontWeight(.medium)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(Color(red: 0.2, green: 0.6, blue: 0.9).opacity(0.1))
+                .foregroundColor(Color(red: 0.2, green: 0.6, blue: 0.9))
+                .cornerRadius(10)
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(16)
+        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+        .onAppear {
+            loadTodos()
+        }
+        .sheet(isPresented: $showDocumentUpload) {
+            DocumentSubmissionView(preselectedType: selectedDocType)
+        }
+    }
+    
+    private func loadTodos() {
+        guard let accessToken = KeychainManager.shared.getAccessToken() else { return }
+        
+        Task {
+            do {
+                let fetchedTodos = try await APIService.shared.getTodos(accessToken: accessToken)
+                await MainActor.run {
+                    todos = fetchedTodos
+                    isLoading = false
+                }
+            } catch {
+                await MainActor.run {
+                    isLoading = false
+                    print("❌ Failed to load todos: \(error)")
+                }
+            }
+        }
+    }
+    
+    private func markTodoComplete(_ todo: PatientTodo) async {
+        guard let accessToken = KeychainManager.shared.getAccessToken() else { return }
+        
+        do {
+            _ = try await APIService.shared.updateTodo(todoId: todo.id, status: "completed", accessToken: accessToken)
+            loadTodos()
+        } catch {
+            print("❌ Failed to complete todo: \(error)")
+        }
+    }
+}
+
+// MARK: - Todo Item Row
+
+struct TodoItemRow: View {
+    let todo: PatientTodo
+    let onTap: () -> Void
+    let onComplete: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 12) {
+                // Priority indicator
+                Circle()
+                    .fill(priorityColor)
+                    .frame(width: 8, height: 8)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(todo.title)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.primary)
+                    
+                    if let description = todo.description {
+                        Text(description)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                
+                Spacer()
+                
+                // Action icon based on todo type
+                if todo.todoType == "document_upload" {
+                    Image(systemName: "arrow.up.doc.fill")
+                        .foregroundColor(Color(red: 0.2, green: 0.6, blue: 0.9))
+                } else {
+                    Button(action: onComplete) {
+                        Image(systemName: "circle")
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            .padding()
+            .background(Color(.systemGray6))
+            .cornerRadius(12)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
+    var priorityColor: Color {
+        switch todo.priority {
+        case "high": return .red
+        case "medium": return .orange
+        default: return .green
+        }
+    }
 }
 
 #Preview {

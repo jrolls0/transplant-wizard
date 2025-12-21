@@ -148,6 +148,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
                 pr.status,
                 pr.submitted_at,
                 pr.updated_at,
+                pr.patient_id,
                 u.first_name,
                 u.last_name,
                 u.email,
@@ -165,10 +166,33 @@ app.get('/dashboard', requireAuth, async (req, res) => {
             LIMIT 10
         `, [req.session.user.transplant_center_id]);
 
+        // Get document counts for each patient
+        const patientIds = referrals.rows.map(r => r.patient_id).filter(id => id);
+        let documentCounts = {};
+        
+        if (patientIds.length > 0) {
+            const docCountResult = await pool.query(`
+                SELECT patient_id, COUNT(*) as doc_count
+                FROM patient_documents
+                WHERE patient_id = ANY($1)
+                GROUP BY patient_id
+            `, [patientIds]);
+            
+            docCountResult.rows.forEach(row => {
+                documentCounts[row.patient_id] = parseInt(row.doc_count);
+            });
+        }
+
+        // Add document count to referrals
+        const referralsWithDocs = referrals.rows.map(r => ({
+            ...r,
+            document_count: documentCounts[r.patient_id] || 0
+        }));
+
         res.render('dashboard', {
             title: 'Dashboard - Transplant Center Portal',
             user: req.session.user,
-            referrals: referrals.rows
+            referrals: referralsWithDocs
         });
     } catch (error) {
         console.error('Dashboard error:', error);
@@ -177,6 +201,119 @@ app.get('/dashboard', requireAuth, async (req, res) => {
             user: req.session.user,
             referrals: []
         });
+    }
+});
+
+// Patient Documents Page (protected)
+app.get('/patient/:patientId/documents', requireAuth, async (req, res) => {
+    try {
+        const { patientId } = req.params;
+        
+        // Verify this patient has a referral to this TC
+        const referralCheck = await pool.query(`
+            SELECT pr.id FROM patient_referrals pr
+            WHERE pr.patient_id = $1 AND pr.transplant_center_id = $2
+        `, [patientId, req.session.user.transplant_center_id]);
+        
+        if (referralCheck.rows.length === 0) {
+            return res.status(403).render('error', {
+                title: 'Access Denied',
+                message: 'You do not have access to view this patient\'s documents.'
+            });
+        }
+        
+        // Get patient info
+        const patientResult = await pool.query(`
+            SELECT u.first_name, u.last_name, u.email, u.phone_number
+            FROM patients p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.id = $1
+        `, [patientId]);
+        
+        if (patientResult.rows.length === 0) {
+            return res.status(404).render('error', {
+                title: 'Not Found',
+                message: 'Patient not found.'
+            });
+        }
+        
+        // Get patient documents
+        const documents = await pool.query(`
+            SELECT id, document_type, file_name, file_size, mime_type, 
+                   is_front, document_group_id, created_at
+            FROM patient_documents
+            WHERE patient_id = $1
+            ORDER BY created_at DESC
+        `, [patientId]);
+        
+        // Group documents by type
+        const groupedDocs = {};
+        documents.rows.forEach(doc => {
+            if (!groupedDocs[doc.document_type]) {
+                groupedDocs[doc.document_type] = [];
+            }
+            groupedDocs[doc.document_type].push(doc);
+        });
+        
+        res.render('patient-documents', {
+            title: 'Patient Documents - Transplant Center Portal',
+            user: req.session.user,
+            patient: patientResult.rows[0],
+            patientId: patientId,
+            documents: documents.rows,
+            groupedDocs: groupedDocs
+        });
+        
+    } catch (error) {
+        console.error('Error fetching patient documents:', error);
+        res.status(500).render('error', {
+            title: 'Error',
+            message: 'Failed to load patient documents.'
+        });
+    }
+});
+
+// Get document download URL (API endpoint for TC portal)
+app.get('/api/documents/:documentId/url', requireAuth, async (req, res) => {
+    try {
+        const { documentId } = req.params;
+        
+        // Get document and verify access
+        const docResult = await pool.query(`
+            SELECT pd.*, pr.transplant_center_id
+            FROM patient_documents pd
+            JOIN patient_referrals pr ON pd.patient_id = pr.patient_id
+            WHERE pd.id = $1 AND pr.transplant_center_id = $2
+        `, [documentId, req.session.user.transplant_center_id]);
+        
+        if (docResult.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Document not found' });
+        }
+        
+        const doc = docResult.rows[0];
+        
+        // Generate pre-signed URL using AWS SDK
+        const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+        const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+        
+        const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
+        
+        const getCommand = new GetObjectCommand({
+            Bucket: doc.s3_bucket,
+            Key: doc.s3_key
+        });
+        
+        const signedUrl = await getSignedUrl(s3Client, getCommand, { expiresIn: 900 });
+        
+        res.json({
+            success: true,
+            url: signedUrl,
+            expiresIn: 900
+        });
+        
+    } catch (error) {
+        console.error('Error generating document URL:', error);
+        res.status(500).json({ success: false, error: 'Failed to generate document URL' });
     }
 });
 

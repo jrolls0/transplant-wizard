@@ -262,6 +262,139 @@ class APIService: ObservableObject {
         return response.data ?? []
     }
 
+    // MARK: - Document Upload Endpoints
+    
+    func uploadDocument(documentType: String, files: [(Data, String, String)], accessToken: String) async throws {
+        let endpoint = "/documents/upload"
+        let url = URL(string: baseURL + endpoint)!
+        
+        let boundary = UUID().uuidString
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        
+        var body = Data()
+        
+        // Add document type field
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"documentType\"\r\n\r\n".data(using: .utf8)!)
+        body.append("\(documentType)\r\n".data(using: .utf8)!)
+        
+        // Add files
+        for (index, (fileData, fileName, mimeType)) in files.enumerated() {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"files\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
+            body.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
+            body.append(fileData)
+            body.append("\r\n".data(using: .utf8)!)
+        }
+        
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        request.httpBody = body
+        
+        let (data, response) = try await session.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.networkError
+        }
+        
+        if httpResponse.statusCode >= 400 {
+            if let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                throw APIError.validationError(errorResponse.error)
+            }
+            throw APIError.serverError
+        }
+    }
+    
+    func getDocuments(accessToken: String) async throws -> [PatientDocument] {
+        let endpoint = "/documents"
+        
+        let response: APIResponse<[PatientDocument]> = try await performAuthenticatedRequest(
+            endpoint: endpoint,
+            method: .GET,
+            body: EmptyRequest(),
+            accessToken: accessToken
+        )
+        
+        return response.data ?? []
+    }
+    
+    func getDocumentURL(documentId: String, accessToken: String) async throws -> String {
+        let endpoint = "/documents/\(documentId)/url"
+        
+        let response: DocumentURLResponse = try await performAuthenticatedRequest(
+            endpoint: endpoint,
+            method: .GET,
+            body: EmptyRequest(),
+            accessToken: accessToken
+        )
+        
+        return response.data.url
+    }
+    
+    // MARK: - Todo Endpoints
+    
+    func getTodos(accessToken: String) async throws -> [PatientTodo] {
+        let endpoint = "/todos"
+        
+        let response: APIResponse<[PatientTodo]> = try await performAuthenticatedRequest(
+            endpoint: endpoint,
+            method: .GET,
+            body: EmptyRequest(),
+            accessToken: accessToken
+        )
+        
+        return response.data ?? []
+    }
+    
+    func createTodo(title: String, description: String?, todoType: String?, priority: String?, metadata: [String: String]?, accessToken: String) async throws -> PatientTodo {
+        let endpoint = "/todos"
+        let body = CreateTodoRequest(title: title, description: description, todoType: todoType, priority: priority, metadata: metadata)
+        
+        let response: APIResponse<PatientTodo> = try await performAuthenticatedRequest(
+            endpoint: endpoint,
+            method: .POST,
+            body: body,
+            accessToken: accessToken
+        )
+        
+        guard let todo = response.data else {
+            throw APIError.serverError
+        }
+        
+        return todo
+    }
+    
+    func updateTodo(todoId: String, status: String?, accessToken: String) async throws -> PatientTodo {
+        let endpoint = "/todos/\(todoId)"
+        let body = UpdateTodoRequest(status: status)
+        
+        let response: APIResponse<PatientTodo> = try await performAuthenticatedRequest(
+            endpoint: endpoint,
+            method: .PATCH,
+            body: body,
+            accessToken: accessToken
+        )
+        
+        guard let todo = response.data else {
+            throw APIError.serverError
+        }
+        
+        return todo
+    }
+    
+    func deleteTodo(todoId: String, accessToken: String) async throws {
+        let endpoint = "/todos/\(todoId)"
+        
+        let _: EmptyResponse = try await performAuthenticatedRequest(
+            endpoint: endpoint,
+            method: .DELETE,
+            body: EmptyRequest(),
+            accessToken: accessToken
+        )
+    }
+
     // MARK: - Referral Lookup
 
     func lookupReferralByEmail(email: String) async throws -> ReferralLookupData? {
@@ -603,6 +736,99 @@ struct ReferralLookupRequest: Codable {
 struct ReferralLookupResponse: Codable {
     let success: Bool
     let data: ReferralLookupData?
+}
+
+// MARK: - Document Models
+struct PatientDocument: Codable, Identifiable {
+    let id: String
+    let documentType: String
+    let fileName: String
+    let fileSize: Int?
+    let mimeType: String?
+    let isFront: Bool?
+    let documentGroupId: String?
+    let uploadStatus: String?
+    let createdAt: Date?
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case documentType = "document_type"
+        case fileName = "file_name"
+        case fileSize = "file_size"
+        case mimeType = "mime_type"
+        case isFront = "is_front"
+        case documentGroupId = "document_group_id"
+        case uploadStatus = "upload_status"
+        case createdAt = "created_at"
+    }
+    
+    var documentTypeName: String {
+        switch documentType {
+        case "insurance_card": return "Insurance Card"
+        case "medication_list": return "Medication Card/List"
+        case "government_id": return "Government-Issued ID"
+        case "medical_records": return "Medical Records"
+        case "lab_results": return "Lab Results"
+        case "referral_letter": return "Referral Letter"
+        default: return "Other Document"
+        }
+    }
+}
+
+struct DocumentURLResponse: Codable {
+    let success: Bool
+    let data: DocumentURLData
+}
+
+struct DocumentURLData: Codable {
+    let url: String
+    let expiresIn: Int
+}
+
+// MARK: - Todo Models
+struct PatientTodo: Codable, Identifiable {
+    let id: String
+    let title: String
+    let description: String?
+    let todoType: String?
+    let priority: String?
+    let status: String?
+    let dueDate: Date?
+    let completedAt: Date?
+    let metadata: [String: String]?
+    let createdAt: Date?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, title, description, priority, status, metadata
+        case todoType = "todo_type"
+        case dueDate = "due_date"
+        case completedAt = "completed_at"
+        case createdAt = "created_at"
+    }
+    
+    var isCompleted: Bool {
+        status == "completed"
+    }
+    
+    var priorityColor: String {
+        switch priority {
+        case "high": return "red"
+        case "medium": return "orange"
+        default: return "green"
+        }
+    }
+}
+
+struct CreateTodoRequest: Codable {
+    let title: String
+    let description: String?
+    let todoType: String?
+    let priority: String?
+    let metadata: [String: String]?
+}
+
+struct UpdateTodoRequest: Codable {
+    let status: String?
 }
 
 // Extension for Date formatting

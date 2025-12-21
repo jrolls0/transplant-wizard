@@ -6,6 +6,10 @@ const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { SESv2Client, SendEmailCommand } = require('@aws-sdk/client-sesv2');
+const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+const multer = require('multer');
+const { v4: uuidv4 } = require('uuid');
 
 // Load environment variables
 require('dotenv').config();
@@ -40,6 +44,34 @@ app.use(express.json({ limit: '10mb' }));
 // AWS SES Client (using IAM-based authentication with default credential chain)
 const sesClient = new SESv2Client({
     region: process.env.AWS_REGION || 'us-east-1'
+});
+
+// AWS S3 Client for document storage
+const s3Client = new S3Client({
+    region: process.env.AWS_REGION || 'us-east-1'
+});
+
+const S3_CONFIG = {
+    bucket: process.env.S3_DOCUMENTS_BUCKET || 'transplant-wizard-patient-documents',
+    region: process.env.AWS_REGION || 'us-east-1'
+};
+
+console.log(`📁 S3 Configuration: Bucket = ${S3_CONFIG.bucket}`);
+
+// Multer configuration for file uploads (memory storage)
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB limit
+    },
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/heic', 'image/heif', 'application/pdf'];
+        if (allowedTypes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Invalid file type. Only JPEG, PNG, HEIC, and PDF files are allowed.'));
+        }
+    }
 });
 
 // SES Configuration
@@ -1584,6 +1616,524 @@ app.get('/api/social-workers', async (req, res) => {
         });
     }
 });
+
+// MARK: - Document Upload Endpoints
+
+// Document types configuration
+const DOCUMENT_TYPES = {
+    'insurance_card': { name: 'Insurance Card', requiresFrontBack: true },
+    'medication_list': { name: 'Medication Card/List', requiresFrontBack: false },
+    'government_id': { name: 'Government-Issued ID', requiresFrontBack: false },
+    'medical_records': { name: 'Medical Records', requiresFrontBack: false },
+    'lab_results': { name: 'Lab Results', requiresFrontBack: false },
+    'referral_letter': { name: 'Referral Letter', requiresFrontBack: false },
+    'other': { name: 'Other Document', requiresFrontBack: false }
+};
+
+// Get document types list
+app.get('/api/v1/documents/types', (req, res) => {
+    res.json({
+        success: true,
+        data: Object.entries(DOCUMENT_TYPES).map(([key, value]) => ({
+            id: key,
+            name: value.name,
+            requiresFrontBack: value.requiresFrontBack
+        }))
+    });
+});
+
+// Upload document
+app.post('/api/v1/documents/upload', upload.array('files', 2), async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ success: false, error: 'Authentication required' });
+        }
+
+        const token = authHeader.substring(7);
+        let decoded;
+        try {
+            decoded = verifyToken(token);
+        } catch (error) {
+            return res.status(401).json({ success: false, error: 'Invalid token' });
+        }
+
+        const { documentType, isFront } = req.body;
+        const files = req.files;
+
+        if (!files || files.length === 0) {
+            return res.status(400).json({ success: false, error: 'No files uploaded' });
+        }
+
+        if (!documentType || !DOCUMENT_TYPES[documentType]) {
+            return res.status(400).json({ success: false, error: 'Invalid document type' });
+        }
+
+        // Get patient ID
+        const patientResult = await pool.query(
+            'SELECT id FROM patients WHERE user_id = $1',
+            [decoded.userId]
+        );
+
+        if (patientResult.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Patient not found' });
+        }
+
+        const patientId = patientResult.rows[0].id;
+        const documentGroupId = uuidv4();
+        const uploadedDocs = [];
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const fileExtension = file.originalname.split('.').pop() || 'jpg';
+            const s3Key = `patients/${patientId}/documents/${documentType}/${documentGroupId}/${i === 0 ? 'front' : 'back'}.${fileExtension}`;
+
+            // Upload to S3
+            const putCommand = new PutObjectCommand({
+                Bucket: S3_CONFIG.bucket,
+                Key: s3Key,
+                Body: file.buffer,
+                ContentType: file.mimetype,
+                ServerSideEncryption: 'AES256',
+                Metadata: {
+                    'patient-id': patientId,
+                    'document-type': documentType,
+                    'original-filename': file.originalname
+                }
+            });
+
+            await s3Client.send(putCommand);
+
+            // Save to database
+            const docResult = await pool.query(`
+                INSERT INTO patient_documents (
+                    patient_id, document_type, file_name, file_size, mime_type,
+                    s3_key, s3_bucket, upload_status, is_front, document_group_id
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'completed', $8, $9)
+                RETURNING id, document_type, file_name, is_front, created_at
+            `, [
+                patientId, documentType, file.originalname, file.size, file.mimetype,
+                s3Key, S3_CONFIG.bucket, i === 0, documentGroupId
+            ]);
+
+            uploadedDocs.push(docResult.rows[0]);
+        }
+
+        // Get patient info and selected transplant centers for notifications
+        const patientInfo = await pool.query(`
+            SELECT u.first_name, u.last_name, u.email
+            FROM users u
+            JOIN patients p ON u.id = p.user_id
+            WHERE p.id = $1
+        `, [patientId]);
+
+        const patient = patientInfo.rows[0];
+
+        // Notify TC admins about new document
+        const referrals = await pool.query(`
+            SELECT DISTINCT tc.id, tc.name, tce.email as admin_email, tce.first_name as admin_first_name
+            FROM patient_referrals pr
+            JOIN transplant_centers tc ON pr.transplant_center_id = tc.id
+            LEFT JOIN transplant_center_employees tce ON tc.id = tce.transplant_center_id AND tce.role = 'admin'
+            WHERE pr.patient_id = $1
+        `, [patientId]);
+
+        for (const row of referrals.rows) {
+            if (row.admin_email) {
+                const docTypeName = DOCUMENT_TYPES[documentType]?.name || documentType;
+                await sendEmail(
+                    row.admin_email,
+                    `New Document Uploaded - ${patient.first_name} ${patient.last_name}`,
+                    `<h2>New Patient Document</h2>
+                    <p>Patient <strong>${patient.first_name} ${patient.last_name}</strong> has uploaded a new document.</p>
+                    <p><strong>Document Type:</strong> ${docTypeName}</p>
+                    <p>Please log in to the <a href="https://tc.transplantwizard.com/dashboard">TC Portal</a> to view the document.</p>`,
+                    `New document uploaded by ${patient.first_name} ${patient.last_name}. Document Type: ${docTypeName}. View at https://tc.transplantwizard.com/dashboard`
+                );
+                console.log(`✅ Document notification sent to TC admin: ${row.admin_email}`);
+            }
+        }
+
+        // Remove from todo list if this was a required document
+        await pool.query(`
+            UPDATE patient_todos 
+            SET status = 'completed', completed_at = NOW(), updated_at = NOW()
+            WHERE patient_id = $1 AND todo_type = 'document_upload' AND metadata->>'documentType' = $2 AND status = 'pending'
+        `, [patientId, documentType]);
+
+        console.log(`✅ Document uploaded: ${documentType} for patient ${patientId}`);
+
+        res.json({
+            success: true,
+            message: 'Document uploaded successfully',
+            data: {
+                documents: uploadedDocs,
+                groupId: documentGroupId
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Document upload error:', error);
+        res.status(500).json({ success: false, error: 'Failed to upload document' });
+    }
+});
+
+// Get patient's documents
+app.get('/api/v1/documents', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ success: false, error: 'Authentication required' });
+        }
+
+        const token = authHeader.substring(7);
+        let decoded;
+        try {
+            decoded = verifyToken(token);
+        } catch (error) {
+            return res.status(401).json({ success: false, error: 'Invalid token' });
+        }
+
+        const patientResult = await pool.query(
+            'SELECT id FROM patients WHERE user_id = $1',
+            [decoded.userId]
+        );
+
+        if (patientResult.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Patient not found' });
+        }
+
+        const patientId = patientResult.rows[0].id;
+
+        const documents = await pool.query(`
+            SELECT id, document_type, file_name, file_size, mime_type, is_front, 
+                   document_group_id, upload_status, created_at
+            FROM patient_documents
+            WHERE patient_id = $1
+            ORDER BY created_at DESC
+        `, [patientId]);
+
+        res.json({
+            success: true,
+            data: documents.rows
+        });
+
+    } catch (error) {
+        console.error('❌ Error fetching documents:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch documents' });
+    }
+});
+
+// Get document download URL (pre-signed)
+app.get('/api/v1/documents/:documentId/url', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ success: false, error: 'Authentication required' });
+        }
+
+        const token = authHeader.substring(7);
+        let decoded;
+        try {
+            decoded = verifyToken(token);
+        } catch (error) {
+            return res.status(401).json({ success: false, error: 'Invalid token' });
+        }
+
+        const { documentId } = req.params;
+
+        // Verify document belongs to patient or TC admin has access
+        const docResult = await pool.query(`
+            SELECT pd.*, p.user_id
+            FROM patient_documents pd
+            JOIN patients p ON pd.patient_id = p.id
+            WHERE pd.id = $1
+        `, [documentId]);
+
+        if (docResult.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Document not found' });
+        }
+
+        const doc = docResult.rows[0];
+
+        // Generate pre-signed URL (valid for 15 minutes)
+        const getCommand = new GetObjectCommand({
+            Bucket: doc.s3_bucket,
+            Key: doc.s3_key
+        });
+
+        const signedUrl = await getSignedUrl(s3Client, getCommand, { expiresIn: 900 });
+
+        res.json({
+            success: true,
+            data: {
+                url: signedUrl,
+                expiresIn: 900
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Error generating document URL:', error);
+        res.status(500).json({ success: false, error: 'Failed to generate document URL' });
+    }
+});
+
+// MARK: - Todo List Endpoints
+
+// Get patient's todos
+app.get('/api/v1/todos', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ success: false, error: 'Authentication required' });
+        }
+
+        const token = authHeader.substring(7);
+        let decoded;
+        try {
+            decoded = verifyToken(token);
+        } catch (error) {
+            return res.status(401).json({ success: false, error: 'Invalid token' });
+        }
+
+        const patientResult = await pool.query(
+            'SELECT id FROM patients WHERE user_id = $1',
+            [decoded.userId]
+        );
+
+        if (patientResult.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Patient not found' });
+        }
+
+        const patientId = patientResult.rows[0].id;
+
+        const todos = await pool.query(`
+            SELECT id, title, description, todo_type, priority, status, due_date, 
+                   completed_at, metadata, created_at
+            FROM patient_todos
+            WHERE patient_id = $1
+            ORDER BY 
+                CASE WHEN status = 'pending' THEN 0 ELSE 1 END,
+                CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
+                created_at DESC
+        `, [patientId]);
+
+        res.json({
+            success: true,
+            data: todos.rows
+        });
+
+    } catch (error) {
+        console.error('❌ Error fetching todos:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch todos' });
+    }
+});
+
+// Create todo
+app.post('/api/v1/todos', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ success: false, error: 'Authentication required' });
+        }
+
+        const token = authHeader.substring(7);
+        let decoded;
+        try {
+            decoded = verifyToken(token);
+        } catch (error) {
+            return res.status(401).json({ success: false, error: 'Invalid token' });
+        }
+
+        const { title, description, todoType, priority, dueDate, metadata } = req.body;
+
+        if (!title) {
+            return res.status(400).json({ success: false, error: 'Title is required' });
+        }
+
+        const patientResult = await pool.query(
+            'SELECT id FROM patients WHERE user_id = $1',
+            [decoded.userId]
+        );
+
+        if (patientResult.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Patient not found' });
+        }
+
+        const patientId = patientResult.rows[0].id;
+
+        const result = await pool.query(`
+            INSERT INTO patient_todos (patient_id, title, description, todo_type, priority, due_date, metadata)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING id, title, description, todo_type, priority, status, due_date, metadata, created_at
+        `, [patientId, title, description, todoType, priority || 'medium', dueDate, metadata || {}]);
+
+        console.log(`✅ Todo created for patient ${patientId}: ${title}`);
+
+        res.json({
+            success: true,
+            data: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('❌ Error creating todo:', error);
+        res.status(500).json({ success: false, error: 'Failed to create todo' });
+    }
+});
+
+// Update todo status
+app.patch('/api/v1/todos/:todoId', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ success: false, error: 'Authentication required' });
+        }
+
+        const token = authHeader.substring(7);
+        let decoded;
+        try {
+            decoded = verifyToken(token);
+        } catch (error) {
+            return res.status(401).json({ success: false, error: 'Invalid token' });
+        }
+
+        const { todoId } = req.params;
+        const { status, title, description } = req.body;
+
+        const patientResult = await pool.query(
+            'SELECT id FROM patients WHERE user_id = $1',
+            [decoded.userId]
+        );
+
+        if (patientResult.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Patient not found' });
+        }
+
+        const patientId = patientResult.rows[0].id;
+
+        // Build update query dynamically
+        const updates = [];
+        const values = [];
+        let paramCount = 1;
+
+        if (status) {
+            updates.push(`status = $${paramCount++}`);
+            values.push(status);
+            if (status === 'completed') {
+                updates.push(`completed_at = NOW()`);
+            }
+        }
+        if (title) {
+            updates.push(`title = $${paramCount++}`);
+            values.push(title);
+        }
+        if (description !== undefined) {
+            updates.push(`description = $${paramCount++}`);
+            values.push(description);
+        }
+
+        updates.push('updated_at = NOW()');
+        values.push(todoId, patientId);
+
+        const result = await pool.query(`
+            UPDATE patient_todos
+            SET ${updates.join(', ')}
+            WHERE id = $${paramCount++} AND patient_id = $${paramCount}
+            RETURNING id, title, description, todo_type, priority, status, due_date, completed_at, metadata, created_at
+        `, values);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Todo not found' });
+        }
+
+        console.log(`✅ Todo updated: ${todoId}`);
+
+        res.json({
+            success: true,
+            data: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('❌ Error updating todo:', error);
+        res.status(500).json({ success: false, error: 'Failed to update todo' });
+    }
+});
+
+// Delete todo
+app.delete('/api/v1/todos/:todoId', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ success: false, error: 'Authentication required' });
+        }
+
+        const token = authHeader.substring(7);
+        let decoded;
+        try {
+            decoded = verifyToken(token);
+        } catch (error) {
+            return res.status(401).json({ success: false, error: 'Invalid token' });
+        }
+
+        const { todoId } = req.params;
+
+        const patientResult = await pool.query(
+            'SELECT id FROM patients WHERE user_id = $1',
+            [decoded.userId]
+        );
+
+        if (patientResult.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Patient not found' });
+        }
+
+        const patientId = patientResult.rows[0].id;
+
+        const result = await pool.query(`
+            DELETE FROM patient_todos WHERE id = $1 AND patient_id = $2 RETURNING id
+        `, [todoId, patientId]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Todo not found' });
+        }
+
+        console.log(`✅ Todo deleted: ${todoId}`);
+
+        res.json({
+            success: true,
+            message: 'Todo deleted successfully'
+        });
+
+    } catch (error) {
+        console.error('❌ Error deleting todo:', error);
+        res.status(500).json({ success: false, error: 'Failed to delete todo' });
+    }
+});
+
+// Add document submission todos for a patient (called after transplant center selection)
+async function createDocumentSubmissionTodos(patientId) {
+    const requiredDocs = [
+        { type: 'insurance_card', title: 'Upload Insurance Card', description: 'Upload front and back of your insurance card' },
+        { type: 'medication_list', title: 'Upload Medication List', description: 'Upload your medication card or list of current medications' },
+        { type: 'government_id', title: 'Upload Government ID', description: 'Upload a government-issued photo ID (driver\'s license, passport, etc.)' }
+    ];
+
+    for (const doc of requiredDocs) {
+        // Check if todo already exists
+        const existing = await pool.query(`
+            SELECT id FROM patient_todos 
+            WHERE patient_id = $1 AND todo_type = 'document_upload' AND metadata->>'documentType' = $2
+        `, [patientId, doc.type]);
+
+        if (existing.rows.length === 0) {
+            await pool.query(`
+                INSERT INTO patient_todos (patient_id, title, description, todo_type, priority, metadata)
+                VALUES ($1, $2, $3, 'document_upload', 'high', $4)
+            `, [patientId, doc.title, doc.description, JSON.stringify({ documentType: doc.type })]);
+        }
+    }
+
+    console.log(`✅ Created document submission todos for patient ${patientId}`);
+}
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {

@@ -207,98 +207,64 @@
                     </div>
                     <div class="card-body">
                         <div class="activity-list">
-                            <!-- Sample Recent Referrals -->
-                            <div class="activity-item mb-4 pb-3 border-bottom">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div class="d-flex">
-                                        <div class="activity-avatar me-3">
-                                            <div class="avatar-circle bg-primary text-white">
-                                                JS
+                            <% if (referrals && referrals.length > 0) { %>
+                                <% referrals.forEach((referral, index) => { %>
+                                    <div class="activity-item <%= index < referrals.length - 1 ? 'mb-4 pb-3 border-bottom' : '' %>">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="d-flex">
+                                                <div class="activity-avatar me-3">
+                                                    <div class="avatar-circle bg-primary text-white">
+                                                        <%= referral.first_name ? referral.first_name.charAt(0) : '' %><%= referral.last_name ? referral.last_name.charAt(0) : '' %>
+                                                    </div>
+                                                </div>
+                                                <div class="activity-content">
+                                                    <h6 class="fw-bold mb-1"><%= referral.first_name %> <%= referral.last_name %></h6>
+                                                    <p class="text-muted mb-2">
+                                                        <% if (referral.dialysis_clinic) { %>
+                                                            Referral from <%= referral.dialysis_clinic %>
+                                                            <% if (referral.sw_first_name) { %> via <%= referral.sw_first_name %> <%= referral.sw_last_name %><% } %>
+                                                        <% } else { %>
+                                                            Patient referral received
+                                                        <% } %>
+                                                    </p>
+                                                    <div class="d-flex align-items-center gap-3 flex-wrap">
+                                                        <small class="text-muted">
+                                                            <i class="fas fa-clock me-1"></i>
+                                                            <%= new Date(referral.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>
+                                                        </small>
+                                                        <span class="badge 
+                                                            <% if (referral.status === 'submitted') { %>bg-warning bg-opacity-10 text-warning<% } %>
+                                                            <% if (referral.status === 'acknowledged') { %>bg-info bg-opacity-10 text-info<% } %>
+                                                            <% if (referral.status === 'completed') { %>bg-success bg-opacity-10 text-success<% } %>
+                                                            <% if (referral.status === 'pending') { %>bg-secondary bg-opacity-10 text-secondary<% } %>
+                                                        ">
+                                                            <%= referral.status.charAt(0).toUpperCase() + referral.status.slice(1) %>
+                                                        </span>
+                                                        <% if (referral.document_count > 0) { %>
+                                                            <span class="badge bg-primary bg-opacity-10 text-primary">
+                                                                <i class="fas fa-file-alt me-1"></i><%= referral.document_count %> doc<%= referral.document_count > 1 ? 's' : '' %>
+                                                            </span>
+                                                        <% } %>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div class="activity-content">
-                                            <h6 class="fw-bold mb-1">John Smith</h6>
-                                            <p class="text-muted mb-2">New referral from Downtown Dialysis Center</p>
-                                            <div class="d-flex align-items-center gap-3">
-                                                <small class="text-muted">
-                                                    <i class="fas fa-clock me-1"></i>2 hours ago
-                                                </small>
-                                                <span class="badge bg-warning bg-opacity-10 text-warning">Pending Review</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <button class="btn btn-sm btn-outline-primary">Review</button>
-                                </div>
-                            </div>
-                            
-                            <div class="activity-item mb-4 pb-3 border-bottom">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div class="d-flex">
-                                        <div class="activity-avatar me-3">
-                                            <div class="avatar-circle bg-success text-white">
-                                                MJ
-                                            </div>
-                                        </div>
-                                        <div class="activity-content">
-                                            <h6 class="fw-bold mb-1">Maria Johnson</h6>
-                                            <p class="text-muted mb-2">Evaluation completed - cleared for listing</p>
-                                            <div class="d-flex align-items-center gap-3">
-                                                <small class="text-muted">
-                                                    <i class="fas fa-clock me-1"></i>4 hours ago
-                                                </small>
-                                                <span class="badge bg-success bg-opacity-10 text-success">Cleared</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <button class="btn btn-sm btn-outline-success">View Report</button>
-                                </div>
-                            </div>
-                            
-                            <div class="activity-item mb-4 pb-3 border-bottom">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div class="d-flex">
-                                        <div class="activity-avatar me-3">
-                                            <div class="avatar-circle bg-info text-white">
-                                                RW
-                                            </div>
-                                        </div>
-                                        <div class="activity-content">
-                                            <h6 class="fw-bold mb-1">Robert Wilson</h6>
-                                            <p class="text-muted mb-2">Appointment scheduled for cardiac evaluation</p>
-                                            <div class="d-flex align-items-center gap-3">
-                                                <small class="text-muted">
-                                                    <i class="fas fa-clock me-1"></i>6 hours ago
-                                                </small>
-                                                <span class="badge bg-info bg-opacity-10 text-info">Scheduled</span>
+                                            <div class="d-flex gap-2">
+                                                <% if (referral.document_count > 0) { %>
+                                                    <a href="/patient/<%= referral.patient_id %>/documents" class="btn btn-sm btn-outline-info" title="View Documents">
+                                                        <i class="fas fa-folder-open"></i>
+                                                    </a>
+                                                <% } %>
+                                                <button class="btn btn-sm btn-outline-primary">Review</button>
                                             </div>
                                         </div>
                                     </div>
-                                    <button class="btn btn-sm btn-outline-info">View Details</button>
+                                <% }); %>
+                            <% } else { %>
+                                <div class="text-center py-5">
+                                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                    <p class="text-muted">No referrals yet. Patient referrals will appear here.</p>
                                 </div>
-                            </div>
-                            
-                            <div class="activity-item">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div class="d-flex">
-                                        <div class="activity-avatar me-3">
-                                            <div class="avatar-circle bg-secondary text-white">
-                                                AD
-                                            </div>
-                                        </div>
-                                        <div class="activity-content">
-                                            <h6 class="fw-bold mb-1">Ann Davis</h6>
-                                            <p class="text-muted mb-2">Additional tests requested by nephrology team</p>
-                                            <div class="d-flex align-items-center gap-3">
-                                                <small class="text-muted">
-                                                    <i class="fas fa-clock me-1"></i>8 hours ago
-                                                </small>
-                                                <span class="badge bg-secondary bg-opacity-10 text-secondary">In Progress</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <button class="btn btn-sm btn-outline-secondary">Update</button>
-                                </div>
-                            </div>
+                            <% } %>
                         </div>
                     </div>
                 </div>
