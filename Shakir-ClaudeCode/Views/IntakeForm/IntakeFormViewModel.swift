@@ -41,7 +41,8 @@ class IntakeFormViewModel: ObservableObject {
     @Published var socialSupportPhone: String = ""
     
     // Basic Info
-    @Published var height: String = ""
+    @Published var heightFeet: Int = 5
+    @Published var heightInches: Int = 6
     @Published var weight: String = ""
     @Published var onDialysis: Bool = false
     @Published var dialysisType: String = ""
@@ -49,6 +50,10 @@ class IntakeFormViewModel: ObservableObject {
     @Published var lastGFR: String = ""
     @Published var requiresAdditionalOrgan: Bool = false
     @Published var additionalOrganDetails: String = ""
+    
+    var height: String {
+        "\(heightFeet)'\(heightInches)\""
+    }
     
     // Contraindications
     @Published var hasInfection: Bool = false
@@ -59,11 +64,24 @@ class IntakeFormViewModel: ObservableObject {
     @Published var usesOxygen: Bool = false
     @Published var contraindicationsExplanation: String = ""
     
-    // Medical History
-    @Published var diagnosedConditions: String = ""
-    @Published var pastSurgeries: String = ""
+    // Medical History - now as lists
+    @Published var diagnosedConditionsList: [String] = [""]
+    @Published var pastSurgeriesList: [String] = [""]
     
-    // Providers
+    var diagnosedConditions: String {
+        diagnosedConditionsList.filter { !$0.isEmpty }.joined(separator: "; ")
+    }
+    
+    var pastSurgeries: String {
+        pastSurgeriesList.filter { !$0.isEmpty }.joined(separator: "; ")
+    }
+    
+    // Providers - now with clinic selection
+    @Published var dialysisClinics: [DialysisClinicOption] = []
+    @Published var selectedDialysisClinicId: String? = nil
+    @Published var socialWorkersForClinic: [SocialWorkerOption] = []
+    @Published var selectedSocialWorkerId: String? = nil
+    
     @Published var dialysisUnitName: String = ""
     @Published var dialysisUnitAddress: String = ""
     @Published var dialysisUnitEmail: String = ""
@@ -110,14 +128,85 @@ class IntakeFormViewModel: ObservableObject {
         
         Task {
             do {
+                // Load form data
                 let form = try await APIService.shared.getIntakeForm(accessToken: accessToken)
                 populateForm(from: form)
+                
+                // Load dialysis clinics for dropdown
+                await loadDialysisClinics(accessToken: accessToken)
+                
                 isLoading = false
             } catch {
                 print("❌ Error loading intake form: \(error)")
                 isLoading = false
             }
         }
+    }
+    
+    private func loadDialysisClinics(accessToken: String) async {
+        do {
+            let clinics = try await APIService.shared.getDialysisClinics(accessToken: accessToken)
+            await MainActor.run {
+                self.dialysisClinics = clinics
+                print("✅ Loaded \(clinics.count) dialysis clinics")
+            }
+        } catch {
+            print("❌ Error loading dialysis clinics: \(error)")
+        }
+    }
+    
+    func loadSocialWorkersForClinic(_ clinicId: String) {
+        guard let accessToken = KeychainManager.shared.getAccessToken() else { return }
+        
+        Task {
+            do {
+                let workers = try await APIService.shared.getSocialWorkersForClinic(clinicId: clinicId, accessToken: accessToken)
+                await MainActor.run {
+                    self.socialWorkersForClinic = workers
+                    self.selectedSocialWorkerId = nil
+                    print("✅ Loaded \(workers.count) social workers for clinic \(clinicId)")
+                }
+            } catch {
+                print("❌ Error loading social workers: \(error)")
+            }
+        }
+    }
+    
+    func selectDialysisClinic(_ clinic: DialysisClinicOption) {
+        selectedDialysisClinicId = clinic.id
+        dialysisUnitName = clinic.name
+        dialysisUnitAddress = clinic.address ?? ""
+        dialysisUnitEmail = clinic.email ?? ""
+        dialysisUnitPhone = clinic.phone ?? ""
+        
+        // Load social workers for this clinic
+        loadSocialWorkersForClinic(clinic.id)
+    }
+    
+    func selectSocialWorker(_ worker: SocialWorkerOption) {
+        selectedSocialWorkerId = worker.id
+        socialWorkerName = worker.name
+        socialWorkerEmail = worker.email ?? ""
+        socialWorkerPhone = worker.phone ?? ""
+    }
+    
+    // List management for conditions and surgeries
+    func addCondition() {
+        diagnosedConditionsList.append("")
+    }
+    
+    func removeCondition(at index: Int) {
+        guard diagnosedConditionsList.count > 1 else { return }
+        diagnosedConditionsList.remove(at: index)
+    }
+    
+    func addSurgery() {
+        pastSurgeriesList.append("")
+    }
+    
+    func removeSurgery(at index: Int) {
+        guard pastSurgeriesList.count > 1 else { return }
+        pastSurgeriesList.remove(at: index)
     }
     
     func saveForm() {
@@ -406,4 +495,39 @@ struct IntakeFormResponse: Codable {
     let success: Bool
     let data: IntakeFormData?
     let isNew: Bool?
+}
+
+// MARK: - Dialysis Clinic and Social Worker Models
+
+struct DialysisClinicOption: Identifiable, Codable {
+    let id: String
+    let name: String
+    let address: String?
+    let phone: String?
+    let email: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, name, address, phone, email
+    }
+}
+
+struct SocialWorkerOption: Identifiable, Codable {
+    let id: String
+    let name: String
+    let email: String?
+    let phone: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, name, email, phone
+    }
+}
+
+struct DialysisClinicsResponse: Codable {
+    let success: Bool
+    let data: [DialysisClinicOption]?
+}
+
+struct SocialWorkersResponse: Codable {
+    let success: Bool
+    let data: [SocialWorkerOption]?
 }

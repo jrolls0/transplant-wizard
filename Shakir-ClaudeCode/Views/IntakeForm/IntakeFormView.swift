@@ -170,8 +170,42 @@ struct IntakeFormView: View {
                 sectionHeader(title: "Basic Information", icon: "heart.text.square.fill")
                 
                 HStack(spacing: 16) {
-                    RequiredTextField(title: "Height", text: $viewModel.height, isRequired: true)
-                    RequiredTextField(title: "Weight", text: $viewModel.weight, isRequired: true)
+                    // Height Picker
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 4) {
+                            Text("Height")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            Text("*")
+                                .foregroundColor(.red)
+                        }
+                        
+                        HStack(spacing: 8) {
+                            Picker("Feet", selection: $viewModel.heightFeet) {
+                                ForEach(3...7, id: \.self) { feet in
+                                    Text("\(feet)'").tag(feet)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(8)
+                            
+                            Picker("Inches", selection: $viewModel.heightInches) {
+                                ForEach(0...11, id: \.self) { inches in
+                                    Text("\(inches)\"").tag(inches)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(8)
+                        }
+                    }
+                    
+                    RequiredTextField(title: "Weight (lbs)", text: $viewModel.weight, isRequired: true, keyboardType: .numberPad)
                 }
                 
                 Divider().padding(.vertical, 8)
@@ -248,27 +282,63 @@ struct IntakeFormView: View {
             VStack(alignment: .leading, spacing: 20) {
                 sectionHeader(title: "Medical History", icon: "doc.text.fill")
                 
-                Text("List all diagnosed conditions:")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                
-                TextEditor(text: $viewModel.diagnosedConditions)
-                    .frame(minHeight: 120)
-                    .padding(8)
-                    .background(Color(.systemGray6))
-                    .cornerRadius(8)
+                // Diagnosed Conditions List
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Diagnosed Conditions")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Button(action: { viewModel.addCondition() }) {
+                            Image(systemName: "plus.circle.fill")
+                                .foregroundColor(Color(red: 0.2, green: 0.6, blue: 0.9))
+                        }
+                    }
+                    
+                    ForEach(viewModel.diagnosedConditionsList.indices, id: \.self) { index in
+                        HStack(spacing: 8) {
+                            TextField("Enter condition", text: $viewModel.diagnosedConditionsList[index])
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                            
+                            if viewModel.diagnosedConditionsList.count > 1 {
+                                Button(action: { viewModel.removeCondition(at: index) }) {
+                                    Image(systemName: "minus.circle.fill")
+                                        .foregroundColor(.red)
+                                }
+                            }
+                        }
+                    }
+                }
                 
                 Divider().padding(.vertical, 8)
                 
-                Text("List all past surgeries/procedures:")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                
-                TextEditor(text: $viewModel.pastSurgeries)
-                    .frame(minHeight: 120)
-                    .padding(8)
-                    .background(Color(.systemGray6))
-                    .cornerRadius(8)
+                // Past Surgeries List
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Past Surgeries/Procedures")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Button(action: { viewModel.addSurgery() }) {
+                            Image(systemName: "plus.circle.fill")
+                                .foregroundColor(Color(red: 0.2, green: 0.6, blue: 0.9))
+                        }
+                    }
+                    
+                    ForEach(viewModel.pastSurgeriesList.indices, id: \.self) { index in
+                        HStack(spacing: 8) {
+                            TextField("Enter surgery/procedure", text: $viewModel.pastSurgeriesList[index])
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                            
+                            if viewModel.pastSurgeriesList.count > 1 {
+                                Button(action: { viewModel.removeSurgery(at: index) }) {
+                                    Image(systemName: "minus.circle.fill")
+                                        .foregroundColor(.red)
+                                }
+                            }
+                        }
+                    }
+                }
             }
             .padding()
         }
@@ -281,27 +351,153 @@ struct IntakeFormView: View {
             VStack(alignment: .leading, spacing: 20) {
                 sectionHeader(title: "Healthcare Providers", icon: "stethoscope")
                 
-                // Dialysis Unit
+                // Dialysis Unit Dropdown
                 Group {
                     Text("Dialysis Unit")
                         .font(.headline)
                     
-                    RequiredTextField(title: "Name", text: $viewModel.dialysisUnitName, isRequired: false)
-                    RequiredTextField(title: "Address", text: $viewModel.dialysisUnitAddress, isRequired: false)
-                    RequiredTextField(title: "Email", text: $viewModel.dialysisUnitEmail, isRequired: false, keyboardType: .emailAddress)
-                    RequiredTextField(title: "Phone", text: $viewModel.dialysisUnitPhone, isRequired: false, keyboardType: .phonePad)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Select your dialysis unit")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
+                        Menu {
+                            ForEach(viewModel.dialysisClinics) { clinic in
+                                Button(action: {
+                                    viewModel.selectDialysisClinic(clinic)
+                                }) {
+                                    Text(clinic.name)
+                                }
+                            }
+                        } label: {
+                            HStack {
+                                Text(viewModel.dialysisUnitName.isEmpty ? "Select dialysis unit..." : viewModel.dialysisUnitName)
+                                    .foregroundColor(viewModel.dialysisUnitName.isEmpty ? .secondary : .primary)
+                                Spacer()
+                                Image(systemName: "chevron.down")
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .cornerRadius(8)
+                        }
+                    }
+                    
+                    if !viewModel.dialysisUnitName.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            if !viewModel.dialysisUnitAddress.isEmpty {
+                                HStack {
+                                    Image(systemName: "mappin.circle")
+                                        .foregroundColor(.secondary)
+                                    Text(viewModel.dialysisUnitAddress)
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            if !viewModel.dialysisUnitPhone.isEmpty {
+                                HStack {
+                                    Image(systemName: "phone.circle")
+                                        .foregroundColor(.secondary)
+                                    Text(viewModel.dialysisUnitPhone)
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            if !viewModel.dialysisUnitEmail.isEmpty {
+                                HStack {
+                                    Image(systemName: "envelope.circle")
+                                        .foregroundColor(.secondary)
+                                    Text(viewModel.dialysisUnitEmail)
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                        .padding(.top, 4)
+                    }
                 }
                 
                 Divider().padding(.vertical, 8)
                 
-                // Social Worker
+                // Social Worker Dropdown (dependent on dialysis unit)
                 Group {
                     Text("Dialysis Unit Social Worker")
                         .font(.headline)
                     
-                    RequiredTextField(title: "Name", text: $viewModel.socialWorkerName, isRequired: false)
-                    RequiredTextField(title: "Email", text: $viewModel.socialWorkerEmail, isRequired: false, keyboardType: .emailAddress)
-                    RequiredTextField(title: "Phone", text: $viewModel.socialWorkerPhone, isRequired: false, keyboardType: .phonePad)
+                    if viewModel.selectedDialysisClinicId == nil {
+                        Text("Please select a dialysis unit first")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(8)
+                    } else if viewModel.socialWorkersForClinic.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("No social workers found for this clinic")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            
+                            Text("Enter manually:")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            RequiredTextField(title: "Name", text: $viewModel.socialWorkerName, isRequired: false)
+                            RequiredTextField(title: "Email", text: $viewModel.socialWorkerEmail, isRequired: false, keyboardType: .emailAddress)
+                            RequiredTextField(title: "Phone", text: $viewModel.socialWorkerPhone, isRequired: false, keyboardType: .phonePad)
+                        }
+                    } else {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Select your social worker")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            
+                            Menu {
+                                ForEach(viewModel.socialWorkersForClinic) { worker in
+                                    Button(action: {
+                                        viewModel.selectSocialWorker(worker)
+                                    }) {
+                                        Text(worker.name)
+                                    }
+                                }
+                            } label: {
+                                HStack {
+                                    Text(viewModel.socialWorkerName.isEmpty ? "Select social worker..." : viewModel.socialWorkerName)
+                                        .foregroundColor(viewModel.socialWorkerName.isEmpty ? .secondary : .primary)
+                                    Spacer()
+                                    Image(systemName: "chevron.down")
+                                        .foregroundColor(.secondary)
+                                }
+                                .padding()
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
+                            }
+                        }
+                        
+                        if !viewModel.socialWorkerName.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                if !viewModel.socialWorkerEmail.isEmpty {
+                                    HStack {
+                                        Image(systemName: "envelope.circle")
+                                            .foregroundColor(.secondary)
+                                        Text(viewModel.socialWorkerEmail)
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                if !viewModel.socialWorkerPhone.isEmpty {
+                                    HStack {
+                                        Image(systemName: "phone.circle")
+                                            .foregroundColor(.secondary)
+                                        Text(viewModel.socialWorkerPhone)
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                            }
+                            .padding(.top, 4)
+                        }
+                    }
                 }
                 
                 Divider().padding(.vertical, 8)

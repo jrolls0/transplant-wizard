@@ -504,6 +504,34 @@ class APIService: ObservableObject {
             throw APIError.serverError
         }
     }
+    
+    // MARK: - Dialysis Clinics and Social Workers
+    
+    func getDialysisClinics(accessToken: String) async throws -> [DialysisClinicOption] {
+        let endpoint = "/dialysis-clinics"
+        
+        let response: DialysisClinicsResponse = try await performAuthenticatedRequest(
+            endpoint: endpoint,
+            method: .GET,
+            body: EmptyRequest(),
+            accessToken: accessToken
+        )
+        
+        return response.data ?? []
+    }
+    
+    func getSocialWorkersForClinic(clinicId: String, accessToken: String) async throws -> [SocialWorkerOption] {
+        let endpoint = "/dialysis-clinics/\(clinicId)/social-workers"
+        
+        let response: SocialWorkersResponse = try await performAuthenticatedRequest(
+            endpoint: endpoint,
+            method: .GET,
+            body: EmptyRequest(),
+            accessToken: accessToken
+        )
+        
+        return response.data ?? []
+    }
 
     // MARK: - Referral Lookup
 

@@ -2197,6 +2197,71 @@ async function createDocumentSubmissionTodos(patientId) {
 }
 
 // ============================================
+// DIALYSIS CLINICS AND SOCIAL WORKERS ENDPOINTS
+// ============================================
+
+// Get all dialysis clinics
+app.get('/api/v1/dialysis-clinics', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ success: false, error: 'Authentication required' });
+        }
+
+        const clinics = await pool.query(`
+            SELECT id, name, address, phone, email
+            FROM dialysis_clinics
+            WHERE is_active = true
+            ORDER BY name
+        `);
+
+        res.json({
+            success: true,
+            data: clinics.rows
+        });
+
+    } catch (error) {
+        console.error('❌ Error fetching dialysis clinics:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch dialysis clinics' });
+    }
+});
+
+// Get social workers for a specific dialysis clinic
+app.get('/api/v1/dialysis-clinics/:clinicId/social-workers', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ success: false, error: 'Authentication required' });
+        }
+
+        const { clinicId } = req.params;
+
+        // Get social workers associated with this clinic from patient_referrals
+        // For now, we'll use the social workers that have been added via referrals
+        const workers = await pool.query(`
+            SELECT DISTINCT 
+                pr.id,
+                pr.dusw_first_name || ' ' || pr.dusw_last_name as name,
+                pr.dusw_email as email,
+                pr.dusw_phone as phone
+            FROM patient_referrals pr
+            WHERE pr.dialysis_clinic_id = $1
+            AND pr.dusw_first_name IS NOT NULL
+            ORDER BY name
+        `, [clinicId]);
+
+        res.json({
+            success: true,
+            data: workers.rows
+        });
+
+    } catch (error) {
+        console.error('❌ Error fetching social workers:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch social workers' });
+    }
+});
+
+// ============================================
 // PATIENT MESSAGES ENDPOINTS
 // ============================================
 
