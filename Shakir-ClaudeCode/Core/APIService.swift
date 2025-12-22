@@ -918,7 +918,7 @@ enum APIError: LocalizedError {
     case networkError
     case unauthorized
     case validationError(String)
-    case serverError
+    case serverError(String? = nil)
     
     var errorDescription: String? {
         switch self {
@@ -928,8 +928,8 @@ enum APIError: LocalizedError {
             return "Authentication required"
         case .validationError(let message):
             return message
-        case .serverError:
-            return "Server error occurred"
+        case .serverError(let message):
+            return message ?? "Server error occurred"
         }
     }
 }
