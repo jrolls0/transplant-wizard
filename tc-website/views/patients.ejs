@@ -1,0 +1,183 @@
+<%- include('partials/header', {title: 'All Patients'}) %>
+
+<!-- Page Header -->
+<section class="page-header bg-light py-4 border-bottom">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <h1 class="h3 fw-bold mb-1"><i class="fas fa-users me-2 text-primary"></i>All Patients</h1>
+                <p class="text-muted mb-0">Complete list of all referred patients</p>
+            </div>
+            <div>
+                <span class="badge bg-primary fs-6 px-3 py-2">
+                    <i class="fas fa-user-friends me-1"></i><%= statusCounts.all %> total
+                </span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Status Filters -->
+<section class="py-3 bg-white border-bottom sticky-top">
+    <div class="container">
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="/patients?status=all" class="btn btn-sm <%= currentFilter === 'all' ? 'btn-primary' : 'btn-outline-secondary' %>">
+                All <span class="badge bg-white text-dark ms-1"><%= statusCounts.all %></span>
+            </a>
+            <a href="/patients?status=applied" class="btn btn-sm <%= currentFilter === 'applied' ? 'btn-warning' : 'btn-outline-warning' %>">
+                <i class="fas fa-inbox me-1"></i>Applied <span class="badge bg-warning text-dark ms-1"><%= statusCounts.applied %></span>
+            </a>
+            <a href="/patients?status=under_review" class="btn btn-sm <%= currentFilter === 'under_review' ? 'btn-info' : 'btn-outline-info' %>">
+                <i class="fas fa-search me-1"></i>Under Review <span class="badge bg-info text-white ms-1"><%= statusCounts.under_review %></span>
+            </a>
+            <a href="/patients?status=accepted" class="btn btn-sm <%= currentFilter === 'accepted' ? 'btn-success' : 'btn-outline-success' %>">
+                <i class="fas fa-check-circle me-1"></i>Accepted <span class="badge bg-success text-white ms-1"><%= statusCounts.accepted %></span>
+            </a>
+            <a href="/patients?status=waitlisted" class="btn btn-sm <%= currentFilter === 'waitlisted' ? 'btn-purple' : 'btn-outline-purple' %>" style="<%= currentFilter === 'waitlisted' ? 'background: #8b5cf6; border-color: #8b5cf6; color: white;' : 'color: #8b5cf6; border-color: #8b5cf6;' %>">
+                <i class="fas fa-hourglass-half me-1"></i>Waitlisted <span class="badge text-white ms-1" style="background: #8b5cf6;"><%= statusCounts.waitlisted %></span>
+            </a>
+            <a href="/patients?status=declined" class="btn btn-sm <%= currentFilter === 'declined' ? 'btn-danger' : 'btn-outline-danger' %>">
+                <i class="fas fa-times-circle me-1"></i>Declined <span class="badge bg-danger text-white ms-1"><%= statusCounts.declined %></span>
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- Patients Table -->
+<section class="py-4">
+    <div class="container">
+        <% if (patients && patients.length > 0) { %>
+            <div class="card border-0 shadow-sm">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="border-0 ps-4">Patient</th>
+                                <th class="border-0">Contact</th>
+                                <th class="border-0">Referral Source</th>
+                                <th class="border-0 text-center">Status</th>
+                                <th class="border-0 text-center">Documents</th>
+                                <th class="border-0 text-center">Applied</th>
+                                <th class="border-0 text-end pe-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% patients.forEach(patient => { %>
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-sm bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px; font-weight: 600;">
+                                                <%= patient.first_name ? patient.first_name.charAt(0) : '' %><%= patient.last_name ? patient.last_name.charAt(0) : '' %>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-0 fw-semibold"><%= patient.first_name %> <%= patient.last_name %></h6>
+                                                <% if (patient.date_of_birth) { %>
+                                                    <small class="text-muted">DOB: <%= new Date(patient.date_of_birth).toLocaleDateString() %></small>
+                                                <% } %>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="small">
+                                            <div><i class="fas fa-envelope me-1 text-muted"></i><%= patient.email %></div>
+                                            <% if (patient.phone_number) { %>
+                                                <div><i class="fas fa-phone me-1 text-muted"></i><%= patient.phone_number %></div>
+                                            <% } %>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <% if (patient.dialysis_clinic) { %>
+                                            <div class="small">
+                                                <div class="fw-medium"><%= patient.dialysis_clinic %></div>
+                                                <% if (patient.sw_first_name) { %>
+                                                    <div class="text-muted">SW: <%= patient.sw_first_name %> <%= patient.sw_last_name %></div>
+                                                <% } %>
+                                            </div>
+                                        <% } else { %>
+                                            <span class="text-muted small">Self-referred</span>
+                                        <% } %>
+                                    </td>
+                                    <td class="text-center">
+                                        <% if (patient.status === 'applied') { %>
+                                            <span class="badge bg-warning bg-opacity-10 text-warning">Applied</span>
+                                        <% } else if (patient.status === 'under_review') { %>
+                                            <span class="badge bg-info bg-opacity-10 text-info">Under Review</span>
+                                        <% } else if (patient.status === 'accepted') { %>
+                                            <span class="badge bg-success bg-opacity-10 text-success">Accepted</span>
+                                        <% } else if (patient.status === 'waitlisted') { %>
+                                            <span class="badge" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;">Waitlisted</span>
+                                        <% } else if (patient.status === 'declined') { %>
+                                            <span class="badge bg-danger bg-opacity-10 text-danger">Declined</span>
+                                        <% } else { %>
+                                            <span class="badge bg-secondary bg-opacity-10 text-secondary"><%= patient.status %></span>
+                                        <% } %>
+                                    </td>
+                                    <td class="text-center">
+                                        <% if (patient.document_count > 0) { %>
+                                            <span class="badge bg-primary bg-opacity-10 text-primary">
+                                                <i class="fas fa-file-alt me-1"></i><%= patient.document_count %>
+                                            </span>
+                                        <% } else { %>
+                                            <span class="text-muted">-</span>
+                                        <% } %>
+                                    </td>
+                                    <td class="text-center">
+                                        <small class="text-muted"><%= new Date(patient.submitted_at).toLocaleDateString() %></small>
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="/patient/<%= patient.patient_id %>" class="btn btn-outline-primary" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <% if (patient.document_count > 0) { %>
+                                                <a href="/patient/<%= patient.patient_id %>/documents" class="btn btn-outline-info" title="View Documents">
+                                                    <i class="fas fa-folder-open"></i>
+                                                </a>
+                                            <% } %>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <% }); %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        <% } else { %>
+            <div class="text-center py-5">
+                <div class="mb-4">
+                    <i class="fas fa-users fa-4x text-muted opacity-50"></i>
+                </div>
+                <h4 class="text-muted">No Patients Found</h4>
+                <p class="text-muted">
+                    <% if (currentFilter !== 'all') { %>
+                        No patients with status "<%= currentFilter.replace('_', ' ') %>".
+                        <a href="/patients?status=all">View all patients</a>
+                    <% } else { %>
+                        No patients have been referred to your center yet.
+                    <% } %>
+                </p>
+            </div>
+        <% } %>
+    </div>
+</section>
+
+<style>
+.table th {
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #6b7280;
+}
+.table td {
+    vertical-align: middle;
+    padding: 1rem 0.75rem;
+}
+.btn-outline-purple:hover {
+    background: #8b5cf6 !important;
+    border-color: #8b5cf6 !important;
+    color: white !important;
+}
+</style>
+
+<%- include('partials/footer') %>

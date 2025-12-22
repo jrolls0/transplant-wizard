@@ -1,0 +1,171 @@
+<%- include('partials/header', {title: 'My Profile'}) %>
+
+<!-- Page Header -->
+<section class="page-header bg-light py-4 border-bottom">
+    <div class="container">
+        <h1 class="h3 fw-bold mb-1"><i class="fas fa-user-circle me-2 text-primary"></i>My Profile</h1>
+        <p class="text-muted mb-0">Manage your account information and settings</p>
+    </div>
+</section>
+
+<section class="py-4">
+    <div class="container">
+        <% if (success) { %>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle me-2"></i><%= success %>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        <% } %>
+        <% if (error) { %>
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-circle me-2"></i><%= error %>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        <% } %>
+
+        <div class="row g-4">
+            <!-- Profile Information -->
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-transparent border-0 pt-4 pb-0">
+                        <h5 class="fw-bold mb-0"><i class="fas fa-id-card me-2"></i>Personal Information</h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <form method="POST" action="/profile">
+                            <div class="row g-3">
+                                <div class="col-md-2">
+                                    <label class="form-label">Title</label>
+                                    <select name="title" class="form-select">
+                                        <option value="Dr." <%= employee.title === 'Dr.' ? 'selected' : '' %>>Dr.</option>
+                                        <option value="Mr." <%= employee.title === 'Mr.' ? 'selected' : '' %>>Mr.</option>
+                                        <option value="Ms." <%= employee.title === 'Ms.' ? 'selected' : '' %>>Ms.</option>
+                                        <option value="Mrs." <%= employee.title === 'Mrs.' ? 'selected' : '' %>>Mrs.</option>
+                                        <option value="RN" <%= employee.title === 'RN' ? 'selected' : '' %>>RN</option>
+                                        <option value="PA" <%= employee.title === 'PA' ? 'selected' : '' %>>PA</option>
+                                        <option value="NP" <%= employee.title === 'NP' ? 'selected' : '' %>>NP</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label">First Name</label>
+                                    <input type="text" name="firstName" class="form-control" value="<%= employee.first_name %>" required>
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label">Last Name</label>
+                                    <input type="text" name="lastName" class="form-control" value="<%= employee.last_name %>" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Email Address</label>
+                                    <input type="email" name="email" class="form-control" value="<%= employee.email %>" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Phone Number</label>
+                                    <input type="tel" name="phoneNumber" class="form-control" value="<%= employee.phone_number || '' %>">
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i>Save Changes
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Change Password -->
+                <div class="card border-0 shadow-sm mt-4">
+                    <div class="card-header bg-transparent border-0 pt-4 pb-0">
+                        <h5 class="fw-bold mb-0"><i class="fas fa-lock me-2"></i>Change Password</h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <form method="POST" action="/profile/password">
+                            <div class="row g-3">
+                                <div class="col-md-12">
+                                    <label class="form-label">Current Password</label>
+                                    <input type="password" name="currentPassword" class="form-control" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">New Password</label>
+                                    <input type="password" name="newPassword" class="form-control" required minlength="8">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Confirm New Password</label>
+                                    <input type="password" name="confirmPassword" class="form-control" required minlength="8">
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <button type="submit" class="btn btn-outline-primary">
+                                    <i class="fas fa-key me-2"></i>Update Password
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar Info -->
+            <div class="col-lg-4">
+                <!-- Account Info Card -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-4 text-center">
+                        <div class="avatar-xl bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 80px; height: 80px; font-size: 2rem; font-weight: 600;">
+                            <%= employee.first_name ? employee.first_name.charAt(0) : '' %><%= employee.last_name ? employee.last_name.charAt(0) : '' %>
+                        </div>
+                        <h5 class="fw-bold mb-1"><%= employee.title %> <%= employee.first_name %> <%= employee.last_name %></h5>
+                        <p class="text-muted mb-2"><%= employee.role ? employee.role.charAt(0).toUpperCase() + employee.role.slice(1).replace('_', ' ') : 'Staff' %></p>
+                        <% if (employee.department) { %>
+                            <span class="badge bg-primary bg-opacity-10 text-primary"><%= employee.department %></span>
+                        <% } %>
+                    </div>
+                </div>
+
+                <!-- Transplant Center Info -->
+                <div class="card border-0 shadow-sm mt-4">
+                    <div class="card-header bg-transparent border-0 pt-4 pb-0">
+                        <h6 class="fw-bold mb-0"><i class="fas fa-hospital me-2"></i>Transplant Center</h6>
+                    </div>
+                    <div class="card-body">
+                        <h6 class="fw-semibold mb-2"><%= employee.center_name %></h6>
+                        <p class="text-muted small mb-2">
+                            <i class="fas fa-map-marker-alt me-1"></i>
+                            <% if (employee.center_address) { %><%= employee.center_address %>,<% } %>
+                            <%= employee.center_city %>, <%= employee.center_state %>
+                        </p>
+                        <% if (employee.center_phone) { %>
+                            <p class="text-muted small mb-2">
+                                <i class="fas fa-phone me-1"></i><%= employee.center_phone %>
+                            </p>
+                        <% } %>
+                        <% if (employee.center_email) { %>
+                            <p class="text-muted small mb-0">
+                                <i class="fas fa-envelope me-1"></i><%= employee.center_email %>
+                            </p>
+                        <% } %>
+                    </div>
+                </div>
+
+                <!-- Account Activity -->
+                <div class="card border-0 shadow-sm mt-4">
+                    <div class="card-header bg-transparent border-0 pt-4 pb-0">
+                        <h6 class="fw-bold mb-0"><i class="fas fa-history me-2"></i>Account Activity</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted small">Account Created</span>
+                            <span class="small"><%= employee.created_at ? new Date(employee.created_at).toLocaleDateString() : 'N/A' %></span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted small">Last Login</span>
+                            <span class="small"><%= employee.last_login ? new Date(employee.last_login).toLocaleDateString() : 'N/A' %></span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted small">Status</span>
+                            <span class="badge bg-success">Active</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<%- include('partials/footer') %>

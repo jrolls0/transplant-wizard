@@ -177,8 +177,43 @@ app.get('/register', (req, res) => {
 // Dashboard (protected)
 app.get('/dashboard', requireAuth, async (req, res) => {
     try {
-        // Get recent patient referrals for this transplant center
-        const referrals = await queryWithRetry(`
+        const tcId = req.session.user.transplant_center_id;
+        
+        // Get dashboard stats
+        const statsResult = await queryWithRetry(`
+            SELECT 
+                COUNT(*) FILTER (WHERE status != 'declined') as total_active,
+                COUNT(*) FILTER (WHERE status = 'applied') as new_referrals,
+                COUNT(*) FILTER (WHERE status = 'under_review') as under_review,
+                COUNT(*) FILTER (WHERE status = 'accepted') as accepted,
+                COUNT(*) FILTER (WHERE status = 'waitlisted') as waitlisted,
+                COUNT(*) FILTER (WHERE status = 'declined') as declined,
+                AVG(EXTRACT(EPOCH FROM (updated_at - submitted_at))/86400) FILTER (WHERE status != 'applied') as avg_review_days
+            FROM patient_referrals
+            WHERE transplant_center_id = $1
+        `, [tcId]);
+        
+        const stats = statsResult.rows[0] || {};
+        
+        // Get new referrals this week
+        const weeklyResult = await queryWithRetry(`
+            SELECT COUNT(*) as count
+            FROM patient_referrals
+            WHERE transplant_center_id = $1 
+            AND submitted_at >= NOW() - INTERVAL '7 days'
+        `, [tcId]);
+        
+        // Get documents uploaded this week (for the 4th stat)
+        const docsThisWeek = await queryWithRetry(`
+            SELECT COUNT(DISTINCT pd.id) as count
+            FROM patient_documents pd
+            JOIN patient_referrals pr ON pd.patient_id = pr.patient_id
+            WHERE pr.transplant_center_id = $1
+            AND pd.created_at >= NOW() - INTERVAL '7 days'
+        `, [tcId]);
+        
+        // Get recent NEW referrals (status = applied) for dashboard
+        const newReferrals = await queryWithRetry(`
             SELECT 
                 pr.id,
                 pr.status,
@@ -197,13 +232,13 @@ app.get('/dashboard', requireAuth, async (req, res) => {
             JOIN users u ON p.user_id = u.id
             LEFT JOIN patient_dusw_assignments pda ON p.id = pda.patient_id
             LEFT JOIN dusw_social_workers dsw ON pda.dusw_social_worker_id = dsw.id
-            WHERE pr.transplant_center_id = $1
+            WHERE pr.transplant_center_id = $1 AND pr.status = 'applied'
             ORDER BY pr.submitted_at DESC
-            LIMIT 10
-        `, [req.session.user.transplant_center_id]);
+            LIMIT 5
+        `, [tcId]);
 
-        // Get document counts for each patient
-        const patientIds = referrals.rows.map(r => r.patient_id).filter(id => id);
+        // Get document counts for new referrals
+        const patientIds = newReferrals.rows.map(r => r.patient_id).filter(id => id);
         let documentCounts = {};
         
         if (patientIds.length > 0) {
@@ -219,8 +254,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
             });
         }
 
-        // Add document count to referrals
-        const referralsWithDocs = referrals.rows.map(r => ({
+        const referralsWithDocs = newReferrals.rows.map(r => ({
             ...r,
             document_count: documentCounts[r.patient_id] || 0
         }));
@@ -228,14 +262,26 @@ app.get('/dashboard', requireAuth, async (req, res) => {
         res.render('dashboard', {
             title: 'Dashboard - Transplant Center Portal',
             user: req.session.user,
-            referrals: referralsWithDocs
+            referrals: referralsWithDocs,
+            stats: {
+                totalActive: parseInt(stats.total_active) || 0,
+                newReferrals: parseInt(stats.new_referrals) || 0,
+                underReview: parseInt(stats.under_review) || 0,
+                accepted: parseInt(stats.accepted) || 0,
+                waitlisted: parseInt(stats.waitlisted) || 0,
+                declined: parseInt(stats.declined) || 0,
+                avgReviewDays: stats.avg_review_days ? parseFloat(stats.avg_review_days).toFixed(1) : 'N/A',
+                weeklyReferrals: parseInt(weeklyResult.rows[0]?.count) || 0,
+                docsThisWeek: parseInt(docsThisWeek.rows[0]?.count) || 0
+            }
         });
     } catch (error) {
         console.error('Dashboard error:', error);
         res.render('dashboard', {
             title: 'Dashboard - Transplant Center Portal',
             user: req.session.user,
-            referrals: []
+            referrals: [],
+            stats: { totalActive: 0, newReferrals: 0, underReview: 0, accepted: 0, waitlisted: 0, declined: 0, avgReviewDays: 'N/A', weeklyReferrals: 0, docsThisWeek: 0 }
         });
     }
 });
@@ -866,6 +912,214 @@ app.get('/api/consent/:consentId/url', requireAuth, async (req, res) => {
     } catch (error) {
         console.error('Error generating consent URL:', error);
         res.status(500).json({ success: false, error: 'Failed to generate consent URL' });
+    }
+});
+
+// New Referrals Page (status = applied only)
+app.get('/referrals', requireAuth, async (req, res) => {
+    try {
+        const tcId = req.session.user.transplant_center_id;
+        
+        const referrals = await queryWithRetry(`
+            SELECT 
+                pr.id,
+                pr.status,
+                pr.submitted_at,
+                pr.updated_at,
+                pr.patient_id,
+                u.first_name,
+                u.last_name,
+                u.email,
+                p.date_of_birth,
+                dsw.first_name as sw_first_name,
+                dsw.last_name as sw_last_name,
+                dsw.dialysis_clinic,
+                (SELECT COUNT(*) FROM patient_documents WHERE patient_id = pr.patient_id) as document_count,
+                (SELECT status FROM patient_intake_forms WHERE patient_id = pr.patient_id LIMIT 1) as intake_status
+            FROM patient_referrals pr
+            JOIN patients p ON pr.patient_id = p.id
+            JOIN users u ON p.user_id = u.id
+            LEFT JOIN patient_dusw_assignments pda ON p.id = pda.patient_id
+            LEFT JOIN dusw_social_workers dsw ON pda.dusw_social_worker_id = dsw.id
+            WHERE pr.transplant_center_id = $1 AND pr.status = 'applied'
+            ORDER BY pr.submitted_at DESC
+        `, [tcId]);
+
+        res.render('referrals', {
+            title: 'New Referrals - Transplant Center Portal',
+            user: req.session.user,
+            referrals: referrals.rows
+        });
+    } catch (error) {
+        console.error('Referrals page error:', error);
+        res.render('referrals', {
+            title: 'New Referrals - Transplant Center Portal',
+            user: req.session.user,
+            referrals: []
+        });
+    }
+});
+
+// All Patients Page (with status filters)
+app.get('/patients', requireAuth, async (req, res) => {
+    try {
+        const tcId = req.session.user.transplant_center_id;
+        const statusFilter = req.query.status || 'all';
+        
+        let whereClause = 'pr.transplant_center_id = $1';
+        if (statusFilter !== 'all') {
+            whereClause += ` AND pr.status = '${statusFilter}'`;
+        }
+        
+        const patients = await queryWithRetry(`
+            SELECT 
+                pr.id,
+                pr.status,
+                pr.submitted_at,
+                pr.updated_at,
+                pr.patient_id,
+                u.first_name,
+                u.last_name,
+                u.email,
+                u.phone_number,
+                p.date_of_birth,
+                dsw.first_name as sw_first_name,
+                dsw.last_name as sw_last_name,
+                dsw.dialysis_clinic,
+                (SELECT COUNT(*) FROM patient_documents WHERE patient_id = pr.patient_id) as document_count,
+                (SELECT status FROM patient_intake_forms WHERE patient_id = pr.patient_id LIMIT 1) as intake_status
+            FROM patient_referrals pr
+            JOIN patients p ON pr.patient_id = p.id
+            JOIN users u ON p.user_id = u.id
+            LEFT JOIN patient_dusw_assignments pda ON p.id = pda.patient_id
+            LEFT JOIN dusw_social_workers dsw ON pda.dusw_social_worker_id = dsw.id
+            WHERE ${whereClause}
+            ORDER BY pr.submitted_at DESC
+        `, [tcId]);
+
+        // Get counts by status for filter badges
+        const statusCounts = await queryWithRetry(`
+            SELECT 
+                status,
+                COUNT(*) as count
+            FROM patient_referrals
+            WHERE transplant_center_id = $1
+            GROUP BY status
+        `, [tcId]);
+        
+        const counts = { all: 0, applied: 0, under_review: 0, accepted: 0, waitlisted: 0, declined: 0 };
+        statusCounts.rows.forEach(row => {
+            counts[row.status] = parseInt(row.count);
+            counts.all += parseInt(row.count);
+        });
+
+        res.render('patients', {
+            title: 'All Patients - Transplant Center Portal',
+            user: req.session.user,
+            patients: patients.rows,
+            currentFilter: statusFilter,
+            statusCounts: counts
+        });
+    } catch (error) {
+        console.error('Patients page error:', error);
+        res.render('patients', {
+            title: 'All Patients - Transplant Center Portal',
+            user: req.session.user,
+            patients: [],
+            currentFilter: 'all',
+            statusCounts: { all: 0, applied: 0, under_review: 0, accepted: 0, waitlisted: 0, declined: 0 }
+        });
+    }
+});
+
+// Profile Page
+app.get('/profile', requireAuth, async (req, res) => {
+    try {
+        // Get full employee info
+        const employeeResult = await queryWithRetry(`
+            SELECT 
+                tce.*,
+                tc.name as center_name,
+                tc.address as center_address,
+                tc.city as center_city,
+                tc.state as center_state,
+                tc.phone as center_phone,
+                tc.email as center_email
+            FROM transplant_center_employees tce
+            JOIN transplant_centers tc ON tce.transplant_center_id = tc.id
+            WHERE tce.id = $1
+        `, [req.session.user.id]);
+        
+        const employee = employeeResult.rows[0];
+        
+        res.render('profile', {
+            title: 'My Profile - Transplant Center Portal',
+            user: req.session.user,
+            employee: employee,
+            success: req.query.success,
+            error: req.query.error
+        });
+    } catch (error) {
+        console.error('Profile page error:', error);
+        res.redirect('/dashboard');
+    }
+});
+
+// Update Profile
+app.post('/profile', requireAuth, async (req, res) => {
+    try {
+        const { title, firstName, lastName, phoneNumber, email } = req.body;
+        
+        // Update employee info
+        await queryWithRetry(`
+            UPDATE transplant_center_employees 
+            SET title = $1, first_name = $2, last_name = $3, phone_number = $4, email = $5, updated_at = NOW()
+            WHERE id = $6
+        `, [title, firstName, lastName, phoneNumber, email.toLowerCase(), req.session.user.id]);
+        
+        // Update session
+        req.session.user.title = title;
+        req.session.user.firstName = firstName;
+        req.session.user.lastName = lastName;
+        req.session.user.phoneNumber = phoneNumber;
+        req.session.user.email = email.toLowerCase();
+        
+        res.redirect('/profile?success=Profile updated successfully');
+    } catch (error) {
+        console.error('Profile update error:', error);
+        res.redirect('/profile?error=Failed to update profile');
+    }
+});
+
+// Change Password
+app.post('/profile/password', requireAuth, async (req, res) => {
+    try {
+        const { currentPassword, newPassword, confirmPassword } = req.body;
+        
+        if (newPassword !== confirmPassword) {
+            return res.redirect('/profile?error=Passwords do not match');
+        }
+        
+        // Verify current password
+        const userResult = await queryWithRetry(`
+            SELECT password_hash FROM transplant_center_employees WHERE id = $1
+        `, [req.session.user.id]);
+        
+        const validPassword = await verifyPassword(currentPassword, userResult.rows[0].password_hash);
+        if (!validPassword) {
+            return res.redirect('/profile?error=Current password is incorrect');
+        }
+        
+        // Update password
+        const newHash = await hashPassword(newPassword);
+        await queryWithRetry(`
+            UPDATE transplant_center_employees SET password_hash = $1, updated_at = NOW() WHERE id = $2
+        `, [newHash, req.session.user.id]);
+        
+        res.redirect('/profile?success=Password changed successfully');
+    } catch (error) {
+        console.error('Password change error:', error);
+        res.redirect('/profile?error=Failed to change password');
     }
 });
 

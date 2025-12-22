@@ -1,0 +1,116 @@
+<%- include('partials/header', {title: 'New Referrals'}) %>
+
+<!-- Page Header -->
+<section class="page-header bg-light py-4 border-bottom">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 fw-bold mb-1"><i class="fas fa-user-plus me-2 text-warning"></i>New Referrals</h1>
+                <p class="text-muted mb-0">Patients awaiting initial review (Status: Applied)</p>
+            </div>
+            <div>
+                <span class="badge bg-warning text-dark fs-6 px-3 py-2">
+                    <i class="fas fa-inbox me-1"></i><%= referrals.length %> pending
+                </span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Referrals List -->
+<section class="py-4">
+    <div class="container">
+        <% if (referrals && referrals.length > 0) { %>
+            <div class="row g-4">
+                <% referrals.forEach((referral, index) => { %>
+                    <div class="col-12">
+                        <div class="card referral-card h-100">
+                            <div class="card-body p-4">
+                                <div class="row align-items-center">
+                                    <div class="col-md-1 text-center mb-3 mb-md-0">
+                                        <div class="avatar-circle bg-warning text-dark mx-auto" style="width: 60px; height: 60px; font-size: 1.25rem;">
+                                            <%= referral.first_name ? referral.first_name.charAt(0) : '' %><%= referral.last_name ? referral.last_name.charAt(0) : '' %>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 mb-3 mb-md-0">
+                                        <h5 class="fw-bold mb-1"><%= referral.first_name %> <%= referral.last_name %></h5>
+                                        <p class="text-muted mb-1"><i class="fas fa-envelope me-1"></i><%= referral.email %></p>
+                                        <% if (referral.date_of_birth) { %>
+                                            <small class="text-muted"><i class="fas fa-birthday-cake me-1"></i>DOB: <%= new Date(referral.date_of_birth).toLocaleDateString() %></small>
+                                        <% } %>
+                                    </div>
+                                    <div class="col-md-3 mb-3 mb-md-0">
+                                        <% if (referral.dialysis_clinic) { %>
+                                            <p class="mb-1"><i class="fas fa-hospital me-1 text-primary"></i><%= referral.dialysis_clinic %></p>
+                                        <% } %>
+                                        <% if (referral.sw_first_name) { %>
+                                            <small class="text-muted"><i class="fas fa-user-nurse me-1"></i>SW: <%= referral.sw_first_name %> <%= referral.sw_last_name %></small>
+                                        <% } %>
+                                    </div>
+                                    <div class="col-md-2 mb-3 mb-md-0 text-center">
+                                        <div class="d-flex flex-column align-items-center gap-1">
+                                            <span class="badge bg-warning bg-opacity-10 text-warning">Applied</span>
+                                            <small class="text-muted"><i class="fas fa-clock me-1"></i><%= new Date(referral.submitted_at).toLocaleDateString() %></small>
+                                            <% if (referral.document_count > 0) { %>
+                                                <span class="badge bg-primary bg-opacity-10 text-primary"><i class="fas fa-file-alt me-1"></i><%= referral.document_count %> docs</span>
+                                            <% } %>
+                                            <% if (referral.intake_status === 'submitted') { %>
+                                                <span class="badge bg-success bg-opacity-10 text-success"><i class="fas fa-clipboard-check me-1"></i>Intake Done</span>
+                                            <% } %>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2 text-end">
+                                        <div class="d-flex flex-column gap-2">
+                                            <a href="/patient/<%= referral.patient_id %>" class="btn btn-primary btn-sm">
+                                                <i class="fas fa-eye me-1"></i>Review
+                                            </a>
+                                            <% if (referral.document_count > 0) { %>
+                                                <a href="/patient/<%= referral.patient_id %>/documents" class="btn btn-outline-info btn-sm">
+                                                    <i class="fas fa-folder-open me-1"></i>Documents
+                                                </a>
+                                            <% } %>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+        <% } else { %>
+            <div class="text-center py-5">
+                <div class="mb-4">
+                    <i class="fas fa-inbox fa-4x text-muted opacity-50"></i>
+                </div>
+                <h4 class="text-muted">No New Referrals</h4>
+                <p class="text-muted">All patient applications have been reviewed. Great job!</p>
+                <a href="/patients" class="btn btn-outline-primary mt-2">
+                    <i class="fas fa-users me-1"></i>View All Patients
+                </a>
+            </div>
+        <% } %>
+    </div>
+</section>
+
+<style>
+.referral-card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
+    border-left: 4px solid #f59e0b;
+}
+.referral-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+}
+.avatar-circle {
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+}
+</style>
+
+<%- include('partials/footer') %>
