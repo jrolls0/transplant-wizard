@@ -74,13 +74,16 @@
                     <div class="card-body">
                         <div class="mb-3">
                             <small class="text-muted d-block mb-2">Update Status</small>
-                            <select id="statusSelect" class="form-select" onchange="updatePatientStatus('<%= patient.id %>')">
+                            <select id="statusSelect" class="form-select" data-patient-id="<%= patient.id %>">
                                 <option value="applied" <%= referral.status === 'applied' ? 'selected' : '' %>>Applied</option>
                                 <option value="under_review" <%= referral.status === 'under_review' ? 'selected' : '' %>>Under Review</option>
                                 <option value="accepted" <%= referral.status === 'accepted' ? 'selected' : '' %>>Accepted</option>
                                 <option value="waitlisted" <%= referral.status === 'waitlisted' ? 'selected' : '' %>>Waitlisted</option>
                                 <option value="declined" <%= referral.status === 'declined' ? 'selected' : '' %>>Declined</option>
                             </select>
+                            <button id="saveStatusBtn" class="btn btn-primary mt-2 w-100">
+                                <i class="fas fa-save me-2"></i>Save Status Change
+                            </button>
                             <div id="statusUpdateMessage" class="mt-2" style="display: none;"></div>
                         </div>
                         <div class="mb-0">
@@ -143,7 +146,7 @@
                                     <br><small class="text-muted">Signed on <%= new Date(intakeForm.signed_at).toLocaleDateString() %></small>
                                 <% } %>
                             </div>
-                            <button class="btn btn-primary" onclick="viewIntakeForm('<%= patient.id %>')">
+                            <button class="btn btn-primary" id="viewIntakeFormBtn" data-patient-id="<%= patient.id %>">
                                 <i class="fas fa-eye me-2"></i>View Intake Form Answers
                             </button>
                         <% } else if (intakeForm.status === 'in_progress') { %>
@@ -218,7 +221,7 @@
                                                         <small class="text-truncate d-block" style="max-width: 150px;"><%= doc.file_name %></small>
                                                         <small class="text-muted"><%= (doc.file_size / 1024).toFixed(1) %> KB</small>
                                                     </div>
-                                                    <button class="btn btn-sm btn-outline-primary" onclick="viewDocument('<%= doc.id %>')">
+                                                    <button class="btn btn-sm btn-outline-primary view-doc-btn" data-doc-id="<%= doc.id %>">
                                                         <i class="fas fa-eye"></i>
                                                     </button>
                                                 </div>
@@ -246,15 +249,42 @@
 </section>
 
 <script>
-    // Load consent documents on page load
+    // Initialize all event listeners on page load
     document.addEventListener('DOMContentLoaded', function() {
-        loadConsents('<%= patient.id %>');
+        var patientId = '<%= patient.id %>';
+        
+        // Load consent documents
+        loadConsents(patientId);
+        
+        // Save status button
+        var saveStatusBtn = document.getElementById('saveStatusBtn');
+        if (saveStatusBtn) {
+            saveStatusBtn.addEventListener('click', function() {
+                updatePatientStatus(patientId);
+            });
+        }
+        
+        // View intake form button
+        var viewIntakeFormBtn = document.getElementById('viewIntakeFormBtn');
+        if (viewIntakeFormBtn) {
+            viewIntakeFormBtn.addEventListener('click', function() {
+                viewIntakeForm(patientId);
+            });
+        }
+        
+        // Document view buttons (using event delegation)
+        document.querySelectorAll('.view-doc-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var docId = this.getAttribute('data-doc-id');
+                viewDocument(docId);
+            });
+        });
     });
 
     async function viewDocument(documentId) {
         try {
-            const response = await fetch(`/api/documents/${documentId}/url`);
-            const data = await response.json();
+            var response = await fetch('/api/documents/' + documentId + '/url');
+            var data = await response.json();
             
             if (data.success && data.url) {
                 window.open(data.url, '_blank');
@@ -268,28 +298,30 @@
     }
     
     async function updatePatientStatus(patientId) {
-        const select = document.getElementById('statusSelect');
-        const messageDiv = document.getElementById('statusUpdateMessage');
-        const newStatus = select.value;
+        var select = document.getElementById('statusSelect');
+        var messageDiv = document.getElementById('statusUpdateMessage');
+        var saveBtn = document.getElementById('saveStatusBtn');
+        var newStatus = select.value;
         
         try {
             select.disabled = true;
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
             messageDiv.style.display = 'block';
             messageDiv.className = 'mt-2 alert alert-info';
             messageDiv.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Updating status...';
             
-            const response = await fetch(`/api/patient/${patientId}/status`, {
+            var response = await fetch('/api/patient/' + patientId + '/status', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: newStatus })
             });
             
-            const data = await response.json();
+            var data = await response.json();
             
             if (data.success) {
                 messageDiv.className = 'mt-2 alert alert-success';
-                messageDiv.innerHTML = '<i class="fas fa-check-circle me-2"></i>Status updated successfully! Patient will be notified.';
-                setTimeout(() => { messageDiv.style.display = 'none'; }, 3000);
+                messageDiv.innerHTML = '<i class="fas fa-check-circle me-2"></i>Status updated successfully! Patient will be notified via email.';
             } else {
                 messageDiv.className = 'mt-2 alert alert-danger';
                 messageDiv.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + (data.error || 'Failed to update status');
@@ -300,13 +332,15 @@
             messageDiv.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Failed to update status. Please try again.';
         } finally {
             select.disabled = false;
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="fas fa-save me-2"></i>Save Status Change';
         }
     }
     
     async function viewIntakeForm(patientId) {
         try {
-            const response = await fetch(`/api/patient/${patientId}/intake-form`);
-            const data = await response.json();
+            var response = await fetch('/api/patient/' + patientId + '/intake-form');
+            var data = await response.json();
             
             if (data.success && data.intakeForm) {
                 showIntakeFormModal(data.intakeForm);
@@ -414,57 +448,53 @@
     }
     
     async function loadConsents(patientId) {
-        const container = document.getElementById('consentsContainer');
+        var container = document.getElementById('consentsContainer');
         
         try {
-            const response = await fetch(`/api/patient/${patientId}/consents`);
-            const data = await response.json();
+            var response = await fetch('/api/patient/' + patientId + '/consents');
+            var data = await response.json();
             
             if (data.success && data.consents && data.consents.length > 0) {
-                const consentTypeNames = {
+                var consentTypeNames = {
                     'services': 'Services Agreement',
+                    'services_consent': 'Services Agreement',
                     'medical_records': 'Medical Records Release',
+                    'medical_records_consent': 'Medical Records Release',
                     'hipaa': 'HIPAA Authorization',
                     'roi': 'Release of Information'
                 };
                 
-                let html = '<div class="list-group">';
-                data.consents.forEach(consent => {
-                    const typeName = consentTypeNames[consent.consent_type] || consent.consent_type;
-                    const signedDate = consent.signed_at ? new Date(consent.signed_at).toLocaleString() : 'Not signed';
-                    const statusClass = consent.status === 'signed' ? 'success' : 'secondary';
+                var html = '<div class="list-group">';
+                data.consents.forEach(function(consent) {
+                    var typeName = consentTypeNames[consent.consent_type] || consent.consent_type;
+                    var signedDate = consent.signed_at ? new Date(consent.signed_at).toLocaleString() : 'Not signed';
+                    var statusClass = consent.status === 'signed' ? 'success' : 'secondary';
                     
-                    html += `
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-1"><i class="fas fa-file-signature me-2 text-${statusClass}"></i>${typeName}</h6>
-                                <small class="text-muted">
-                                    ${consent.status === 'signed' ? `Signed on ${signedDate}` : 'Pending signature'}
-                                </small>
-                            </div>
-                            <span class="badge bg-${statusClass}">
-                                ${consent.status === 'signed' ? '<i class="fas fa-check"></i> Signed' : 'Pending'}
-                            </span>
-                        </div>
-                    `;
+                    html += '<div class="list-group-item d-flex justify-content-between align-items-center">' +
+                        '<div>' +
+                            '<h6 class="mb-1"><i class="fas fa-file-signature me-2 text-' + statusClass + '"></i>' + typeName + '</h6>' +
+                            '<small class="text-muted">' +
+                                (consent.status === 'signed' ? 'Signed on ' + signedDate : 'Pending signature') +
+                            '</small>' +
+                        '</div>' +
+                        '<span class="badge bg-' + statusClass + '">' +
+                            (consent.status === 'signed' ? '<i class="fas fa-check"></i> Signed' : 'Pending') +
+                        '</span>' +
+                    '</div>';
                 });
                 html += '</div>';
                 container.innerHTML = html;
             } else {
-                container.innerHTML = `
-                    <div class="text-center py-4">
-                        <i class="fas fa-file-signature fa-3x text-muted mb-3"></i>
-                        <p class="text-muted mb-0">No consent documents found</p>
-                    </div>
-                `;
+                container.innerHTML = '<div class="text-center py-4">' +
+                    '<i class="fas fa-file-signature fa-3x text-muted mb-3"></i>' +
+                    '<p class="text-muted mb-0">No consent documents found</p>' +
+                '</div>';
             }
         } catch (error) {
             console.error('Error loading consents:', error);
-            container.innerHTML = `
-                <div class="alert alert-danger mb-0">
-                    <i class="fas fa-exclamation-circle me-2"></i>Failed to load consent documents
-                </div>
-            `;
+            container.innerHTML = '<div class="alert alert-danger mb-0">' +
+                '<i class="fas fa-exclamation-circle me-2"></i>Failed to load consent documents' +
+            '</div>';
         }
     }
 </script>

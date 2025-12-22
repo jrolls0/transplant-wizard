@@ -801,11 +801,12 @@ app.get('/api/patient/:patientId/consents', requireAuth, async (req, res) => {
             return res.status(404).json({ success: false, error: 'Patient not found' });
         }
         
-        // Get consent documents
+        // Get consent documents (all records in patient_consents are signed)
         const consentsResult = await queryWithRetry(`
             SELECT 
-                id, consent_type, status, signed_at, 
-                ip_address, signature_data, created_at
+                id, consent_type, signed_at, 
+                ip_address, created_at,
+                'signed' as status
             FROM patient_consents
             WHERE patient_id = $1
             ORDER BY signed_at DESC
