@@ -2770,11 +2770,28 @@ app.post('/api/v1/documents/upload', upload.array('files', 10), async (req, res)
             WHERE pr.patient_id = $1
         `, [patientId]);
 
-        for (const row of referrals.rows) {
-            if (row.admin_email) {
-                const docTypeName = DOCUMENT_TYPES[documentType]?.name || documentType;
+        // Get all TC employees for notifications
+        const tcEmployeesResult = await pool.query(`
+            SELECT DISTINCT tce.id, tce.email, tc.name as center_name
+            FROM patient_referrals pr
+            JOIN transplant_centers tc ON pr.transplant_center_id = tc.id
+            JOIN transplant_center_employees tce ON tc.id = tce.transplant_center_id
+            WHERE pr.patient_id = $1
+        `, [patientId]);
+
+        const docTypeName = DOCUMENT_TYPES[documentType]?.name || documentType;
+
+        for (const employee of tcEmployeesResult.rows) {
+            // Add to tc_notifications table
+            await pool.query(`
+                INSERT INTO tc_notifications (tc_employee_id, patient_id, notification_type, title, message, is_read, created_at)
+                VALUES ($1, $2, 'new_document', 'New Document Uploaded', $3, false, NOW())
+            `, [employee.id, patientId, `${patient.first_name} ${patient.last_name} has uploaded a new ${docTypeName}.`]);
+            
+            // Send email notification
+            if (employee.email) {
                 await sendEmail(
-                    row.admin_email,
+                    employee.email,
                     `New Document Uploaded - ${patient.first_name} ${patient.last_name}`,
                     `<h2>New Patient Document</h2>
                     <p>Patient <strong>${patient.first_name} ${patient.last_name}</strong> has uploaded a new document.</p>
@@ -2782,9 +2799,9 @@ app.post('/api/v1/documents/upload', upload.array('files', 10), async (req, res)
                     <p>Please log in to the <a href="https://tc.transplantwizard.com/dashboard">TC Portal</a> to view the document.</p>`,
                     `New document uploaded by ${patient.first_name} ${patient.last_name}. Document Type: ${docTypeName}. View at https://tc.transplantwizard.com/dashboard`
                 );
-                console.log(`✅ Document notification sent to TC admin: ${row.admin_email}`);
             }
         }
+        console.log(`✅ Document notifications sent to ${tcEmployeesResult.rows.length} TC employees`);
 
         // Remove from todo list if this was a required document
         await pool.query(`
