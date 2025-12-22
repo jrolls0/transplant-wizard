@@ -276,61 +276,102 @@
                 </div>
                 
                 <div class="section-content">
-                    <div class="timeline">
-                        <div class="timeline-item">
-                            <div class="timeline-icon registration">
-                                <i class="fas fa-user-plus"></i>
-                            </div>
-                            <div class="timeline-content">
-                                <div class="timeline-date-header">
-                                    <%
-                                        const regDate = new Date(patient.created_at);
-                                        const now = new Date();
-                                        const isToday = regDate.toDateString() === now.toDateString();
-                                        const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-                                        const isYesterday = regDate.toDateString() === yesterday.toDateString();
-                                        
-                                        let dateLabel = '';
-                                        if (isToday) {
-                                            dateLabel = 'Today, ' + regDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-                                        } else if (isYesterday) {
-                                            dateLabel = 'Yesterday, ' + regDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-                                        } else {
-                                            dateLabel = regDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ', ' + regDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-                                        }
-                                    %>
-                                    <%= dateLabel %>
-                                </div>
-                                <h5 class="timeline-title">Patient Registered</h5>
-                                <p class="timeline-description">Account created through mobile app</p>
-                            </div>
-                        </div>
+                    <%
+                        // Build combined activity timeline
+                        const now = new Date();
+                        const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
                         
-                        <% referrals.forEach(referral => { %>
+                        function formatDate(date) {
+                            const d = new Date(date);
+                            const isToday = d.toDateString() === now.toDateString();
+                            const isYesterday = d.toDateString() === yesterday.toDateString();
+                            
+                            if (isToday) {
+                                return 'Today, ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                            } else if (isYesterday) {
+                                return 'Yesterday, ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                            } else {
+                                return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ', ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                            }
+                        }
+                        
+                        // Document type display names
+                        const docTypeNames = {
+                            'insurance_card': 'Insurance Card',
+                            'medication_list': 'Medication List',
+                            'government_id': 'Government ID',
+                            'medical_records': 'Medical Records',
+                            'lab_results': 'Lab Results',
+                            'other': 'Document'
+                        };
+                        
+                        // Create activity items array
+                        let activities = [];
+                        
+                        // Add registration
+                        activities.push({
+                            type: 'registration',
+                            date: new Date(patient.created_at),
+                            icon: 'fa-user-plus',
+                            iconClass: 'registration',
+                            title: 'Patient Registered',
+                            description: 'Account created through mobile app'
+                        });
+                        
+                        // Add referrals
+                        referrals.forEach(referral => {
+                            activities.push({
+                                type: 'referral',
+                                date: new Date(referral.submitted_at),
+                                icon: 'fa-hospital',
+                                iconClass: 'selection',
+                                title: 'Transplant Center Selected',
+                                description: 'Selected ' + referral.center_name + ' in ' + referral.city + ', ' + referral.state
+                            });
+                        });
+                        
+                        // Add documents
+                        if (typeof documents !== 'undefined' && documents.length > 0) {
+                            documents.forEach(doc => {
+                                const docTypeName = docTypeNames[doc.document_type] || 'Document';
+                                activities.push({
+                                    type: 'document',
+                                    date: new Date(doc.created_at),
+                                    icon: 'fa-file-upload',
+                                    iconClass: 'document',
+                                    title: 'Document Uploaded',
+                                    description: docTypeName + ' uploaded successfully'
+                                });
+                            });
+                        }
+                        
+                        // Add intake form submission
+                        if (typeof intakeForm !== 'undefined' && intakeForm && intakeForm.status === 'submitted') {
+                            activities.push({
+                                type: 'intake_form',
+                                date: new Date(intakeForm.submitted_at),
+                                icon: 'fa-clipboard-check',
+                                iconClass: 'intake-form',
+                                title: 'Intake Form Completed',
+                                description: 'Medical intake form submitted and signed'
+                            });
+                        }
+                        
+                        // Sort by date descending (newest first)
+                        activities.sort((a, b) => b.date - a.date);
+                    %>
+                    <div class="timeline">
+                        <% activities.forEach(activity => { %>
                         <div class="timeline-item">
-                            <div class="timeline-icon selection">
-                                <i class="fas fa-hospital"></i>
+                            <div class="timeline-icon <%= activity.iconClass %>">
+                                <i class="fas <%= activity.icon %>"></i>
                             </div>
                             <div class="timeline-content">
                                 <div class="timeline-date-header">
-                                    <%
-                                        const selDate = new Date(referral.submitted_at);
-                                        const isSelToday = selDate.toDateString() === now.toDateString();
-                                        const isSelYesterday = selDate.toDateString() === yesterday.toDateString();
-                                        
-                                        let selDateLabel = '';
-                                        if (isSelToday) {
-                                            selDateLabel = 'Today, ' + selDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-                                        } else if (isSelYesterday) {
-                                            selDateLabel = 'Yesterday, ' + selDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-                                        } else {
-                                            selDateLabel = selDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ', ' + selDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-                                        }
-                                    %>
-                                    <%= selDateLabel %>
+                                    <%= formatDate(activity.date) %>
                                 </div>
-                                <h5 class="timeline-title">Transplant Center Selected</h5>
-                                <p class="timeline-description">Selected <%= referral.center_name %> in <%= referral.city %>, <%= referral.state %></p>
+                                <h5 class="timeline-title"><%= activity.title %></h5>
+                                <p class="timeline-description"><%= activity.description %></p>
                             </div>
                         </div>
                         <% }); %>
@@ -996,6 +1037,14 @@
 
 .timeline-icon.selection {
     background: var(--primary-color);
+}
+
+.timeline-icon.document {
+    background: #f59e0b;
+}
+
+.timeline-icon.intake-form {
+    background: #10b981;
 }
 
 .timeline-content {

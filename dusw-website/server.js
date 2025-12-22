@@ -458,11 +458,38 @@ app.get('/patients/:id', requireAuth, async (req, res) => {
             ORDER BY pr.submitted_at DESC
         `, [patientId]);
 
+        // Get patient documents for activity timeline
+        const documentsResult = await pool.query(`
+            SELECT 
+                id,
+                document_type,
+                file_name,
+                created_at
+            FROM patient_documents
+            WHERE patient_id = $1
+            ORDER BY created_at DESC
+        `, [patientId]);
+
+        // Get intake form status
+        const intakeFormResult = await pool.query(`
+            SELECT 
+                status,
+                submitted_at,
+                signed_at,
+                created_at
+            FROM patient_intake_forms
+            WHERE patient_id = $1
+        `, [patientId]);
+
+        const intakeForm = intakeFormResult.rows[0] || null;
+
         res.render('patient-details', {
             title: 'Patient Details - DUSW Portal',
             user: req.session.user,
             patient: patient,
-            referrals: referralsResult.rows
+            referrals: referralsResult.rows,
+            documents: documentsResult.rows,
+            intakeForm: intakeForm
         });
 
     } catch (error) {
