@@ -1918,7 +1918,10 @@ app.put('/api/v1/patients/profile', async (req, res) => {
             weight,
             nephrologist_name,
             pcp_name,
-            other_physicians
+            other_physicians,
+            last_gfr,
+            diagnosed_conditions,
+            past_surgeries
         } = req.body;
 
         // Get patient ID
@@ -1981,10 +1984,15 @@ app.put('/api/v1/patients/profile', async (req, res) => {
                     height = COALESCE($6, height),
                     weight = COALESCE($7, weight),
                     other_physicians = COALESCE($8, other_physicians),
+                    last_gfr = COALESCE($9, last_gfr),
+                    diagnosed_conditions = COALESCE($10, diagnosed_conditions),
+                    past_surgeries = COALESCE($11, past_surgeries),
                     updated_at = NOW()
-                WHERE patient_id = $9
+                WHERE patient_id = $12
             `, [full_name, phone, emergency_contact_name, emergency_contact_relationship, 
-                emergency_contact_phone, height, weight, JSON.stringify(other_physicians), patientId]);
+                emergency_contact_phone, height, weight, 
+                other_physicians ? JSON.stringify(other_physicians) : null,
+                last_gfr, diagnosed_conditions, past_surgeries, patientId]);
         }
 
         console.log(`✅ Profile updated for patient ${patientId}`);

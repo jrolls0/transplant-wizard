@@ -183,8 +183,18 @@ class PatientProfileViewModel: ObservableObject {
         nephrologistName = profile.nephrologistName ?? ""
         pcpName = profile.pcpName ?? ""
         
+        // Filter out any physicians that duplicate nephrologist or PCP
         if let physicians = profile.otherPhysicians {
-            otherPhysicians = physicians
+            let nephName = nephrologistName.lowercased()
+            let pcpNameLower = pcpName.lowercased()
+            otherPhysicians = physicians.filter { physician in
+                let name = physician.name.lowercased()
+                return !name.isEmpty && 
+                       name != nephName && 
+                       name != pcpNameLower &&
+                       !name.contains("nephrologist") &&
+                       !name.contains("primary care")
+            }
         }
         
         onDialysis = profile.onDialysis ?? false
@@ -228,7 +238,10 @@ class PatientProfileViewModel: ObservableObject {
             "height": height,
             "weight": weight,
             "nephrologist_name": nephrologistName,
-            "pcp_name": pcpName
+            "pcp_name": pcpName,
+            "last_gfr": lastGFR,
+            "diagnosed_conditions": diagnosedConditions,
+            "past_surgeries": pastSurgeries
         ]
         
         if let dob = dateOfBirth {
@@ -237,7 +250,15 @@ class PatientProfileViewModel: ObservableObject {
             data["date_of_birth"] = formatter.string(from: dob)
         }
         
-        let physiciansData = otherPhysicians.map { physician in
+        // Filter out any physicians that match nephrologist or PCP
+        let filteredPhysicians = otherPhysicians.filter { physician in
+            let name = physician.name.lowercased()
+            return !name.isEmpty && 
+                   name != nephrologistName.lowercased() && 
+                   name != pcpName.lowercased()
+        }
+        
+        let physiciansData = filteredPhysicians.map { physician in
             return [
                 "name": physician.name,
                 "specialty": physician.specialty,

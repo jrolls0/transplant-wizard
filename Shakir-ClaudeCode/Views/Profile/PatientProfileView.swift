@@ -58,11 +58,6 @@ struct PatientProfileView: View {
                         careTeamContent
                     }
                     
-                    // Signed Documents Section
-                    profileSection(title: "Signed Documents", icon: "doc.text.fill") {
-                        signedDocumentsContent
-                    }
-                    
                     // Account Settings Section
                     profileSection(title: "Account Settings", icon: "gearshape.fill") {
                         accountSettingsContent
@@ -328,25 +323,34 @@ struct PatientProfileView: View {
     
     private var medicalHistoryContent: some View {
         VStack(alignment: .leading, spacing: 16) {
+            // Dialysis Status - Read Only
             ProfileDisplayField(
                 label: "Dialysis Status",
                 value: viewModel.onDialysis ? "On Dialysis: \(viewModel.dialysisType)" : "Not on dialysis",
                 subtitle: viewModel.onDialysis && !viewModel.dialysisStartDate.isEmpty ? "Started: \(viewModel.dialysisStartDate)" : nil
             )
             
-            ProfileDisplayField(
+            // GFR - Editable
+            ProfileField(
                 label: "Last GFR",
-                value: viewModel.lastGFR.isEmpty ? "Not recorded" : viewModel.lastGFR
+                value: $viewModel.lastGFR,
+                isEditing: viewModel.isEditing
             )
             
-            ProfileDisplayField(
+            // Diagnosed Conditions - Editable
+            ProfileField(
                 label: "Diagnosed Conditions",
-                value: viewModel.diagnosedConditions.isEmpty ? "None recorded" : viewModel.diagnosedConditions
+                value: $viewModel.diagnosedConditions,
+                isEditing: viewModel.isEditing,
+                isMultiline: true
             )
             
-            ProfileDisplayField(
+            // Past Surgeries - Editable
+            ProfileField(
                 label: "Past Surgeries",
-                value: viewModel.pastSurgeries.isEmpty ? "None recorded" : viewModel.pastSurgeries
+                value: $viewModel.pastSurgeries,
+                isEditing: viewModel.isEditing,
+                isMultiline: true
             )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
