@@ -692,6 +692,18 @@ struct DynamicChatMessage: View {
                     .padding(.vertical, 10)
                     .background(Color(red: 0.2, green: 0.6, blue: 0.9))
                     .cornerRadius(8)
+                } else if message.messageType == "intake_form_complete" {
+                    HStack {
+                        Image(systemName: "checkmark.seal.fill")
+                        Text("Intake Form Submitted Successfully")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(Color.green)
+                    .cornerRadius(8)
                 }
             }
             .padding()

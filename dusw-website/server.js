@@ -114,6 +114,42 @@ function requireAuth(req, res, next) {
     next();
 }
 
+// Middleware to load notifications for header on all authenticated pages
+async function loadNotifications(req, res, next) {
+    if (req.session.user) {
+        try {
+            const duswNotifications = await queryWithRetry(`
+                SELECT 
+                    dn.id,
+                    dn.notification_type,
+                    dn.title,
+                    dn.message,
+                    dn.is_read,
+                    dn.created_at,
+                    u.first_name as patient_first_name,
+                    u.last_name as patient_last_name
+                FROM dusw_notifications dn
+                LEFT JOIN patients p ON dn.patient_id = p.id
+                LEFT JOIN users u ON p.user_id = u.id
+                WHERE dn.dusw_id = $1
+                ORDER BY dn.created_at DESC
+                LIMIT 20
+            `, [req.session.user.id]);
+            
+            res.locals.duswNotifications = duswNotifications.rows;
+            res.locals.unreadNotificationCount = duswNotifications.rows.filter(n => !n.is_read).length;
+        } catch (error) {
+            console.error('Error loading notifications:', error);
+            res.locals.duswNotifications = [];
+            res.locals.unreadNotificationCount = 0;
+        }
+    }
+    next();
+}
+
+// Apply notification loading to all routes
+app.use(loadNotifications);
+
 // Routes
 
 // Home page (public)

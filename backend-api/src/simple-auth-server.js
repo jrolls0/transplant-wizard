@@ -2772,6 +2772,19 @@ async function notifyIntakeFormComplete(patientId) {
                 );
                 console.log(`✅ Intake form notification sent to TC: ${tc.admin_email}`);
             }
+
+            // Create TC portal notification for all TC employees at this center
+            const tcEmployees = await pool.query(`
+                SELECT id FROM transplant_center_employees WHERE transplant_center_id = $1
+            `, [tc.id]);
+
+            for (const employee of tcEmployees.rows) {
+                await pool.query(`
+                    INSERT INTO tc_notifications (tc_employee_id, patient_id, notification_type, title, message, is_read, created_at)
+                    VALUES ($1, $2, 'intake_form_complete', 'Intake Form Submitted', $3, false, NOW())
+                `, [employee.id, patientId, `${patient.first_name} ${patient.last_name} has submitted their medical intake form. Click to review their complete profile.`]);
+            }
+            console.log(`✅ TC portal notifications created for ${tcEmployees.rows.length} employees at ${tc.name}`);
         }
 
         // Notify DUSW

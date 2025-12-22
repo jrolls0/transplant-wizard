@@ -112,6 +112,42 @@ function requireAuth(req, res, next) {
     next();
 }
 
+// Middleware to load notifications for header on all authenticated pages
+async function loadNotifications(req, res, next) {
+    if (req.session.user) {
+        try {
+            const tcNotifications = await queryWithRetry(`
+                SELECT 
+                    tn.id,
+                    tn.notification_type,
+                    tn.title,
+                    tn.message,
+                    tn.is_read,
+                    tn.created_at,
+                    u.first_name as patient_first_name,
+                    u.last_name as patient_last_name
+                FROM tc_notifications tn
+                LEFT JOIN patients p ON tn.patient_id = p.id
+                LEFT JOIN users u ON p.user_id = u.id
+                WHERE tn.tc_employee_id = $1
+                ORDER BY tn.created_at DESC
+                LIMIT 20
+            `, [req.session.user.id]);
+            
+            res.locals.tcNotifications = tcNotifications.rows;
+            res.locals.unreadNotificationCount = tcNotifications.rows.filter(n => !n.is_read).length;
+        } catch (error) {
+            console.error('Error loading notifications:', error);
+            res.locals.tcNotifications = [];
+            res.locals.unreadNotificationCount = 0;
+        }
+    }
+    next();
+}
+
+// Apply notification loading to all routes
+app.use(loadNotifications);
+
 // Routes
 
 // Home page (public)
@@ -478,6 +514,135 @@ app.post('/login', async (req, res) => {
             title: 'Login - Transplant Center Portal',
             error: 'Login failed. Please try again.'
         });
+    }
+});
+
+// Patient Details Page (protected)
+app.get('/patient/:patientId', requireAuth, async (req, res) => {
+    try {
+        const { patientId } = req.params;
+        
+        // Verify this patient has a referral to this TC
+        const referralCheck = await pool.query(`
+            SELECT pr.id, pr.status, pr.submitted_at FROM patient_referrals pr
+            WHERE pr.patient_id = $1 AND pr.transplant_center_id = $2
+        `, [patientId, req.session.user.transplant_center_id]);
+        
+        if (referralCheck.rows.length === 0) {
+            return res.status(403).render('error', {
+                title: 'Access Denied',
+                user: req.session.user,
+                message: 'You do not have access to view this patient.'
+            });
+        }
+        
+        // Get patient info
+        const patientResult = await pool.query(`
+            SELECT p.*, u.first_name, u.last_name, u.email, u.phone_number, u.created_at as registration_date
+            FROM patients p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.id = $1
+        `, [patientId]);
+        
+        if (patientResult.rows.length === 0) {
+            return res.status(404).render('error', {
+                title: 'Not Found',
+                user: req.session.user,
+                message: 'Patient not found.'
+            });
+        }
+        
+        const patient = patientResult.rows[0];
+        const referral = referralCheck.rows[0];
+        
+        // Get intake form status
+        const intakeFormResult = await pool.query(`
+            SELECT status, submitted_at, signed_at
+            FROM patient_intake_forms
+            WHERE patient_id = $1
+        `, [patientId]);
+        
+        const intakeForm = intakeFormResult.rows[0] || { status: 'not_started' };
+        
+        // Get patient documents
+        const documents = await pool.query(`
+            SELECT id, document_type, file_name, file_size, mime_type, 
+                   is_front, document_group_id, created_at
+            FROM patient_documents
+            WHERE patient_id = $1
+            ORDER BY created_at DESC
+        `, [patientId]);
+        
+        // Group documents by type
+        const groupedDocs = {};
+        documents.rows.forEach(doc => {
+            if (!groupedDocs[doc.document_type]) {
+                groupedDocs[doc.document_type] = [];
+            }
+            groupedDocs[doc.document_type].push(doc);
+        });
+        
+        // Get DUSW info
+        const duswResult = await pool.query(`
+            SELECT dsw.first_name, dsw.last_name, dsw.email, dsw.phone_number, dsw.dialysis_clinic
+            FROM patient_dusw_assignments pda
+            JOIN dusw_social_workers dsw ON pda.dusw_social_worker_id = dsw.id
+            WHERE pda.patient_id = $1
+        `, [patientId]);
+        
+        const dusw = duswResult.rows[0] || null;
+        
+        res.render('patient-details', {
+            title: `${patient.first_name} ${patient.last_name} - Patient Details`,
+            user: req.session.user,
+            patient: patient,
+            referral: referral,
+            intakeForm: intakeForm,
+            documents: documents.rows,
+            groupedDocs: groupedDocs,
+            dusw: dusw
+        });
+        
+    } catch (error) {
+        console.error('Error fetching patient details:', error);
+        res.status(500).render('error', {
+            title: 'Error',
+            user: req.session.user,
+            message: 'Failed to load patient details.'
+        });
+    }
+});
+
+// Mark notification as read
+app.post('/notifications/:id/read', requireAuth, async (req, res) => {
+    try {
+        const notificationId = req.params.id;
+        await pool.query(`
+            UPDATE tc_notifications 
+            SET is_read = true, read_at = NOW()
+            WHERE id = $1 AND tc_employee_id = $2
+        `, [notificationId, req.session.user.id]);
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error marking notification as read:', error);
+        res.status(500).json({ success: false, error: 'Failed to mark notification as read' });
+    }
+});
+
+// Mark all notifications as read
+app.post('/notifications/mark-all-read', requireAuth, async (req, res) => {
+    try {
+        await pool.query(`
+            UPDATE tc_notifications 
+            SET is_read = true, read_at = NOW()
+            WHERE tc_employee_id = $1 AND is_read = false
+        `, [req.session.user.id]);
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error marking all notifications as read:', error);
+        res.status(500).json({ success: false, error: 'Failed to mark notifications as read' });
     }
 });
 
