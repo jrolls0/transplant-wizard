@@ -19,10 +19,10 @@ struct RootView: View {
                 if showSplashScreen {
                     SplashView()
                 } else if authManager.isAuthenticated {
-                    if authManager.currentUser?.roiSigned == true {
+                    if authManager.currentUser?.allConsentsSigned == true {
                         MainTabView()
                     } else {
-                        ROIConsentView()
+                        ConsentFlowView()
                     }
                 } else {
                     AuthenticationFlow()

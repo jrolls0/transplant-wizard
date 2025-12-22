@@ -989,10 +989,12 @@ app.post('/api/v1/auth/login', async (req, res) => {
         
         console.log(`✅ Login successful for ${email}`);
         
-        // Get ROI status and transplant centers count with retry logic
+        // Get ROI status, consent status, and transplant centers count with retry logic
         const statusResult = await queryWithRetry(`
             SELECT 
                 (SELECT MAX(signed_at) FROM roi_consents WHERE patient_id = p.id) as roi_signed_at,
+                (SELECT signed_at FROM patient_consents WHERE patient_id = p.id AND consent_type = 'services_consent') as services_consent_signed_at,
+                (SELECT signed_at FROM patient_consents WHERE patient_id = p.id AND consent_type = 'medical_records_consent') as medical_records_consent_signed_at,
                 COUNT(pr.id) as referral_count
             FROM patients p
             LEFT JOIN patient_referrals pr ON p.id = pr.patient_id
@@ -1002,6 +1004,8 @@ app.post('/api/v1/auth/login', async (req, res) => {
 
         const status = statusResult.rows[0] || {};
         const roiSigned = !!status.roi_signed_at;
+        const servicesConsentSigned = !!status.services_consent_signed_at;
+        const medicalRecordsConsentSigned = !!status.medical_records_consent_signed_at;
         const transplantCentersSelected = parseInt(status.referral_count || 0) > 0;
 
         // Return user data in iOS expected format
@@ -1023,7 +1027,9 @@ app.post('/api/v1/auth/login', async (req, res) => {
                     transplantCentersSelected: transplantCentersSelected,
                     dialysisClinicId: null,
                     assignedSocialWorkerName: null,
-                    createdAt: user.user_created_at
+                    createdAt: user.user_created_at,
+                    servicesConsentSigned: servicesConsentSigned,
+                    medicalRecordsConsentSigned: medicalRecordsConsentSigned
                 }
             }
         });
@@ -1043,6 +1049,86 @@ app.post('/api/v1/auth/login', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Login failed due to a server error. Please try again in a few moments.'
+        });
+    }
+});
+
+// Get current user profile (for token validation and user status refresh)
+app.get('/api/v1/auth/me', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({
+                success: false,
+                error: 'Authentication required'
+            });
+        }
+
+        const token = authHeader.substring(7);
+        let decoded;
+        try {
+            decoded = verifyToken(token);
+        } catch (error) {
+            return res.status(401).json({
+                success: false,
+                error: 'Invalid token'
+            });
+        }
+
+        // Get user profile with consent status
+        const result = await queryWithRetry(`
+            SELECT 
+                u.id as user_id,
+                u.email,
+                u.first_name,
+                u.last_name,
+                u.created_at as user_created_at,
+                p.id as patient_id,
+                p.profile_completed,
+                p.onboarding_completed,
+                (SELECT MAX(signed_at) FROM roi_consents WHERE patient_id = p.id) as roi_signed_at,
+                (SELECT signed_at FROM patient_consents WHERE patient_id = p.id AND consent_type = 'services_consent') as services_consent_signed_at,
+                (SELECT signed_at FROM patient_consents WHERE patient_id = p.id AND consent_type = 'medical_records_consent') as medical_records_consent_signed_at,
+                (SELECT COUNT(*) FROM patient_referrals WHERE patient_id = p.id) as referral_count
+            FROM users u
+            JOIN patients p ON u.id = p.user_id
+            WHERE u.id = $1
+        `, [decoded.userId]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'User not found'
+            });
+        }
+
+        const user = result.rows[0];
+
+        res.json({
+            success: true,
+            data: {
+                id: user.user_id,
+                email: user.email,
+                firstName: user.first_name,
+                lastName: user.last_name,
+                profileCompleted: user.profile_completed || false,
+                onboardingCompleted: user.onboarding_completed || false,
+                roiSigned: !!user.roi_signed_at,
+                transplantCentersSelected: parseInt(user.referral_count || 0) > 0,
+                dialysisClinicId: null,
+                assignedSocialWorkerName: null,
+                createdAt: user.user_created_at,
+                servicesConsentSigned: !!user.services_consent_signed_at,
+                medicalRecordsConsentSigned: !!user.medical_records_consent_signed_at
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Error getting user profile:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to get user profile'
         });
     }
 });
@@ -1506,6 +1592,173 @@ app.get('/api/v1/patients/roi-consent', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to retrieve ROI consent status'
+        });
+    }
+});
+
+// ============================================
+// PATIENT CONSENT ENDPOINTS (Services & Medical Records)
+// ============================================
+
+// Submit patient consent (services_consent or medical_records_consent)
+app.post('/api/v1/patients/consent', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({
+                success: false,
+                error: 'Authentication required'
+            });
+        }
+
+        const token = authHeader.substring(7);
+        let decoded;
+        try {
+            decoded = verifyToken(token);
+        } catch (error) {
+            return res.status(401).json({
+                success: false,
+                error: 'Invalid token'
+            });
+        }
+
+        const { consentType, signatureData } = req.body;
+
+        // Validate consent type
+        const validConsentTypes = ['services_consent', 'medical_records_consent'];
+        if (!validConsentTypes.includes(consentType)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid consent type. Must be services_consent or medical_records_consent'
+            });
+        }
+
+        if (!signatureData) {
+            return res.status(400).json({
+                success: false,
+                error: 'Signature data is required'
+            });
+        }
+
+        // Get patient ID from user ID
+        const patientResult = await pool.query(
+            'SELECT id FROM patients WHERE user_id = $1',
+            [decoded.userId]
+        );
+
+        if (patientResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Patient not found'
+            });
+        }
+
+        const patientId = patientResult.rows[0].id;
+
+        // Check if consent already exists
+        const existingConsent = await pool.query(
+            'SELECT id FROM patient_consents WHERE patient_id = $1 AND consent_type = $2',
+            [patientId, consentType]
+        );
+
+        if (existingConsent.rows.length > 0) {
+            return res.json({
+                success: true,
+                message: 'Consent already signed',
+                alreadySigned: true
+            });
+        }
+
+        // Create consent record with signature
+        await pool.query(`
+            INSERT INTO patient_consents (
+                patient_id, consent_type, consent_version, signature_data, signed_at, ip_address, user_agent
+            ) VALUES ($1, $2, '1.0', $3, NOW(), $4, $5)
+        `, [
+            patientId,
+            consentType,
+            signatureData,
+            req.ip || '127.0.0.1',
+            req.get('user-agent') || 'mobile-app'
+        ]);
+
+        console.log(`✅ ${consentType} signed for patient ${patientId}`);
+
+        res.json({
+            success: true,
+            message: 'Consent signed successfully',
+            consentType: consentType,
+            signedAt: new Date().toISOString()
+        });
+
+    } catch (error) {
+        console.error('❌ Error signing consent:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to sign consent'
+        });
+    }
+});
+
+// Get patient consent status
+app.get('/api/v1/patients/consent-status', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({
+                success: false,
+                error: 'Authentication required'
+            });
+        }
+
+        const token = authHeader.substring(7);
+        let decoded;
+        try {
+            decoded = verifyToken(token);
+        } catch (error) {
+            return res.status(401).json({
+                success: false,
+                error: 'Invalid token'
+            });
+        }
+
+        // Get patient ID and consent status
+        const result = await pool.query(`
+            SELECT 
+                p.id,
+                (SELECT signed_at FROM patient_consents WHERE patient_id = p.id AND consent_type = 'services_consent') as services_consent_signed_at,
+                (SELECT signed_at FROM patient_consents WHERE patient_id = p.id AND consent_type = 'medical_records_consent') as medical_records_consent_signed_at
+            FROM patients p
+            WHERE p.user_id = $1
+        `, [decoded.userId]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Patient not found'
+            });
+        }
+
+        const patient = result.rows[0];
+
+        res.json({
+            success: true,
+            data: {
+                servicesConsentSigned: !!patient.services_consent_signed_at,
+                servicesConsentSignedAt: patient.services_consent_signed_at,
+                medicalRecordsConsentSigned: !!patient.medical_records_consent_signed_at,
+                medicalRecordsConsentSignedAt: patient.medical_records_consent_signed_at,
+                allConsentsSigned: !!patient.services_consent_signed_at && !!patient.medical_records_consent_signed_at
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Error fetching consent status:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to retrieve consent status'
         });
     }
 });

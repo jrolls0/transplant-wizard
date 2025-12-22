@@ -325,6 +325,19 @@ class AuthenticationManager: ObservableObject {
         }
     }
     
+    // MARK: - Public Methods (Consent)
+    
+    func refreshUserStatus() async {
+        guard let accessToken = keychainManager.getAccessToken() else { return }
+        
+        do {
+            let user = try await apiService.getCurrentUser(accessToken: accessToken)
+            currentUser = user
+        } catch {
+            print("Failed to refresh user status: \(error)")
+        }
+    }
+    
     // MARK: - Private Methods
     
     private func validateTokenAndGetUser(accessToken: String) async {
@@ -438,9 +451,15 @@ struct PatientUser: Codable, Identifiable {
     let dialysisClinicId: String?
     let assignedSocialWorkerName: String?
     let createdAt: Date
+    let servicesConsentSigned: Bool?
+    let medicalRecordsConsentSigned: Bool?
     
     var fullName: String {
         "\(firstName) \(lastName)"
+    }
+    
+    var allConsentsSigned: Bool {
+        (servicesConsentSigned ?? false) && (medicalRecordsConsentSigned ?? false)
     }
 }
 

@@ -175,6 +175,32 @@ class APIService: ObservableObject {
         )
     }
     
+    // MARK: - Patient Consent Endpoints (Services & Medical Records)
+    
+    func submitConsent(consentType: String, signatureData: String, accessToken: String) async throws -> ConsentResponse {
+        let endpoint = "/patients/consent"
+        
+        let body = ConsentRequest(consentType: consentType, signatureData: signatureData)
+        
+        return try await performAuthenticatedRequest(
+            endpoint: endpoint,
+            method: .POST,
+            body: body,
+            accessToken: accessToken
+        )
+    }
+    
+    func getConsentStatus(accessToken: String) async throws -> ConsentStatusResponse {
+        let endpoint = "/patients/consent-status"
+        
+        return try await performAuthenticatedRequest(
+            endpoint: endpoint,
+            method: .GET,
+            body: EmptyRequest(),
+            accessToken: accessToken
+        )
+    }
+    
     // MARK: - Transplant Center Endpoints
     
     func getTransplantCenters(accessToken: String) async throws -> [TransplantCenter] {
@@ -993,6 +1019,33 @@ struct MessagesResponse: Codable {
     let success: Bool
     let data: [PatientMessage]?
     let unreadCount: Int?
+}
+
+// MARK: - Patient Consent Models
+struct ConsentRequest: Codable {
+    let consentType: String
+    let signatureData: String
+}
+
+struct ConsentResponse: Codable {
+    let success: Bool
+    let message: String?
+    let consentType: String?
+    let signedAt: String?
+    let alreadySigned: Bool?
+}
+
+struct ConsentStatusData: Codable {
+    let servicesConsentSigned: Bool
+    let servicesConsentSignedAt: String?
+    let medicalRecordsConsentSigned: Bool
+    let medicalRecordsConsentSignedAt: String?
+    let allConsentsSigned: Bool
+}
+
+struct ConsentStatusResponse: Codable {
+    let success: Bool
+    let data: ConsentStatusData?
 }
 
 // Extension for Date formatting
