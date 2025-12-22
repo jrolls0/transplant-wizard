@@ -1845,7 +1845,7 @@ app.get('/api/v1/patients/profile', async (req, res) => {
             data: {
                 full_name: patient.full_name || `${patient.first_name} ${patient.last_name}`,
                 date_of_birth: patient.date_of_birth,
-                address: patient.address || pif?.address,
+                address: patient.address,
                 email: patient.email,
                 phone: patient.phone || patient.phone_number,
                 emergency_contact_name: patient.emergency_contact_name,
@@ -2088,6 +2088,7 @@ app.get('/api/v1/patients/centers', async (req, res) => {
         const patientId = patientResult.rows[0].id;
 
         // Get patient's centers with status
+        // Map database status to display status for iOS app
         const result = await pool.query(`
             SELECT 
                 tc.id,
@@ -2097,7 +2098,13 @@ app.get('/api/v1/patients/centers', async (req, res) => {
                 tc.state,
                 tc.phone,
                 tc.email,
-                COALESCE(pr.status, 'applied') as status,
+                CASE pr.status::text
+                    WHEN 'pending' THEN 'applied'
+                    WHEN 'submitted' THEN 'applied'
+                    WHEN 'acknowledged' THEN 'under_review'
+                    WHEN 'completed' THEN 'accepted'
+                    ELSE 'applied'
+                END as status,
                 pr.submitted_at as applied_at
             FROM patient_referrals pr
             JOIN transplant_centers tc ON pr.transplant_center_id = tc.id
@@ -2179,10 +2186,10 @@ app.post('/api/v1/patients/centers', async (req, res) => {
             });
         }
 
-        // Add the center
+        // Add the center (use 'submitted' status which is valid in the enum)
         await pool.query(`
             INSERT INTO patient_referrals (patient_id, transplant_center_id, status, submitted_at, created_at)
-            VALUES ($1, $2, 'applied', NOW(), NOW())
+            VALUES ($1, $2, 'submitted', NOW(), NOW())
         `, [patientId, center_id]);
 
         // Notify the transplant center
