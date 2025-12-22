@@ -96,7 +96,7 @@ class APIService: ObservableObject {
         case 400...499:
             throw APIError.validationError("Failed to fetch social workers")
         case 500...599:
-            throw APIError.serverError
+            throw APIError.serverError()
         default:
             throw APIError.networkError
         }
@@ -310,7 +310,7 @@ class APIService: ObservableObject {
         case 400...499:
             throw APIError.validationError("Failed to fetch transplant centers")
         case 500...599:
-            throw APIError.serverError
+            throw APIError.serverError()
         default:
             throw APIError.networkError
         }
@@ -424,7 +424,7 @@ class APIService: ObservableObject {
         case 400...499:
             throw APIError.validationError("Failed to select transplant centers")
         case 500...599:
-            throw APIError.serverError
+            throw APIError.serverError()
         default:
             throw APIError.networkError
         }
@@ -484,7 +484,7 @@ class APIService: ObservableObject {
             if let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
                 throw APIError.validationError(errorResponse.error)
             }
-            throw APIError.serverError
+            throw APIError.serverError()
         }
     }
     
@@ -541,7 +541,7 @@ class APIService: ObservableObject {
         )
         
         guard let todo = response.data else {
-            throw APIError.serverError
+            throw APIError.serverError()
         }
         
         return todo
@@ -559,7 +559,7 @@ class APIService: ObservableObject {
         )
         
         guard let todo = response.data else {
-            throw APIError.serverError
+            throw APIError.serverError()
         }
         
         return todo
@@ -589,7 +589,7 @@ class APIService: ObservableObject {
         )
         
         guard let data = response.data else {
-            throw APIError.serverError
+            throw APIError.serverError()
         }
         
         return data
@@ -610,14 +610,14 @@ class APIService: ObservableObject {
         
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 else {
-            throw APIError.serverError
+            throw APIError.serverError()
         }
         
         let decoder = createJSONDecoder()
         let apiResponse = try decoder.decode(IntakeFormResponse.self, from: data)
         
         guard let formResponse = apiResponse.data else {
-            throw APIError.serverError
+            throw APIError.serverError()
         }
         
         return formResponse
@@ -640,14 +640,14 @@ class APIService: ObservableObject {
         
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 else {
-            throw APIError.serverError
+            throw APIError.serverError()
         }
         
         let decoder = createJSONDecoder()
         let apiResponse = try decoder.decode(IntakeFormResponse.self, from: data)
         
         guard let formResponse = apiResponse.data else {
-            throw APIError.serverError
+            throw APIError.serverError()
         }
         
         return formResponse
@@ -682,7 +682,7 @@ class APIService: ObservableObject {
         
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 else {
-            throw APIError.serverError
+            throw APIError.serverError()
         }
     }
     
@@ -744,7 +744,7 @@ class APIService: ObservableObject {
         case 400...499:
             return nil
         case 500...599:
-            throw APIError.serverError
+            throw APIError.serverError()
         default:
             throw APIError.networkError
         }
@@ -819,7 +819,7 @@ class APIService: ObservableObject {
                 if let responseData = apiResponse.data {
                     return responseData
                 }
-                throw APIError.serverError
+                throw APIError.serverError()
             }
             
         case 400:
@@ -833,7 +833,7 @@ class APIService: ObservableObject {
             throw APIError.unauthorized
             
         case 500...599:
-            throw APIError.serverError
+            throw APIError.serverError()
             
         default:
             throw APIError.networkError
@@ -882,7 +882,7 @@ class APIService: ObservableObject {
                 if let responseData = apiResponse.data {
                     return responseData
                 }
-                throw APIError.serverError
+                throw APIError.serverError()
             }
             
         case 400:
@@ -896,7 +896,7 @@ class APIService: ObservableObject {
             throw APIError.unauthorized
             
         case 500...599:
-            throw APIError.serverError
+            throw APIError.serverError()
             
         default:
             throw APIError.networkError
