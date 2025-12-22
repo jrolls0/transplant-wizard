@@ -459,7 +459,8 @@ struct AmeliaChatbotView: View {
             do {
                 let response = try await APIService.shared.getMessages(accessToken: accessToken)
                 await MainActor.run {
-                    self.messages = response.data ?? []
+                    // Reverse messages so oldest appear first (chronological chat order)
+                    self.messages = (response.data ?? []).reversed()
                     self.unreadCount = response.unreadCount ?? 0
                     print("📬 Loaded \(self.messages.count) messages, \(self.unreadCount) unread")
                 }
