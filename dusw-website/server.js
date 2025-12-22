@@ -179,14 +179,18 @@ app.get('/register', (req, res) => {
 // Dashboard (protected)
 app.get('/dashboard', requireAuth, async (req, res) => {
     try {
-        // Get recent patient notifications for this social worker with retry logic
+        const duswId = req.session.user.id;
+        
+        // Get all patients for this DUSW with their referral info
         const patients = await queryWithRetry(`
             SELECT 
                 u.first_name,
                 u.last_name, 
                 u.email,
+                u.phone_number,
                 u.created_at,
                 p.id as patient_id,
+                p.date_of_birth,
                 pda.dialysis_clinic,
                 pda.social_worker_name,
                 COUNT(pr.id) as referral_count
@@ -195,10 +199,39 @@ app.get('/dashboard', requireAuth, async (req, res) => {
             JOIN users u ON p.user_id = u.id
             LEFT JOIN patient_referrals pr ON p.id = pr.patient_id
             WHERE pda.dusw_social_worker_id = $1
-            GROUP BY u.first_name, u.last_name, u.email, u.created_at, p.id, pda.dialysis_clinic, pda.social_worker_name
+            GROUP BY u.first_name, u.last_name, u.email, u.phone_number, u.created_at, p.id, p.date_of_birth, pda.dialysis_clinic, pda.social_worker_name
             ORDER BY u.created_at DESC
-            LIMIT 10
-        `, [req.session.user.id]);
+        `, [duswId]);
+
+        // Calculate stats
+        const totalPatients = patients.rows.length;
+        const patientsWithTC = patients.rows.filter(p => parseInt(p.referral_count) > 0).length;
+        const tcSelectionPercent = totalPatients > 0 ? Math.round((patientsWithTC / totalPatients) * 100) : 0;
+        
+        // Get status breakdown for pie chart
+        const statusBreakdown = await queryWithRetry(`
+            SELECT 
+                pr.status,
+                COUNT(DISTINCT pr.patient_id) as count
+            FROM patient_referrals pr
+            JOIN patient_dusw_assignments pda ON pr.patient_id = pda.patient_id
+            WHERE pda.dusw_social_worker_id = $1
+            GROUP BY pr.status
+        `, [duswId]);
+        
+        const statusCounts = {
+            applied: 0,
+            under_review: 0,
+            accepted: 0,
+            waitlisted: 0,
+            declined: 0,
+            no_selection: totalPatients - patientsWithTC
+        };
+        statusBreakdown.rows.forEach(row => {
+            if (statusCounts.hasOwnProperty(row.status)) {
+                statusCounts[row.status] = parseInt(row.count);
+            }
+        });
 
         // Get actual notifications from dusw_notifications table
         const duswNotifications = await queryWithRetry(`
@@ -209,6 +242,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
                 dn.message,
                 dn.is_read,
                 dn.created_at,
+                dn.patient_id,
                 u.first_name as patient_first_name,
                 u.last_name as patient_last_name
             FROM dusw_notifications dn
@@ -217,25 +251,32 @@ app.get('/dashboard', requireAuth, async (req, res) => {
             WHERE dn.dusw_id = $1
             ORDER BY dn.created_at DESC
             LIMIT 20
-        `, [req.session.user.id]);
+        `, [duswId]);
 
         const unreadCount = duswNotifications.rows.filter(n => !n.is_read).length;
 
         res.render('dashboard', {
             title: 'Dashboard - DUSW Portal',
             user: req.session.user,
-            notifications: patients.rows,
+            patients: patients.rows,
             duswNotifications: duswNotifications.rows,
-            unreadNotificationCount: unreadCount
+            unreadNotificationCount: unreadCount,
+            stats: {
+                totalPatients,
+                patientsWithTC,
+                tcSelectionPercent,
+                statusCounts
+            }
         });
     } catch (error) {
         console.error('Dashboard error:', error);
         res.render('dashboard', {
             title: 'Dashboard - DUSW Portal',
             user: req.session.user,
-            notifications: [],
+            patients: [],
             duswNotifications: [],
-            unreadNotificationCount: 0
+            unreadNotificationCount: 0,
+            stats: { totalPatients: 0, patientsWithTC: 0, tcSelectionPercent: 0, statusCounts: { applied: 0, under_review: 0, accepted: 0, waitlisted: 0, declined: 0, no_selection: 0 } }
         });
     }
 });
@@ -495,6 +536,120 @@ app.get('/patients/:id', requireAuth, async (req, res) => {
     } catch (error) {
         console.error('Patient details error:', error);
         res.status(500).send('Server error');
+    }
+});
+
+// Notifications Page
+app.get('/notifications', requireAuth, async (req, res) => {
+    try {
+        const notifications = await queryWithRetry(`
+            SELECT 
+                dn.id,
+                dn.notification_type,
+                dn.title,
+                dn.message,
+                dn.is_read,
+                dn.created_at,
+                dn.patient_id,
+                u.first_name as patient_first_name,
+                u.last_name as patient_last_name
+            FROM dusw_notifications dn
+            LEFT JOIN patients p ON dn.patient_id = p.id
+            LEFT JOIN users u ON p.user_id = u.id
+            WHERE dn.dusw_id = $1
+            ORDER BY dn.created_at DESC
+            LIMIT 100
+        `, [req.session.user.id]);
+        
+        res.render('notifications', {
+            title: 'Notifications - DUSW Portal',
+            user: req.session.user,
+            notifications: notifications.rows
+        });
+    } catch (error) {
+        console.error('Notifications page error:', error);
+        res.render('notifications', {
+            title: 'Notifications - DUSW Portal',
+            user: req.session.user,
+            notifications: []
+        });
+    }
+});
+
+// Profile Page
+app.get('/profile', requireAuth, async (req, res) => {
+    try {
+        const result = await queryWithRetry(`
+            SELECT * FROM dusw_social_workers WHERE id = $1
+        `, [req.session.user.id]);
+        
+        const employee = result.rows[0];
+        
+        res.render('profile', {
+            title: 'My Profile - DUSW Portal',
+            user: req.session.user,
+            employee: employee,
+            success: req.query.success,
+            error: req.query.error
+        });
+    } catch (error) {
+        console.error('Profile page error:', error);
+        res.redirect('/dashboard');
+    }
+});
+
+// Update Profile
+app.post('/profile', requireAuth, async (req, res) => {
+    try {
+        const { title, firstName, lastName, phoneNumber, email } = req.body;
+        
+        await queryWithRetry(`
+            UPDATE dusw_social_workers 
+            SET title = $1, first_name = $2, last_name = $3, phone_number = $4, email = $5, updated_at = NOW()
+            WHERE id = $6
+        `, [title, firstName, lastName, phoneNumber, email.toLowerCase(), req.session.user.id]);
+        
+        // Update session
+        req.session.user.title = title;
+        req.session.user.firstName = firstName;
+        req.session.user.lastName = lastName;
+        req.session.user.phoneNumber = phoneNumber;
+        req.session.user.email = email.toLowerCase();
+        
+        res.redirect('/profile?success=Profile updated successfully');
+    } catch (error) {
+        console.error('Profile update error:', error);
+        res.redirect('/profile?error=Failed to update profile');
+    }
+});
+
+// Change Password
+app.post('/profile/password', requireAuth, async (req, res) => {
+    try {
+        const { currentPassword, newPassword, confirmPassword } = req.body;
+        
+        if (newPassword !== confirmPassword) {
+            return res.redirect('/profile?error=Passwords do not match');
+        }
+        
+        const userResult = await queryWithRetry(`
+            SELECT password_hash FROM dusw_social_workers WHERE id = $1
+        `, [req.session.user.id]);
+        
+        const validPassword = await verifyPassword(currentPassword, userResult.rows[0].password_hash);
+        if (!validPassword) {
+            return res.redirect('/profile?error=Current password is incorrect');
+        }
+        
+        const newHash = await hashPassword(newPassword);
+        await queryWithRetry(`
+            UPDATE dusw_social_workers SET password_hash = $1, updated_at = NOW() WHERE id = $2
+        `, [newHash, req.session.user.id]);
+        
+        res.redirect('/profile?success=Password changed successfully');
+    } catch (error) {
+        console.error('Password change error:', error);
+        res.redirect('/profile?error=Failed to change password');
     }
 });
 

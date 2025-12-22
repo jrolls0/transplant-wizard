@@ -1,157 +1,147 @@
 <%- include('partials/header', {title: title}) %>
 
-<div class="container py-4">
-    <!-- Header Section -->
+<div class="container-fluid px-4 py-4">
+    <!-- Page Header -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card stat-card">
-                <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-md-8">
-                            <h2 class="mb-2" style="color: var(--text-primary);">
-                                <i class="fas fa-users me-2 text-primary"></i>
-                                Patient Management
-                            </h2>
-                            <p class="text-muted mb-0">
-                                View and manage all patients registered through the transplant platform
-                            </p>
-                        </div>
-                        <div class="col-md-4 text-md-end">
-                            <div class="feature-icon">
-                                <i class="fas fa-user-injured"></i>
-                            </div>
-                        </div>
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div>
+                    <h1 class="h3 fw-bold mb-1" style="color: #1f2937;">
+                        <i class="fas fa-users me-2" style="color: #667eea;"></i>All Patients
+                    </h1>
+                    <p class="text-muted mb-0">Manage all patients assigned to you</p>
+                </div>
+                <div class="d-flex gap-2 align-items-center">
+                    <span class="badge fs-6 px-3 py-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                        <i class="fas fa-user-friends me-1"></i><%= patients.length %> patients
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 h-100" style="border-radius: 12px;">
+                <div class="card-body d-flex align-items-center p-3">
+                    <div class="rounded-circle p-3 me-3" style="background: rgba(102, 126, 234, 0.1);">
+                        <i class="fas fa-users" style="color: #667eea; font-size: 1.25rem;"></i>
+                    </div>
+                    <div>
+                        <h4 class="fw-bold mb-0" style="color: #1f2937;"><%= patients.length %></h4>
+                        <small class="text-muted">Total Patients</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 h-100" style="border-radius: 12px;">
+                <div class="card-body d-flex align-items-center p-3">
+                    <div class="rounded-circle p-3 me-3" style="background: rgba(16, 185, 129, 0.1);">
+                        <i class="fas fa-hospital" style="color: #10b981; font-size: 1.25rem;"></i>
+                    </div>
+                    <div>
+                        <h4 class="fw-bold mb-0" style="color: #1f2937;"><%= patients.filter(p => parseInt(p.referral_count) > 0).length %></h4>
+                        <small class="text-muted">TC Selected</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 h-100" style="border-radius: 12px;">
+                <div class="card-body d-flex align-items-center p-3">
+                    <div class="rounded-circle p-3 me-3" style="background: rgba(251, 191, 36, 0.1);">
+                        <i class="fas fa-clock" style="color: #f59e0b; font-size: 1.25rem;"></i>
+                    </div>
+                    <div>
+                        <h4 class="fw-bold mb-0" style="color: #1f2937;"><%= patients.filter(p => parseInt(p.referral_count) === 0).length %></h4>
+                        <small class="text-muted">Pending Selection</small>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Summary Cards -->
-    <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="card stat-card">
-                <div class="card-body text-center">
-                    <h3 class="text-primary"><%= patients.length %></h3>
-                    <p class="text-muted mb-0">Total Patients</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card stat-card">
-                <div class="card-body text-center">
-                    <h3 class="text-success">
-                        <%= patients.filter(p => parseInt(p.referral_count) > 0).length %>
-                    </h3>
-                    <p class="text-muted mb-0">Active Referrals</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card stat-card">
-                <div class="card-body text-center">
-                    <h3 class="text-info">
-                        <%= patients.reduce((sum, p) => sum + parseInt(p.referral_count || 0), 0) %>
-                    </h3>
-                    <p class="text-muted mb-0">Total Referrals</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Patients Table -->
+    <!-- Search and Table -->
     <div class="row">
         <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <div class="row align-items-center">
-                        <div class="col-md-6">
-                            <h5 class="mb-0" style="color: var(--text-primary);">
-                                <i class="fas fa-list me-2"></i>Patient List
-                            </h5>
-                        </div>
-                        <div class="col-md-6 text-md-end">
-                            <div class="search-container" style="max-width: 320px; margin-left: auto;">
-                                <div class="modern-search-field">
-                                    <i class="fas fa-search search-icon"></i>
-                                    <input type="text" class="search-input" placeholder="Search patients by name or email..." id="patientSearch" 
-                                           aria-label="Search patients by name or email">
-                                </div>
-                            </div>
+            <div class="card border-0" style="border-radius: 16px;">
+                <div class="card-header bg-transparent border-0 pt-4 pb-3 px-4">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                        <h5 class="fw-bold mb-0" style="color: #374151;">Patient List</h5>
+                        <div class="position-relative" style="max-width: 300px;">
+                            <i class="fas fa-search position-absolute" style="left: 12px; top: 50%; transform: translateY(-50%); color: #9ca3af;"></i>
+                            <input type="text" class="form-control form-control-sm ps-5" id="patientSearch" placeholder="Search patients..." style="border-radius: 8px;">
                         </div>
                     </div>
                 </div>
-                
                 <div class="card-body p-0">
                     <% if (patients.length === 0) { %>
                         <div class="text-center py-5">
-                            <i class="fas fa-users fa-3x text-muted mb-3"></i>
-                            <h5 class="text-muted">No patients registered yet</h5>
-                            <p class="text-muted">
-                                Patients will appear here once they register through the mobile app.
-                            </p>
+                            <div class="mb-3">
+                                <i class="fas fa-users fa-3x" style="color: #d1d5db;"></i>
+                            </div>
+                            <h5 class="text-muted">No Patients Yet</h5>
+                            <p class="text-muted mb-3">Patients will appear here once they register.</p>
                         </div>
                     <% } else { %>
                         <div class="table-responsive">
-                            <table class="table table-hover mb-0" id="patientsTable">
-                                <thead class="modern-table-header">
-                                    <tr>
-                                        <th style="width: 30%;">Patient</th>
-                                        <th style="width: 15%;">Contact</th>
-                                        <th style="width: 12%;">Registered</th>
-                                        <th style="width: 13%;">Referrals</th>
-                                        <th style="width: 12%;">Status</th>
-                                        <th style="width: 18%;">Actions</th>
+                            <table class="table table-hover align-middle mb-0" id="patientsTable">
+                                <thead>
+                                    <tr style="border-bottom: 2px solid #e5e7eb;">
+                                        <th class="border-0 text-muted small text-uppercase ps-4" style="font-weight: 600; letter-spacing: 0.5px;">Patient</th>
+                                        <th class="border-0 text-muted small text-uppercase" style="font-weight: 600; letter-spacing: 0.5px;">Contact</th>
+                                        <th class="border-0 text-muted small text-uppercase text-center" style="font-weight: 600; letter-spacing: 0.5px;">TC Status</th>
+                                        <th class="border-0 text-muted small text-uppercase" style="font-weight: 600; letter-spacing: 0.5px;">Registered</th>
+                                        <th class="border-0 text-muted small text-uppercase text-end pe-4" style="font-weight: 600; letter-spacing: 0.5px;">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <% patients.forEach(patient => { %>
-                                        <tr>
-                                            <td class="patient-info">
-                                                <div class="patient-name"><%= patient.first_name %> <%= patient.last_name %></div>
-                                                <% if (patient.date_of_birth) { %>
-                                                    <div class="patient-meta">DOB: <%= new Date(patient.date_of_birth).toLocaleDateString() %></div>
-                                                <% } %>
+                                        <tr class="patient-row">
+                                            <td class="ps-4">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="rounded-circle d-flex align-items-center justify-content-center me-3" 
+                                                         style="width: 40px; height: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: 600; font-size: 0.875rem;">
+                                                        <%= patient.first_name ? patient.first_name.charAt(0) : '' %><%= patient.last_name ? patient.last_name.charAt(0) : '' %>
+                                                    </div>
+                                                    <div>
+                                                        <h6 class="mb-0 fw-semibold patient-name" style="color: #1f2937;"><%= patient.first_name %> <%= patient.last_name %></h6>
+                                                        <% if (patient.date_of_birth) { %>
+                                                            <small class="text-muted">DOB: <%= new Date(patient.date_of_birth).toLocaleDateString() %></small>
+                                                        <% } %>
+                                                    </div>
+                                                </div>
                                             </td>
-                                            <td class="contact-info">
-                                                <div class="contact-primary"><%= patient.email %></div>
-                                                <% if (patient.phone_number) { %>
-                                                    <div class="contact-secondary"><%= patient.phone_number %></div>
-                                                <% } %>
+                                            <td>
+                                                <div class="small">
+                                                    <div class="patient-email" style="color: #4b5563;"><i class="fas fa-envelope me-1 text-muted"></i><%= patient.email %></div>
+                                                    <% if (patient.phone_number) { %>
+                                                        <div style="color: #4b5563;"><i class="fas fa-phone me-1 text-muted"></i><%= patient.phone_number %></div>
+                                                    <% } %>
+                                                </div>
                                             </td>
-                                            <td class="registered-date">
-                                                <%= new Date(patient.created_at).toLocaleDateString() %>
-                                            </td>
-                                            <td class="referrals-cell">
+                                            <td class="text-center">
                                                 <% if (parseInt(patient.referral_count) > 0) { %>
-                                                    <span class="referral-badge">
-                                                        <%= patient.referral_count %> Center<%= patient.referral_count > 1 ? 's' : '' %>
+                                                    <span class="badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+                                                        <i class="fas fa-check-circle me-1"></i><%= patient.referral_count %> Selected
                                                     </span>
                                                 <% } else { %>
-                                                    <span class="referral-badge referral-none">None</span>
-                                                <% } %>
-                                            </td>
-                                            <td class="status-cell">
-                                                <% if (parseInt(patient.referral_count) > 0) { %>
-                                                    <span class="status-badge status-active">
-                                                        <span class="status-dot"></span>Active
-                                                    </span>
-                                                <% } else { %>
-                                                    <span class="status-badge status-setup">
-                                                        <span class="status-dot"></span>Setup
+                                                    <span class="badge" style="background: rgba(251, 191, 36, 0.1); color: #f59e0b;">
+                                                        <i class="fas fa-clock me-1"></i>Pending
                                                     </span>
                                                 <% } %>
                                             </td>
-                                            <td class="actions-cell">
-                                                <div class="action-group">
-                                                    <a href="/patients/<%= patient.id %>" class="action-btn btn-primary" title="View patient details" aria-label="View <%= patient.first_name %> <%= patient.last_name %> details">
+                                            <td>
+                                                <small style="color: #6b7280;"><%= new Date(patient.created_at).toLocaleDateString() %></small>
+                                            </td>
+                                            <td class="text-end pe-4">
+                                                <div class="btn-group btn-group-sm">
+                                                    <a href="/patients/<%= patient.id %>" class="btn btn-outline-primary" title="View Details">
                                                         <i class="fas fa-eye"></i>
-                                                        <span class="btn-label">View</span>
                                                     </a>
-                                                    <button class="action-btn btn-outline" title="Call patient" aria-label="Call <%= patient.first_name %> <%= patient.last_name %>" onclick="contactPatient('<%= patient.phone_number || patient.email %>')">
-                                                        <i class="fas fa-phone"></i>
-                                                    </button>
-                                                    <button class="action-btn btn-outline" title="Email patient" aria-label="Email <%= patient.first_name %> <%= patient.last_name %>" onclick="sendMessage('<%= patient.email %>')">
+                                                    <button class="btn btn-outline-secondary" title="Contact" onclick="contactPatient('<%= patient.email %>')">
                                                         <i class="fas fa-envelope"></i>
                                                     </button>
                                                 </div>
@@ -168,327 +158,28 @@
     </div>
 </div>
 
-<style>
-/* Modern Search Field */
-.modern-search-field {
-    position: relative;
-    width: 100%;
-}
-
-.modern-search-field .search-icon {
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #64748b;
-    font-size: 0.875rem;
-    z-index: 2;
-    transition: color 0.2s ease;
-}
-
-.modern-search-field .search-input {
-    width: 100%;
-    padding: 12px 16px 12px 40px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-size: 0.875rem;
-    background: white;
-    color: #374151;
-    transition: all 0.2s ease;
-}
-
-.modern-search-field .search-input:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.modern-search-field .search-input:focus ~ .search-icon,
-.modern-search-field:focus-within .search-icon {
-    color: var(--primary-color);
-}
-
-/* Modern Table Header */
-.modern-table-header {
-    background: #f8fafc;
-    border-bottom: 2px solid #e5e7eb;
-}
-
-.modern-table-header th {
-    padding: 16px 12px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #6b7280;
-    text-align: left;
-    border-bottom: none;
-}
-
-/* Table Cell Styling */
-.table tbody td {
-    padding: 16px 12px;
-    vertical-align: middle;
-    border-bottom: 1px solid #f3f4f6;
-}
-
-.table tbody tr {
-    transition: background-color 0.2s ease;
-}
-
-.table tbody tr:hover {
-    background-color: #f9fafb;
-}
-
-/* Patient Info */
-.patient-info {
-    text-align: left;
-}
-
-.patient-name {
-    font-weight: 600;
-    color: #111827;
-    font-size: 0.875rem;
-    line-height: 1.25;
-}
-
-.patient-meta {
-    font-size: 0.75rem;
-    color: #6b7280;
-    margin-top: 2px;
-}
-
-/* Contact Info */
-.contact-info {
-    text-align: left;
-}
-
-.contact-primary {
-    font-size: 0.8125rem;
-    color: #374151;
-    font-weight: 500;
-}
-
-.contact-secondary {
-    font-size: 0.75rem;
-    color: #6b7280;
-    margin-top: 2px;
-}
-
-/* Registered Date */
-.registered-date {
-    font-size: 0.8125rem;
-    color: #374151;
-    text-align: left;
-}
-
-/* Referral Badges */
-.referrals-cell {
-    text-align: center;
-}
-
-.referral-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 12px;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    background: #dbeafe;
-    color: #1d4ed8;
-    border: 1px solid #93c5fd;
-}
-
-.referral-badge.referral-none {
-    background: #f3f4f6;
-    color: #6b7280;
-    border-color: #d1d5db;
-}
-
-/* Status Badges */
-.status-cell {
-    text-align: left;
-}
-
-.status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.025em;
-}
-
-.status-badge .status-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-
-.status-active {
-    background: #dcfce7;
-    color: #166534;
-    border: 1px solid #bbf7d0;
-}
-
-.status-active .status-dot {
-    background: #22c55e;
-}
-
-.status-setup {
-    background: #fef3c7;
-    color: #92400e;
-    border: 1px solid #fde68a;
-}
-
-.status-setup .status-dot {
-    background: #f59e0b;
-}
-
-/* Action Group */
-.actions-cell {
-    text-align: left;
-}
-
-.action-group {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.action-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 44px;
-    height: 36px;
-    padding: 0 12px;
-    border-radius: 6px;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    text-decoration: none;
-    border: 1px solid transparent;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    position: relative;
-    overflow: hidden;
-}
-
-.action-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-.action-btn:focus-visible {
-    outline: 2px solid var(--primary-color);
-    outline-offset: 2px;
-}
-
-.action-btn i {
-    font-size: 0.75rem;
-}
-
-.btn-label {
-    margin-left: 6px;
-    font-size: 0.75rem;
-}
-
-/* Button Variants */
-.btn-primary {
-    background: var(--primary-color);
-    color: white;
-    border-color: var(--primary-color);
-}
-
-.btn-primary:hover {
-    background: #5b21b6;
-    color: white;
-    border-color: #5b21b6;
-}
-
-.btn-outline {
-    background: white;
-    color: #6b7280;
-    border-color: #d1d5db;
-}
-
-.btn-outline:hover {
-    background: #f9fafb;
-    color: #374151;
-    border-color: #9ca3af;
-}
-
-/* Responsive Design */
-@media (max-width: 1024px) {
-    .btn-label {
-        display: none;
-    }
-    
-    .action-btn {
-        min-width: 40px;
-        padding: 0 8px;
-    }
-}
-
-@media (max-width: 768px) {
-    .action-group {
-        flex-direction: column;
-        gap: 2px;
-    }
-    
-    .action-btn {
-        min-width: 36px;
-        height: 32px;
-    }
-    
-    .search-container {
-        max-width: 100% !important;
-        margin: 0 !important;
-    }
-    
-    .table tbody td {
-        padding: 12px 8px;
-    }
-}
-</style>
-
 <script>
-// Enhanced Search functionality
-document.getElementById('patientSearch').addEventListener('keyup', function() {
-    const searchTerm = this.value.toLowerCase();
-    const tableRows = document.querySelectorAll('#patientsTable tbody tr');
-    let visibleCount = 0;
-    
-    tableRows.forEach(row => {
-        const rowText = row.textContent.toLowerCase();
-        if (rowText.includes(searchTerm)) {
-            row.style.display = '';
-            visibleCount++;
-        } else {
-            row.style.display = 'none';
-        }
-    });
-    
-    // Update search results count (if you want to add this feature)
-    console.log(`Showing ${visibleCount} of ${tableRows.length} patients`);
+document.addEventListener('DOMContentLoaded', function() {
+    var searchInput = document.getElementById('patientSearch');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            var filter = this.value.toLowerCase();
+            var rows = document.querySelectorAll('#patientsTable tbody tr.patient-row');
+            rows.forEach(function(row) {
+                var name = row.querySelector('.patient-name')?.textContent.toLowerCase() || '';
+                var email = row.querySelector('.patient-email')?.textContent.toLowerCase() || '';
+                if (name.includes(filter) || email.includes(filter)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    }
 });
 
-// Contact patient function
-function contactPatient(contact) {
-    if (contact.includes('@')) {
-        window.open(`mailto:${contact}`, '_blank');
-    } else {
-        window.open(`tel:${contact}`, '_blank');
-    }
-}
-
-// Send message function
-function sendMessage(email) {
-    window.open(`mailto:${email}`, '_blank');
+function contactPatient(email) {
+    window.location.href = 'mailto:' + email;
 }
 </script>
 
