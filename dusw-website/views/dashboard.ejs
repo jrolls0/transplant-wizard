@@ -1,23 +1,27 @@
 <%- include('partials/header', {title: title}) %>
 
 <!-- Main Dashboard Container -->
-<div class="container-fluid px-4 py-4">
+<div class="container-fluid px-4 py-4" style="background: #f8fafc; min-height: calc(100vh - 150px);">
     <!-- Welcome Section -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                <div>
-                    <h1 class="h3 fw-bold mb-1" style="color: #1f2937;">
-                        Welcome back, <%= user.title %> <%= user.firstName %>!
-                    </h1>
-                    <p class="text-muted mb-0">
-                        <i class="fas fa-hospital me-1"></i><%= user.dialysisClinic %>
-                    </p>
-                </div>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#referralModal">
-                        <i class="fas fa-user-plus me-2"></i>Refer New Patient
-                    </button>
+            <div class="card border-0 shadow-sm" style="border-radius: 16px; background: white;">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                        <div>
+                            <h1 class="h3 fw-bold mb-1" style="color: #111827;">
+                                Welcome back, <%= user.title %> <%= user.firstName %>!
+                            </h1>
+                            <p class="mb-0" style="color: #4b5563;">
+                                <i class="fas fa-hospital me-1" style="color: #6366f1;"></i><%= user.dialysisClinic %>
+                            </p>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn text-white fw-semibold" data-bs-toggle="modal" data-bs-target="#referralModal" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border: none; padding: 10px 20px;">
+                                <i class="fas fa-user-plus me-2"></i>Refer New Patient
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -27,16 +31,16 @@
     <div class="row g-4 mb-4">
         <!-- Total Patients -->
         <div class="col-lg-4 col-md-6">
-            <div class="card border-0 h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px;">
+            <div class="card border-0 h-100 shadow-sm" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border-radius: 16px;">
                 <div class="card-body p-4 text-white">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <p class="text-white-50 mb-1 text-uppercase small fw-semibold" style="letter-spacing: 0.5px;">Total Patients</p>
-                            <h2 class="display-4 fw-bold mb-0"><%= stats.totalPatients %></h2>
-                            <p class="mb-0 mt-2 small text-white-50">Assigned to you</p>
+                            <p class="mb-1 text-uppercase small fw-bold" style="letter-spacing: 0.5px; color: rgba(255,255,255,0.85);">Total Patients</p>
+                            <h2 class="display-4 fw-bold mb-0" style="color: white;"><%= stats.totalPatients %></h2>
+                            <p class="mb-0 mt-2 small" style="color: rgba(255,255,255,0.8);">Assigned to you</p>
                         </div>
-                        <div class="bg-white bg-opacity-20 rounded-circle p-3">
-                            <i class="fas fa-users fa-lg"></i>
+                        <div class="rounded-circle p-3" style="background: rgba(255,255,255,0.2);">
+                            <i class="fas fa-users fa-lg" style="color: white;"></i>
                         </div>
                     </div>
                 </div>
@@ -45,16 +49,16 @@
 
         <!-- TC Selection Rate -->
         <div class="col-lg-4 col-md-6">
-            <div class="card border-0 h-100" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border-radius: 16px;">
+            <div class="card border-0 h-100 shadow-sm" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); border-radius: 16px;">
                 <div class="card-body p-4 text-white">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <p class="text-white-50 mb-1 text-uppercase small fw-semibold" style="letter-spacing: 0.5px;">TC Selection Rate</p>
-                            <h2 class="display-4 fw-bold mb-0"><%= stats.tcSelectionPercent %>%</h2>
-                            <p class="mb-0 mt-2 small text-white-50"><%= stats.patientsWithTC %> of <%= stats.totalPatients %> selected</p>
+                            <p class="mb-1 text-uppercase small fw-bold" style="letter-spacing: 0.5px; color: rgba(255,255,255,0.85);">TC Selection Rate</p>
+                            <h2 class="display-4 fw-bold mb-0" style="color: white;"><%= stats.tcSelectionPercent %>%</h2>
+                            <p class="mb-0 mt-2 small" style="color: rgba(255,255,255,0.8);"><%= stats.patientsWithTC %> of <%= stats.totalPatients %> selected</p>
                         </div>
-                        <div class="bg-white bg-opacity-20 rounded-circle p-3">
-                            <i class="fas fa-hospital fa-lg"></i>
+                        <div class="rounded-circle p-3" style="background: rgba(255,255,255,0.2);">
+                            <i class="fas fa-hospital fa-lg" style="color: white;"></i>
                         </div>
                     </div>
                 </div>
@@ -63,46 +67,46 @@
 
         <!-- Status Breakdown -->
         <div class="col-lg-4 col-md-12">
-            <div class="card border-0 h-100" style="border-radius: 16px;">
+            <div class="card border-0 h-100 shadow-sm" style="border-radius: 16px; background: white;">
                 <div class="card-body p-4">
-                    <p class="text-muted mb-3 text-uppercase small fw-semibold" style="letter-spacing: 0.5px;">
-                        <i class="fas fa-chart-pie me-2" style="color: #667eea;"></i>Patient Status Breakdown
+                    <p class="mb-3 text-uppercase small fw-bold" style="letter-spacing: 0.5px; color: #374151;">
+                        <i class="fas fa-chart-pie me-2" style="color: #6366f1;"></i>Patient Status Breakdown
                     </p>
                     <div class="row text-center g-2">
                         <div class="col-4">
-                            <div class="p-2 rounded" style="background: rgba(251, 191, 36, 0.1);">
-                                <h4 class="fw-bold mb-0" style="color: #f59e0b;"><%= stats.statusCounts.applied %></h4>
-                                <small class="text-muted" style="font-size: 0.7rem;">Applied</small>
+                            <div class="p-2 rounded" style="background: #fef3c7;">
+                                <h4 class="fw-bold mb-0" style="color: #b45309;"><%= stats.statusCounts.applied %></h4>
+                                <small style="color: #92400e; font-size: 0.7rem; font-weight: 500;">Applied</small>
                             </div>
                         </div>
                         <div class="col-4">
-                            <div class="p-2 rounded" style="background: rgba(59, 130, 246, 0.1);">
-                                <h4 class="fw-bold mb-0" style="color: #3b82f6;"><%= stats.statusCounts.under_review %></h4>
-                                <small class="text-muted" style="font-size: 0.7rem;">Review</small>
+                            <div class="p-2 rounded" style="background: #dbeafe;">
+                                <h4 class="fw-bold mb-0" style="color: #1d4ed8;"><%= stats.statusCounts.under_review %></h4>
+                                <small style="color: #1e40af; font-size: 0.7rem; font-weight: 500;">Review</small>
                             </div>
                         </div>
                         <div class="col-4">
-                            <div class="p-2 rounded" style="background: rgba(16, 185, 129, 0.1);">
-                                <h4 class="fw-bold mb-0" style="color: #10b981;"><%= stats.statusCounts.accepted %></h4>
-                                <small class="text-muted" style="font-size: 0.7rem;">Accepted</small>
+                            <div class="p-2 rounded" style="background: #d1fae5;">
+                                <h4 class="fw-bold mb-0" style="color: #047857;"><%= stats.statusCounts.accepted %></h4>
+                                <small style="color: #065f46; font-size: 0.7rem; font-weight: 500;">Accepted</small>
                             </div>
                         </div>
                         <div class="col-4">
-                            <div class="p-2 rounded" style="background: rgba(139, 92, 246, 0.1);">
-                                <h4 class="fw-bold mb-0" style="color: #8b5cf6;"><%= stats.statusCounts.waitlisted %></h4>
-                                <small class="text-muted" style="font-size: 0.7rem;">Waitlist</small>
+                            <div class="p-2 rounded" style="background: #ede9fe;">
+                                <h4 class="fw-bold mb-0" style="color: #6d28d9;"><%= stats.statusCounts.waitlisted %></h4>
+                                <small style="color: #5b21b6; font-size: 0.7rem; font-weight: 500;">Waitlist</small>
                             </div>
                         </div>
                         <div class="col-4">
-                            <div class="p-2 rounded" style="background: rgba(239, 68, 68, 0.1);">
-                                <h4 class="fw-bold mb-0" style="color: #ef4444;"><%= stats.statusCounts.declined %></h4>
-                                <small class="text-muted" style="font-size: 0.7rem;">Declined</small>
+                            <div class="p-2 rounded" style="background: #fee2e2;">
+                                <h4 class="fw-bold mb-0" style="color: #b91c1c;"><%= stats.statusCounts.declined %></h4>
+                                <small style="color: #991b1b; font-size: 0.7rem; font-weight: 500;">Declined</small>
                             </div>
                         </div>
                         <div class="col-4">
-                            <div class="p-2 rounded" style="background: rgba(107, 114, 128, 0.1);">
-                                <h4 class="fw-bold mb-0" style="color: #6b7280;"><%= stats.statusCounts.no_selection %></h4>
-                                <small class="text-muted" style="font-size: 0.7rem;">Pending</small>
+                            <div class="p-2 rounded" style="background: #f3f4f6;">
+                                <h4 class="fw-bold mb-0" style="color: #374151;"><%= stats.statusCounts.no_selection %></h4>
+                                <small style="color: #4b5563; font-size: 0.7rem; font-weight: 500;">Pending</small>
                             </div>
                         </div>
                     </div>
@@ -114,107 +118,74 @@
     <!-- Quick Actions -->
     <div class="row mb-4">
         <div class="col-12">
-            <h5 class="fw-bold mb-3" style="color: #374151;"><i class="fas fa-bolt me-2" style="color: #667eea;"></i>Quick Actions</h5>
-            <div class="d-flex gap-3 flex-wrap">
-                <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#referralModal">
-                    <i class="fas fa-user-plus me-2"></i>Refer New Patient
-                </button>
-                <a href="/patients" class="btn btn-outline-secondary">
-                    <i class="fas fa-users me-2"></i>View All Patients
-                </a>
-                <button class="btn btn-outline-secondary" disabled title="Coming Soon">
-                    <i class="fas fa-envelope me-2"></i>Send Message to Patient
-                </button>
+            <div class="card border-0 shadow-sm" style="border-radius: 16px; background: white;">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-3" style="color: #111827;"><i class="fas fa-bolt me-2" style="color: #6366f1;"></i>Quick Actions</h5>
+                    <div class="d-flex gap-3 flex-wrap">
+                        <button class="btn fw-semibold" data-bs-toggle="modal" data-bs-target="#referralModal" style="background: #6366f1; color: white; border: none;">
+                            <i class="fas fa-user-plus me-2"></i>Refer New Patient
+                        </button>
+                        <a href="/patients" class="btn fw-semibold" style="background: #e0e7ff; color: #4338ca; border: none;">
+                            <i class="fas fa-users me-2"></i>View All Patients
+                        </a>
+                        <button class="btn fw-semibold" disabled title="Coming Soon" style="background: #f3f4f6; color: #6b7280; border: none;">
+                            <i class="fas fa-envelope me-2"></i>Send Message to Patient
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Recent Patients Table -->
+    <!-- Recent Notifications -->
     <div class="row">
         <div class="col-12">
-            <div class="card border-0" style="border-radius: 16px;">
+            <div class="card border-0 shadow-sm" style="border-radius: 16px; background: white;">
                 <div class="card-header bg-transparent border-0 pt-4 pb-0 px-4">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="fw-bold mb-0" style="color: #374151;">
-                            <i class="fas fa-users me-2" style="color: #667eea;"></i>Your Patients
+                        <h5 class="fw-bold mb-0" style="color: #111827;">
+                            <i class="fas fa-bell me-2" style="color: #6366f1;"></i>Recent Notifications
                         </h5>
-                        <a href="/patients" class="btn btn-sm btn-outline-primary">
+                        <a href="/notifications" class="btn btn-sm fw-semibold" style="background: #e0e7ff; color: #4338ca; border: none;">
                             View All <i class="fas fa-arrow-right ms-1"></i>
                         </a>
                     </div>
                 </div>
                 <div class="card-body p-4">
-                    <% if (patients && patients.length > 0) { %>
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle mb-0">
-                                <thead>
-                                    <tr style="border-bottom: 2px solid #e5e7eb;">
-                                        <th class="border-0 text-muted small text-uppercase" style="font-weight: 600; letter-spacing: 0.5px;">Patient</th>
-                                        <th class="border-0 text-muted small text-uppercase" style="font-weight: 600; letter-spacing: 0.5px;">Contact</th>
-                                        <th class="border-0 text-muted small text-uppercase text-center" style="font-weight: 600; letter-spacing: 0.5px;">TC Status</th>
-                                        <th class="border-0 text-muted small text-uppercase" style="font-weight: 600; letter-spacing: 0.5px;">Registered</th>
-                                        <th class="border-0 text-muted small text-uppercase text-end" style="font-weight: 600; letter-spacing: 0.5px;">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <% patients.slice(0, 10).forEach(patient => { %>
-                                        <tr>
-                                            <td>
-                                                <div class="d-flex align-items-center">
-                                                    <div class="rounded-circle d-flex align-items-center justify-content-center me-3" 
-                                                         style="width: 40px; height: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: 600;">
-                                                        <%= patient.first_name ? patient.first_name.charAt(0) : '' %><%= patient.last_name ? patient.last_name.charAt(0) : '' %>
-                                                    </div>
-                                                    <div>
-                                                        <h6 class="mb-0 fw-semibold" style="color: #1f2937;"><%= patient.first_name %> <%= patient.last_name %></h6>
-                                                        <% if (patient.date_of_birth) { %>
-                                                            <small class="text-muted">DOB: <%= new Date(patient.date_of_birth).toLocaleDateString() %></small>
-                                                        <% } %>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <div class="small">
-                                                    <div style="color: #4b5563;"><i class="fas fa-envelope me-1 text-muted"></i><%= patient.email %></div>
-                                                    <% if (patient.phone_number) { %>
-                                                        <div style="color: #4b5563;"><i class="fas fa-phone me-1 text-muted"></i><%= patient.phone_number %></div>
-                                                    <% } %>
-                                                </div>
-                                            </td>
-                                            <td class="text-center">
-                                                <% if (parseInt(patient.referral_count) > 0) { %>
-                                                    <span class="badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
-                                                        <i class="fas fa-check-circle me-1"></i><%= patient.referral_count %> TC Selected
-                                                    </span>
-                                                <% } else { %>
-                                                    <span class="badge" style="background: rgba(251, 191, 36, 0.1); color: #f59e0b;">
-                                                        <i class="fas fa-clock me-1"></i>Pending Selection
-                                                    </span>
-                                                <% } %>
-                                            </td>
-                                            <td>
-                                                <small style="color: #6b7280;"><%= new Date(patient.created_at).toLocaleDateString() %></small>
-                                            </td>
-                                            <td class="text-end">
-                                                <a href="/patients/<%= patient.patient_id %>" class="btn btn-sm btn-outline-primary">
-                                                    <i class="fas fa-eye me-1"></i>View
-                                                </a>
-                                            </td>
-                                        </tr>
-                                    <% }); %>
-                                </tbody>
-                            </table>
+                    <% if (duswNotifications && duswNotifications.length > 0) { %>
+                        <div class="list-group list-group-flush">
+                            <% duswNotifications.slice(0, 5).forEach(notification => { %>
+                                <a href="/patients/<%= notification.patient_id %>" class="list-group-item list-group-item-action border-0 rounded mb-2 <%= notification.is_read ? '' : 'border-start border-4' %>" style="<%= notification.is_read ? 'background: #f9fafb;' : 'background: #eef2ff; border-color: #6366f1 !important;' %>">
+                                    <div class="d-flex align-items-center">
+                                        <div class="me-3">
+                                            <% if (notification.notification_type === 'documents_complete') { %>
+                                                <span class="badge rounded-circle p-2" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: #d1fae5;"><i class="fas fa-file-check" style="color: #059669;"></i></span>
+                                            <% } else if (notification.notification_type === 'intake_form_complete') { %>
+                                                <span class="badge rounded-circle p-2" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: #dbeafe;"><i class="fas fa-clipboard-check" style="color: #2563eb;"></i></span>
+                                            <% } else if (notification.notification_type === 'tc_selection') { %>
+                                                <span class="badge rounded-circle p-2" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: #fef3c7;"><i class="fas fa-hospital" style="color: #d97706;"></i></span>
+                                            <% } else { %>
+                                                <span class="badge rounded-circle p-2" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: #e0e7ff;"><i class="fas fa-info" style="color: #6366f1;"></i></span>
+                                            <% } %>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-0 fw-semibold" style="color: #111827;"><%= notification.title %></h6>
+                                            <p class="mb-0 small" style="color: #6b7280;"><%= notification.message %></p>
+                                        </div>
+                                        <div class="text-end">
+                                            <small style="color: #9ca3af;"><%= new Date(notification.created_at).toLocaleDateString() %></small>
+                                            <% if (!notification.is_read) { %>
+                                                <br><span class="badge mt-1" style="background: #6366f1; color: white; font-size: 0.65rem;">New</span>
+                                            <% } %>
+                                        </div>
+                                    </div>
+                                </a>
+                            <% }); %>
                         </div>
                     <% } else { %>
-                        <div class="text-center py-5">
-                            <div class="mb-3">
-                                <i class="fas fa-users fa-3x" style="color: #d1d5db;"></i>
-                            </div>
-                            <h5 class="text-muted">No Patients Yet</h5>
-                            <p class="text-muted mb-3">Refer your first patient to get started.</p>
-                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#referralModal">
-                                <i class="fas fa-user-plus me-2"></i>Refer New Patient
-                            </button>
+                        <div class="text-center py-4">
+                            <i class="fas fa-bell-slash fa-2x mb-3" style="color: #d1d5db;"></i>
+                            <p style="color: #6b7280;">No notifications yet. You'll see updates when patients complete actions.</p>
                         </div>
                     <% } %>
                 </div>

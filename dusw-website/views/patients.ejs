@@ -1,20 +1,24 @@
 <%- include('partials/header', {title: title}) %>
 
-<div class="container-fluid px-4 py-4">
+<div class="container-fluid px-4 py-4" style="background: #f8fafc; min-height: calc(100vh - 150px);">
     <!-- Page Header -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                <div>
-                    <h1 class="h3 fw-bold mb-1" style="color: #1f2937;">
-                        <i class="fas fa-users me-2" style="color: #667eea;"></i>All Patients
-                    </h1>
-                    <p class="text-muted mb-0">Manage all patients assigned to you</p>
-                </div>
-                <div class="d-flex gap-2 align-items-center">
-                    <span class="badge fs-6 px-3 py-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-                        <i class="fas fa-user-friends me-1"></i><%= patients.length %> patients
-                    </span>
+            <div class="card border-0 shadow-sm" style="border-radius: 16px; background: white;">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                        <div>
+                            <h1 class="h3 fw-bold mb-1" style="color: #111827;">
+                                <i class="fas fa-users me-2" style="color: #6366f1;"></i>All Patients
+                            </h1>
+                            <p class="mb-0" style="color: #4b5563;">Manage all patients assigned to you</p>
+                        </div>
+                        <div class="d-flex gap-2 align-items-center">
+                            <span class="badge fs-6 px-3 py-2" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white;">
+                                <i class="fas fa-user-friends me-1"></i><%= patients.length %> patients
+                            </span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -23,40 +27,40 @@
     <!-- Stats Row -->
     <div class="row g-3 mb-4">
         <div class="col-md-4">
-            <div class="card border-0 h-100" style="border-radius: 12px;">
+            <div class="card border-0 h-100 shadow-sm" style="border-radius: 12px; background: white;">
                 <div class="card-body d-flex align-items-center p-3">
-                    <div class="rounded-circle p-3 me-3" style="background: rgba(102, 126, 234, 0.1);">
-                        <i class="fas fa-users" style="color: #667eea; font-size: 1.25rem;"></i>
+                    <div class="rounded-circle p-3 me-3" style="background: #e0e7ff;">
+                        <i class="fas fa-users" style="color: #4338ca; font-size: 1.25rem;"></i>
                     </div>
                     <div>
-                        <h4 class="fw-bold mb-0" style="color: #1f2937;"><%= patients.length %></h4>
-                        <small class="text-muted">Total Patients</small>
+                        <h4 class="fw-bold mb-0" style="color: #111827;"><%= patients.length %></h4>
+                        <small style="color: #4b5563;">Total Patients</small>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card border-0 h-100" style="border-radius: 12px;">
+            <div class="card border-0 h-100 shadow-sm" style="border-radius: 12px; background: white;">
                 <div class="card-body d-flex align-items-center p-3">
-                    <div class="rounded-circle p-3 me-3" style="background: rgba(16, 185, 129, 0.1);">
-                        <i class="fas fa-hospital" style="color: #10b981; font-size: 1.25rem;"></i>
+                    <div class="rounded-circle p-3 me-3" style="background: #d1fae5;">
+                        <i class="fas fa-hospital" style="color: #047857; font-size: 1.25rem;"></i>
                     </div>
                     <div>
-                        <h4 class="fw-bold mb-0" style="color: #1f2937;"><%= patients.filter(p => parseInt(p.referral_count) > 0).length %></h4>
-                        <small class="text-muted">TC Selected</small>
+                        <h4 class="fw-bold mb-0" style="color: #111827;"><%= patients.filter(p => parseInt(p.referral_count) > 0).length %></h4>
+                        <small style="color: #4b5563;">TC Selected</small>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card border-0 h-100" style="border-radius: 12px;">
+            <div class="card border-0 h-100 shadow-sm" style="border-radius: 12px; background: white;">
                 <div class="card-body d-flex align-items-center p-3">
-                    <div class="rounded-circle p-3 me-3" style="background: rgba(251, 191, 36, 0.1);">
-                        <i class="fas fa-clock" style="color: #f59e0b; font-size: 1.25rem;"></i>
+                    <div class="rounded-circle p-3 me-3" style="background: #fef3c7;">
+                        <i class="fas fa-clock" style="color: #b45309; font-size: 1.25rem;"></i>
                     </div>
                     <div>
-                        <h4 class="fw-bold mb-0" style="color: #1f2937;"><%= patients.filter(p => parseInt(p.referral_count) === 0).length %></h4>
-                        <small class="text-muted">Pending Selection</small>
+                        <h4 class="fw-bold mb-0" style="color: #111827;"><%= patients.filter(p => parseInt(p.referral_count) === 0).length %></h4>
+                        <small style="color: #4b5563;">Pending Selection</small>
                     </div>
                 </div>
             </div>
@@ -66,13 +70,13 @@
     <!-- Search and Table -->
     <div class="row">
         <div class="col-12">
-            <div class="card border-0" style="border-radius: 16px;">
+            <div class="card border-0 shadow-sm" style="border-radius: 16px; background: white;">
                 <div class="card-header bg-transparent border-0 pt-4 pb-3 px-4">
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                        <h5 class="fw-bold mb-0" style="color: #374151;">Patient List</h5>
+                        <h5 class="fw-bold mb-0" style="color: #111827;">Patient List</h5>
                         <div class="position-relative" style="max-width: 300px;">
-                            <i class="fas fa-search position-absolute" style="left: 12px; top: 50%; transform: translateY(-50%); color: #9ca3af;"></i>
-                            <input type="text" class="form-control form-control-sm ps-5" id="patientSearch" placeholder="Search patients..." style="border-radius: 8px;">
+                            <i class="fas fa-search position-absolute" style="left: 12px; top: 50%; transform: translateY(-50%); color: #6b7280;"></i>
+                            <input type="text" class="form-control form-control-sm ps-5" id="patientSearch" placeholder="Search patients..." style="border-radius: 8px; border: 1px solid #d1d5db;">
                         </div>
                     </div>
                 </div>
@@ -80,10 +84,10 @@
                     <% if (patients.length === 0) { %>
                         <div class="text-center py-5">
                             <div class="mb-3">
-                                <i class="fas fa-users fa-3x" style="color: #d1d5db;"></i>
+                                <i class="fas fa-users fa-3x" style="color: #9ca3af;"></i>
                             </div>
-                            <h5 class="text-muted">No Patients Yet</h5>
-                            <p class="text-muted mb-3">Patients will appear here once they register.</p>
+                            <h5 style="color: #374151;">No Patients Yet</h5>
+                            <p style="color: #6b7280;" class="mb-3">Patients will appear here once they register.</p>
                         </div>
                     <% } else { %>
                         <div class="table-responsive">

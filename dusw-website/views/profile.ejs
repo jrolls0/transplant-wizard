@@ -1,13 +1,17 @@
 <%- include('partials/header', {title: title}) %>
 
-<div class="container-fluid px-4 py-4">
+<div class="container-fluid px-4 py-4" style="background: #f8fafc; min-height: calc(100vh - 150px);">
     <!-- Page Header -->
     <div class="row mb-4">
         <div class="col-12">
-            <h1 class="h3 fw-bold mb-1" style="color: #1f2937;">
-                <i class="fas fa-user-circle me-2" style="color: #667eea;"></i>My Profile
-            </h1>
-            <p class="text-muted mb-0">Manage your account information</p>
+            <div class="card border-0 shadow-sm" style="border-radius: 16px; background: white;">
+                <div class="card-body p-4">
+                    <h1 class="h3 fw-bold mb-1" style="color: #111827;">
+                        <i class="fas fa-user-circle me-2" style="color: #6366f1;"></i>My Profile
+                    </h1>
+                    <p class="mb-0" style="color: #4b5563;">Manage your account information</p>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -27,9 +31,9 @@
     <div class="row g-4">
         <!-- Profile Information -->
         <div class="col-lg-8">
-            <div class="card border-0" style="border-radius: 16px;">
+            <div class="card border-0 shadow-sm" style="border-radius: 16px; background: white;">
                 <div class="card-header bg-transparent border-0 pt-4 pb-0 px-4">
-                    <h5 class="fw-bold mb-0" style="color: #374151;"><i class="fas fa-id-card me-2" style="color: #667eea;"></i>Personal Information</h5>
+                    <h5 class="fw-bold mb-0" style="color: #111827;"><i class="fas fa-id-card me-2" style="color: #6366f1;"></i>Personal Information</h5>
                 </div>
                 <div class="card-body p-4">
                     <form method="POST" action="/profile">
@@ -64,7 +68,7 @@
                             </div>
                         </div>
                         <div class="mt-4">
-                            <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+                            <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border: none;">
                                 <i class="fas fa-save me-2"></i>Save Changes
                             </button>
                         </div>
@@ -73,9 +77,9 @@
             </div>
 
             <!-- Change Password -->
-            <div class="card border-0 mt-4" style="border-radius: 16px;">
+            <div class="card border-0 mt-4 shadow-sm" style="border-radius: 16px; background: white;">
                 <div class="card-header bg-transparent border-0 pt-4 pb-0 px-4">
-                    <h5 class="fw-bold mb-0" style="color: #374151;"><i class="fas fa-lock me-2" style="color: #667eea;"></i>Change Password</h5>
+                    <h5 class="fw-bold mb-0" style="color: #111827;"><i class="fas fa-lock me-2" style="color: #6366f1;"></i>Change Password</h5>
                 </div>
                 <div class="card-body p-4">
                     <form method="POST" action="/profile/password">
@@ -106,7 +110,7 @@
         <!-- Sidebar Info -->
         <div class="col-lg-4">
             <!-- Account Card -->
-            <div class="card border-0" style="border-radius: 16px;">
+            <div class="card border-0 shadow-sm" style="border-radius: 16px; background: white;">
                 <div class="card-body p-4 text-center">
                     <div class="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3" 
                          style="width: 80px; height: 80px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 2rem; font-weight: 600;">
@@ -119,9 +123,9 @@
             </div>
 
             <!-- Dialysis Clinic Info -->
-            <div class="card border-0 mt-4" style="border-radius: 16px;">
+            <div class="card border-0 mt-4 shadow-sm" style="border-radius: 16px; background: white;">
                 <div class="card-header bg-transparent border-0 pt-4 pb-0 px-4">
-                    <h6 class="fw-bold mb-0" style="color: #374151;"><i class="fas fa-hospital me-2" style="color: #667eea;"></i>Dialysis Clinic</h6>
+                    <h6 class="fw-bold mb-0" style="color: #111827;"><i class="fas fa-hospital me-2" style="color: #6366f1;"></i>Dialysis Clinic</h6>
                 </div>
                 <div class="card-body px-4 pb-4">
                     <p class="mb-0 fw-semibold" style="color: #1f2937;"><%= employee.dialysis_clinic %></p>
@@ -130,9 +134,9 @@
             </div>
 
             <!-- Account Activity -->
-            <div class="card border-0 mt-4" style="border-radius: 16px;">
+            <div class="card border-0 mt-4 shadow-sm" style="border-radius: 16px; background: white;">
                 <div class="card-header bg-transparent border-0 pt-4 pb-0 px-4">
-                    <h6 class="fw-bold mb-0" style="color: #374151;"><i class="fas fa-history me-2" style="color: #667eea;"></i>Account Activity</h6>
+                    <h6 class="fw-bold mb-0" style="color: #111827;"><i class="fas fa-history me-2" style="color: #6366f1;"></i>Account Activity</h6>
                 </div>
                 <div class="card-body px-4 pb-4">
                     <div class="d-flex justify-content-between mb-2">
