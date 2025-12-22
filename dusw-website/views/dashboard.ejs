@@ -794,11 +794,15 @@
                     // Reset form
                     referralForm.reset();
 
-                    // Close modal after 4 seconds (user can also close manually)
+                    // Close modal after 2 seconds and reload page to show updated data
                     setTimeout(() => {
                         const modal = bootstrap.Modal.getInstance(document.getElementById('referralModal'));
-                        modal.hide();
-                    }, 4000);
+                        if (modal) {
+                            modal.hide();
+                        }
+                        // Reload page to show updated patient list
+                        window.location.reload();
+                    }, 2000);
 
                 } catch (error) {
                     console.error('❌ Referral error:', error);
