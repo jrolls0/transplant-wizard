@@ -523,7 +523,7 @@ class APIService: ObservableObject {
     func getSocialWorkersForClinic(clinicId: String, accessToken: String) async throws -> [SocialWorkerOption] {
         let endpoint = "/dialysis-clinics/\(clinicId)/social-workers"
         
-        let response: SocialWorkersResponse = try await performAuthenticatedRequest(
+        let response: ClinicSocialWorkersResponse = try await performAuthenticatedRequest(
             endpoint: endpoint,
             method: .GET,
             body: EmptyRequest(),

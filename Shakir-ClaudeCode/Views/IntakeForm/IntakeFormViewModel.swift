@@ -295,7 +295,16 @@ class IntakeFormViewModel: ObservableObject {
         socialSupportRelationship = data.socialSupportRelationship ?? ""
         socialSupportPhone = data.socialSupportPhone ?? ""
         
-        height = data.height ?? ""
+        // Parse height string like "5'6\"" into feet and inches
+        if let heightStr = data.height, !heightStr.isEmpty {
+            let parts = heightStr.replacingOccurrences(of: "\"", with: "").split(separator: "'")
+            if parts.count >= 1, let feet = Int(parts[0]) {
+                heightFeet = feet
+            }
+            if parts.count >= 2, let inches = Int(parts[1]) {
+                heightInches = inches
+            }
+        }
         weight = data.weight ?? ""
         onDialysis = data.onDialysis ?? false
         dialysisType = data.dialysisType ?? ""
@@ -318,8 +327,15 @@ class IntakeFormViewModel: ObservableObject {
         usesOxygen = data.usesOxygen ?? false
         contraindicationsExplanation = data.contraindicationsExplanation ?? ""
         
-        diagnosedConditions = data.diagnosedConditions ?? ""
-        pastSurgeries = data.pastSurgeries ?? ""
+        // Parse conditions and surgeries from semicolon-separated strings to lists
+        if let conditions = data.diagnosedConditions, !conditions.isEmpty {
+            diagnosedConditionsList = conditions.split(separator: ";").map { String($0).trimmingCharacters(in: .whitespaces) }
+            if diagnosedConditionsList.isEmpty { diagnosedConditionsList = [""] }
+        }
+        if let surgeries = data.pastSurgeries, !surgeries.isEmpty {
+            pastSurgeriesList = surgeries.split(separator: ";").map { String($0).trimmingCharacters(in: .whitespaces) }
+            if pastSurgeriesList.isEmpty { pastSurgeriesList = [""] }
+        }
         
         dialysisUnitName = data.dialysisUnitName ?? ""
         dialysisUnitAddress = data.dialysisUnitAddress ?? ""
@@ -527,7 +543,7 @@ struct DialysisClinicsResponse: Codable {
     let data: [DialysisClinicOption]?
 }
 
-struct SocialWorkersResponse: Codable {
+struct ClinicSocialWorkersResponse: Codable {
     let success: Bool
     let data: [SocialWorkerOption]?
 }
