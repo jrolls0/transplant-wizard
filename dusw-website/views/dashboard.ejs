@@ -697,6 +697,32 @@
         </div>
     </div>
 
+    <!-- Success Modal for Referral -->
+    <div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
+                <div class="modal-body text-center p-5">
+                    <div class="mb-4">
+                        <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(40, 167, 69, 0.3);">
+                            <i class="fas fa-check" style="font-size: 36px; color: white;"></i>
+                        </div>
+                    </div>
+                    <h4 class="fw-bold mb-3" style="color: #1a1a2e;">Referral Sent Successfully!</h4>
+                    <p class="text-muted mb-2">Patient referral has been created for:</p>
+                    <p class="fw-semibold mb-1" style="color: #1a1a2e; font-size: 1.1rem;" id="successModalPatientName"></p>
+                    <p class="text-muted mb-4" style="font-size: 0.95rem;" id="successModalPatientEmail"></p>
+                    <div class="alert alert-light border-0 mb-4" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px;">
+                        <i class="fas fa-envelope me-2" style="color: #6c757d;"></i>
+                        <span style="color: #495057; font-size: 0.9rem;">An invitation email has been sent to the patient.</span>
+                    </div>
+                    <button type="button" class="btn btn-primary px-5 py-2 fw-semibold" onclick="closeSuccessAndReload()" style="border-radius: 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);">
+                        <i class="fas fa-check me-2"></i>Done
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- JavaScript for Referral Form -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -780,20 +806,22 @@
                     const patientName = document.getElementById('patientFirstName').value + ' ' + document.getElementById('patientLastName').value;
                     const patientEmail = document.getElementById('patientEmail').value;
 
-                    // Close modal immediately
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('referralModal'));
-                    if (modal) {
-                        modal.hide();
+                    // Close referral modal
+                    const referralModal = bootstrap.Modal.getInstance(document.getElementById('referralModal'));
+                    if (referralModal) {
+                        referralModal.hide();
                     }
 
-                    // Show success toast/alert outside modal
-                    alert('✅ Referral sent successfully!\n\nPatient: ' + patientName + '\nEmail: ' + patientEmail + '\n\nAn invitation email has been sent to the patient.');
+                    // Update success modal with patient info
+                    document.getElementById('successModalPatientName').textContent = patientName;
+                    document.getElementById('successModalPatientEmail').textContent = patientEmail;
+
+                    // Show success modal
+                    const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+                    successModal.show();
 
                     // Reset form
                     referralForm.reset();
-
-                    // Reload page to show updated patient list
-                    window.location.reload();
 
                 } catch (error) {
                     console.error('❌ Referral error:', error);
@@ -815,6 +843,15 @@
 
             console.log('✅ Referral form initialization complete');
         });
+
+        // Close success modal and reload page
+        function closeSuccessAndReload() {
+            const successModal = bootstrap.Modal.getInstance(document.getElementById('successModal'));
+            if (successModal) {
+                successModal.hide();
+            }
+            window.location.reload();
+        }
 
         // Notification functions
         async function markAsRead(notificationId) {
