@@ -175,7 +175,7 @@ struct PatientProfileView: View {
     // MARK: - Personal Information
     
     private var personalInfoContent: some View {
-        VStack(spacing: 16) {
+        VStack(alignment: .leading, spacing: 16) {
             ProfileField(
                 label: "Full Name",
                 value: $viewModel.fullName,
@@ -195,12 +195,13 @@ struct PatientProfileView: View {
                 isMultiline: true
             )
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
     
     // MARK: - Contact Information
     
     private var contactInfoContent: some View {
-        VStack(spacing: 16) {
+        VStack(alignment: .leading, spacing: 16) {
             ProfileField(
                 label: "Email",
                 value: $viewModel.email,
@@ -215,12 +216,13 @@ struct PatientProfileView: View {
                 keyboardType: .phonePad
             )
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
     
     // MARK: - Emergency Contact
     
     private var emergencyContactContent: some View {
-        VStack(spacing: 16) {
+        VStack(alignment: .leading, spacing: 16) {
             ProfileField(
                 label: "Name",
                 value: $viewModel.emergencyContactName,
@@ -240,12 +242,13 @@ struct PatientProfileView: View {
                 keyboardType: .phonePad
             )
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
     
     // MARK: - Physical Information
     
     private var physicalInfoContent: some View {
-        VStack(spacing: 16) {
+        VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 16) {
                 ProfileField(
                     label: "Height",
@@ -261,43 +264,24 @@ struct PatientProfileView: View {
                 )
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
     
     // MARK: - Medical Providers
     
     private var medicalProvidersContent: some View {
-        VStack(spacing: 16) {
-            // Nephrologist
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Nephrologist")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .fontWeight(.medium)
-                
-                if viewModel.isEditing {
-                    TextField("Nephrologist Name", text: $viewModel.nephrologistName)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                } else {
-                    Text(viewModel.nephrologistName.isEmpty ? "Not specified" : viewModel.nephrologistName)
-                        .foregroundColor(viewModel.nephrologistName.isEmpty ? .secondary : .primary)
-                }
-            }
+        VStack(alignment: .leading, spacing: 16) {
+            ProfileField(
+                label: "Nephrologist",
+                value: $viewModel.nephrologistName,
+                isEditing: viewModel.isEditing
+            )
             
-            // PCP
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Primary Care Physician")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .fontWeight(.medium)
-                
-                if viewModel.isEditing {
-                    TextField("PCP Name", text: $viewModel.pcpName)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                } else {
-                    Text(viewModel.pcpName.isEmpty ? "Not specified" : viewModel.pcpName)
-                        .foregroundColor(viewModel.pcpName.isEmpty ? .secondary : .primary)
-                }
-            }
+            ProfileField(
+                label: "Primary Care Physician",
+                value: $viewModel.pcpName,
+                isEditing: viewModel.isEditing
+            )
             
             // Other Physicians
             if !viewModel.otherPhysicians.isEmpty || viewModel.isEditing {
@@ -320,85 +304,58 @@ struct PatientProfileView: View {
                         }
                     }
                     
-                    ForEach(viewModel.otherPhysicians.indices, id: \.self) { index in
-                        PhysicianRow(
-                            physician: $viewModel.otherPhysicians[index],
-                            isEditing: viewModel.isEditing,
-                            onDelete: {
-                                viewModel.removePhysician(at: index)
-                            }
-                        )
+                    if viewModel.otherPhysicians.isEmpty && !viewModel.isEditing {
+                        Text("None specified")
+                            .foregroundColor(.secondary)
+                    } else {
+                        ForEach(viewModel.otherPhysicians.indices, id: \.self) { index in
+                            PhysicianRow(
+                                physician: $viewModel.otherPhysicians[index],
+                                isEditing: viewModel.isEditing,
+                                onDelete: {
+                                    viewModel.removePhysician(at: index)
+                                }
+                            )
+                        }
                     }
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
     
     // MARK: - Medical History
     
     private var medicalHistoryContent: some View {
-        VStack(spacing: 16) {
-            // Dialysis Info
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Dialysis Status")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .fontWeight(.medium)
-                
-                if viewModel.onDialysis {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("On Dialysis: \(viewModel.dialysisType)")
-                        if !viewModel.dialysisStartDate.isEmpty {
-                            Text("Started: \(viewModel.dialysisStartDate)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                } else {
-                    Text("Not on dialysis")
-                        .foregroundColor(.secondary)
-                }
-            }
+        VStack(alignment: .leading, spacing: 16) {
+            ProfileDisplayField(
+                label: "Dialysis Status",
+                value: viewModel.onDialysis ? "On Dialysis: \(viewModel.dialysisType)" : "Not on dialysis",
+                subtitle: viewModel.onDialysis && !viewModel.dialysisStartDate.isEmpty ? "Started: \(viewModel.dialysisStartDate)" : nil
+            )
             
-            // GFR
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Last GFR")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .fontWeight(.medium)
-                
-                Text(viewModel.lastGFR.isEmpty ? "Not recorded" : viewModel.lastGFR)
-                    .foregroundColor(viewModel.lastGFR.isEmpty ? .secondary : .primary)
-            }
+            ProfileDisplayField(
+                label: "Last GFR",
+                value: viewModel.lastGFR.isEmpty ? "Not recorded" : viewModel.lastGFR
+            )
             
-            // Diagnosed Conditions
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Diagnosed Conditions")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .fontWeight(.medium)
-                
-                Text(viewModel.diagnosedConditions.isEmpty ? "None recorded" : viewModel.diagnosedConditions)
-                    .foregroundColor(viewModel.diagnosedConditions.isEmpty ? .secondary : .primary)
-            }
+            ProfileDisplayField(
+                label: "Diagnosed Conditions",
+                value: viewModel.diagnosedConditions.isEmpty ? "None recorded" : viewModel.diagnosedConditions
+            )
             
-            // Past Surgeries
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Past Surgeries")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .fontWeight(.medium)
-                
-                Text(viewModel.pastSurgeries.isEmpty ? "None recorded" : viewModel.pastSurgeries)
-                    .foregroundColor(viewModel.pastSurgeries.isEmpty ? .secondary : .primary)
-            }
+            ProfileDisplayField(
+                label: "Past Surgeries",
+                value: viewModel.pastSurgeries.isEmpty ? "None recorded" : viewModel.pastSurgeries
+            )
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
     
     // MARK: - Care Team
     
     private var careTeamContent: some View {
-        VStack(spacing: 16) {
+        VStack(alignment: .leading, spacing: 16) {
             // DUSW Social Worker
             VStack(alignment: .leading, spacing: 8) {
                 Text("Assigned Social Worker")
@@ -409,10 +366,9 @@ struct PatientProfileView: View {
                 if !viewModel.socialWorkerName.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(viewModel.socialWorkerName)
-                            .fontWeight(.medium)
                         
                         if !viewModel.socialWorkerEmail.isEmpty {
-                            HStack {
+                            HStack(spacing: 6) {
                                 Image(systemName: "envelope")
                                     .font(.caption)
                                 Text(viewModel.socialWorkerEmail)
@@ -422,7 +378,7 @@ struct PatientProfileView: View {
                         }
                         
                         if !viewModel.socialWorkerPhone.isEmpty {
-                            HStack {
+                            HStack(spacing: 6) {
                                 Image(systemName: "phone")
                                     .font(.caption)
                                 Text(viewModel.socialWorkerPhone)
@@ -436,6 +392,7 @@ struct PatientProfileView: View {
                         .foregroundColor(.secondary)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             
             // Dialysis Clinic
             VStack(alignment: .leading, spacing: 8) {
@@ -447,7 +404,6 @@ struct PatientProfileView: View {
                 if !viewModel.dialysisClinicName.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(viewModel.dialysisClinicName)
-                            .fontWeight(.medium)
                         
                         if !viewModel.dialysisClinicAddress.isEmpty {
                             Text(viewModel.dialysisClinicAddress)
@@ -460,7 +416,9 @@ struct PatientProfileView: View {
                         .foregroundColor(.secondary)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
     
     // MARK: - Signed Documents
@@ -621,6 +579,7 @@ struct ProfileField: View {
                     .foregroundColor(value.isEmpty ? .secondary : .primary)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -661,6 +620,32 @@ struct ProfileDateField: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct ProfileDisplayField: View {
+    let label: String
+    let value: String
+    var subtitle: String? = nil
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(label)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .fontWeight(.medium)
+            
+            Text(value)
+                .foregroundColor(value.contains("Not") || value.contains("None") ? .secondary : .primary)
+            
+            if let subtitle = subtitle {
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
