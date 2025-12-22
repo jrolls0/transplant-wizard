@@ -29,7 +29,11 @@
         // Notification functions
         async function markNotificationRead(notificationId) {
             try {
-                await fetch(`/notifications/${notificationId}/read`, { method: 'POST' });
+                await fetch('/notifications/' + notificationId + '/read', { 
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' }
+                });
             } catch (error) {
                 console.error('Error marking notification as read:', error);
             }
@@ -37,8 +41,28 @@
 
         async function markAllNotificationsRead() {
             try {
-                await fetch('/notifications/mark-all-read', { method: 'POST' });
-                location.reload();
+                const response = await fetch('/notifications/mark-all-read', { 
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (response.ok) {
+                    // Update UI immediately - remove "New" badges and bg-light class
+                    document.querySelectorAll('.dropdown-item.bg-light').forEach(function(el) {
+                        el.classList.remove('bg-light');
+                    });
+                    document.querySelectorAll('.badge.bg-primary.rounded-pill').forEach(function(el) {
+                        if (el.textContent === 'New') {
+                            el.remove();
+                        }
+                    });
+                    // Remove the notification count badge
+                    var countBadge = document.querySelector('#notificationDropdown .badge.bg-danger');
+                    if (countBadge) countBadge.remove();
+                    // Hide the "Mark all read" link
+                    var markAllLink = document.querySelector('a[onclick*="markAllNotificationsRead"]');
+                    if (markAllLink) markAllLink.style.display = 'none';
+                }
             } catch (error) {
                 console.error('Error marking all notifications as read:', error);
             }

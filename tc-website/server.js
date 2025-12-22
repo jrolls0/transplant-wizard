@@ -659,6 +659,43 @@ app.get('/patient/:patientId', requireAuth, async (req, res) => {
     }
 });
 
+// Notifications Page
+app.get('/notifications', requireAuth, async (req, res) => {
+    try {
+        const notifications = await queryWithRetry(`
+            SELECT 
+                tn.id,
+                tn.notification_type,
+                tn.title,
+                tn.message,
+                tn.is_read,
+                tn.created_at,
+                tn.patient_id,
+                u.first_name as patient_first_name,
+                u.last_name as patient_last_name
+            FROM tc_notifications tn
+            LEFT JOIN patients p ON tn.patient_id = p.id
+            LEFT JOIN users u ON p.user_id = u.id
+            WHERE tn.tc_employee_id = $1
+            ORDER BY tn.created_at DESC
+            LIMIT 100
+        `, [req.session.user.id]);
+        
+        res.render('notifications', {
+            title: 'Notifications - Transplant Center Portal',
+            user: req.session.user,
+            notifications: notifications.rows
+        });
+    } catch (error) {
+        console.error('Notifications page error:', error);
+        res.render('notifications', {
+            title: 'Notifications - Transplant Center Portal',
+            user: req.session.user,
+            notifications: []
+        });
+    }
+});
+
 // Mark notification as read
 app.post('/notifications/:id/read', requireAuth, async (req, res) => {
     try {

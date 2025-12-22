@@ -1,0 +1,81 @@
+<%- include('partials/header', {title: 'Notifications'}) %>
+
+<!-- Page Header -->
+<section class="page-header bg-light py-4 border-bottom">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 fw-bold mb-1"><i class="fas fa-bell me-2 text-primary"></i>Notifications</h1>
+                <p class="text-muted mb-0">Stay updated on patient activity</p>
+            </div>
+            <div>
+                <% if (notifications.filter(n => !n.is_read).length > 0) { %>
+                    <button class="btn btn-outline-primary btn-sm" onclick="markAllNotificationsRead()">
+                        <i class="fas fa-check-double me-1"></i>Mark All as Read
+                    </button>
+                <% } %>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Notifications List -->
+<section class="py-4">
+    <div class="container">
+        <% if (notifications && notifications.length > 0) { %>
+            <div class="card border-0 shadow-sm">
+                <div class="list-group list-group-flush">
+                    <% notifications.forEach(notification => { %>
+                        <a href="/patient/<%= notification.patient_id %>" class="list-group-item list-group-item-action <%= notification.is_read ? '' : 'bg-light' %>" onclick="markNotificationRead('<%= notification.id %>')">
+                            <div class="d-flex align-items-start">
+                                <div class="me-3 mt-1">
+                                    <% if (notification.notification_type === 'new_application') { %>
+                                        <span class="badge bg-warning rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;"><i class="fas fa-user-plus"></i></span>
+                                    <% } else if (notification.notification_type === 'documents_complete') { %>
+                                        <span class="badge bg-success rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;"><i class="fas fa-file-check"></i></span>
+                                    <% } else if (notification.notification_type === 'intake_form_complete') { %>
+                                        <span class="badge bg-info rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;"><i class="fas fa-clipboard-check"></i></span>
+                                    <% } else if (notification.notification_type === 'new_document') { %>
+                                        <span class="badge bg-primary rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;"><i class="fas fa-file-upload"></i></span>
+                                    <% } else if (notification.notification_type === 'application_withdrawn') { %>
+                                        <span class="badge bg-danger rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;"><i class="fas fa-user-minus"></i></span>
+                                    <% } else { %>
+                                        <span class="badge bg-secondary rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;"><i class="fas fa-info"></i></span>
+                                    <% } %>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h6 class="mb-1 fw-semibold <%= notification.is_read ? 'text-muted' : '' %>"><%= notification.title %></h6>
+                                            <p class="mb-1 text-muted"><%= notification.message %></p>
+                                            <% if (notification.patient_first_name) { %>
+                                                <small class="text-primary"><i class="fas fa-user me-1"></i><%= notification.patient_first_name %> <%= notification.patient_last_name %></small>
+                                            <% } %>
+                                        </div>
+                                        <div class="text-end ms-3">
+                                            <small class="text-muted d-block"><%= new Date(notification.created_at).toLocaleDateString() %></small>
+                                            <small class="text-muted d-block"><%= new Date(notification.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) %></small>
+                                            <% if (!notification.is_read) { %>
+                                                <span class="badge bg-primary rounded-pill mt-1">New</span>
+                                            <% } %>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                    <% }); %>
+                </div>
+            </div>
+        <% } else { %>
+            <div class="text-center py-5">
+                <div class="mb-4">
+                    <i class="fas fa-bell-slash fa-4x text-muted opacity-50"></i>
+                </div>
+                <h4 class="text-muted">No Notifications</h4>
+                <p class="text-muted">You're all caught up! New notifications will appear here.</p>
+            </div>
+        <% } %>
+    </div>
+</section>
+
+<%- include('partials/footer') %>
