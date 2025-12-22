@@ -1763,6 +1763,640 @@ app.get('/api/v1/patients/consent-status', async (req, res) => {
     }
 });
 
+// ============================================
+// PATIENT PROFILE ENDPOINTS
+// ============================================
+
+// Get patient profile
+app.get('/api/v1/patients/profile', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({
+                success: false,
+                error: 'Authentication required'
+            });
+        }
+
+        const token = authHeader.substring(7);
+        let decoded;
+        try {
+            decoded = verifyToken(token);
+        } catch (error) {
+            return res.status(401).json({
+                success: false,
+                error: 'Invalid token'
+            });
+        }
+
+        // Get comprehensive patient profile
+        const result = await pool.query(`
+            SELECT 
+                u.id as user_id,
+                u.email,
+                u.first_name,
+                u.last_name,
+                u.phone_number,
+                p.id as patient_id,
+                p.date_of_birth,
+                p.address,
+                p.primary_care_physician,
+                p.nephrologist,
+                pif.full_name,
+                pif.phone,
+                pif.emergency_contact_name,
+                pif.emergency_contact_relationship,
+                pif.emergency_contact_phone,
+                pif.height,
+                pif.weight,
+                pif.on_dialysis,
+                pif.dialysis_type,
+                pif.dialysis_start_date,
+                pif.last_gfr,
+                pif.diagnosed_conditions,
+                pif.past_surgeries,
+                pif.dialysis_unit_name,
+                pif.dialysis_unit_address,
+                pif.social_worker_name,
+                pif.social_worker_email,
+                pif.social_worker_phone,
+                pif.other_physicians,
+                pif.submitted_at as intake_form_submitted_at,
+                (SELECT signed_at FROM patient_consents WHERE patient_id = p.id AND consent_type = 'services_consent') as services_consent_signed_at,
+                (SELECT signed_at FROM patient_consents WHERE patient_id = p.id AND consent_type = 'medical_records_consent') as medical_records_consent_signed_at
+            FROM users u
+            JOIN patients p ON u.id = p.user_id
+            LEFT JOIN patient_intake_forms pif ON p.id = pif.patient_id
+            WHERE u.id = $1
+        `, [decoded.userId]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Patient not found'
+            });
+        }
+
+        const patient = result.rows[0];
+
+        res.json({
+            success: true,
+            data: {
+                full_name: patient.full_name || `${patient.first_name} ${patient.last_name}`,
+                date_of_birth: patient.date_of_birth,
+                address: patient.address || pif?.address,
+                email: patient.email,
+                phone: patient.phone || patient.phone_number,
+                emergency_contact_name: patient.emergency_contact_name,
+                emergency_contact_relationship: patient.emergency_contact_relationship,
+                emergency_contact_phone: patient.emergency_contact_phone,
+                height: patient.height,
+                weight: patient.weight,
+                nephrologist_name: patient.nephrologist,
+                pcp_name: patient.primary_care_physician,
+                other_physicians: patient.other_physicians || [],
+                on_dialysis: patient.on_dialysis,
+                dialysis_type: patient.dialysis_type,
+                dialysis_start_date: patient.dialysis_start_date,
+                last_gfr: patient.last_gfr,
+                diagnosed_conditions: patient.diagnosed_conditions,
+                past_surgeries: patient.past_surgeries,
+                social_worker_name: patient.social_worker_name,
+                social_worker_email: patient.social_worker_email,
+                social_worker_phone: patient.social_worker_phone,
+                dialysis_clinic_name: patient.dialysis_unit_name,
+                dialysis_clinic_address: patient.dialysis_unit_address,
+                services_consent_signed_at: patient.services_consent_signed_at,
+                medical_records_consent_signed_at: patient.medical_records_consent_signed_at,
+                intake_form_submitted_at: patient.intake_form_submitted_at
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Error fetching patient profile:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to retrieve patient profile'
+        });
+    }
+});
+
+// Update patient profile
+app.put('/api/v1/patients/profile', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({
+                success: false,
+                error: 'Authentication required'
+            });
+        }
+
+        const token = authHeader.substring(7);
+        let decoded;
+        try {
+            decoded = verifyToken(token);
+        } catch (error) {
+            return res.status(401).json({
+                success: false,
+                error: 'Invalid token'
+            });
+        }
+
+        const {
+            full_name,
+            date_of_birth,
+            address,
+            email,
+            phone,
+            emergency_contact_name,
+            emergency_contact_relationship,
+            emergency_contact_phone,
+            height,
+            weight,
+            nephrologist_name,
+            pcp_name,
+            other_physicians
+        } = req.body;
+
+        // Get patient ID
+        const patientResult = await pool.query(
+            'SELECT id FROM patients WHERE user_id = $1',
+            [decoded.userId]
+        );
+
+        if (patientResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Patient not found'
+            });
+        }
+
+        const patientId = patientResult.rows[0].id;
+
+        // Update users table
+        if (email || full_name) {
+            const nameParts = full_name ? full_name.split(' ') : [];
+            const firstName = nameParts[0] || null;
+            const lastName = nameParts.slice(1).join(' ') || null;
+
+            await pool.query(`
+                UPDATE users SET
+                    email = COALESCE($1, email),
+                    first_name = COALESCE($2, first_name),
+                    last_name = COALESCE($3, last_name),
+                    phone_number = COALESCE($4, phone_number),
+                    updated_at = NOW()
+                WHERE id = $5
+            `, [email, firstName, lastName, phone, decoded.userId]);
+        }
+
+        // Update patients table
+        await pool.query(`
+            UPDATE patients SET
+                date_of_birth = COALESCE($1, date_of_birth),
+                address = COALESCE($2, address),
+                primary_care_physician = COALESCE($3, primary_care_physician),
+                nephrologist = COALESCE($4, nephrologist),
+                updated_at = NOW()
+            WHERE id = $5
+        `, [date_of_birth, address, pcp_name, nephrologist_name, patientId]);
+
+        // Update intake form if exists
+        const intakeExists = await pool.query(
+            'SELECT id FROM patient_intake_forms WHERE patient_id = $1',
+            [patientId]
+        );
+
+        if (intakeExists.rows.length > 0) {
+            await pool.query(`
+                UPDATE patient_intake_forms SET
+                    full_name = COALESCE($1, full_name),
+                    phone = COALESCE($2, phone),
+                    emergency_contact_name = COALESCE($3, emergency_contact_name),
+                    emergency_contact_relationship = COALESCE($4, emergency_contact_relationship),
+                    emergency_contact_phone = COALESCE($5, emergency_contact_phone),
+                    height = COALESCE($6, height),
+                    weight = COALESCE($7, weight),
+                    other_physicians = COALESCE($8, other_physicians),
+                    updated_at = NOW()
+                WHERE patient_id = $9
+            `, [full_name, phone, emergency_contact_name, emergency_contact_relationship, 
+                emergency_contact_phone, height, weight, JSON.stringify(other_physicians), patientId]);
+        }
+
+        console.log(`✅ Profile updated for patient ${patientId}`);
+
+        res.json({
+            success: true,
+            message: 'Profile updated successfully'
+        });
+
+    } catch (error) {
+        console.error('❌ Error updating patient profile:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to update patient profile'
+        });
+    }
+});
+
+// Delete patient account
+app.delete('/api/v1/patients/account', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({
+                success: false,
+                error: 'Authentication required'
+            });
+        }
+
+        const token = authHeader.substring(7);
+        let decoded;
+        try {
+            decoded = verifyToken(token);
+        } catch (error) {
+            return res.status(401).json({
+                success: false,
+                error: 'Invalid token'
+            });
+        }
+
+        // Delete user - CASCADE will handle related records
+        await pool.query('DELETE FROM users WHERE id = $1', [decoded.userId]);
+
+        console.log(`✅ Account deleted for user ${decoded.userId}`);
+
+        res.json({
+            success: true,
+            message: 'Account deleted successfully'
+        });
+
+    } catch (error) {
+        console.error('❌ Error deleting account:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to delete account'
+        });
+    }
+});
+
+// ============================================
+// PATIENT TRANSPLANT CENTERS ENDPOINTS
+// ============================================
+
+// Get patient's transplant centers with status
+app.get('/api/v1/patients/centers', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({
+                success: false,
+                error: 'Authentication required'
+            });
+        }
+
+        const token = authHeader.substring(7);
+        let decoded;
+        try {
+            decoded = verifyToken(token);
+        } catch (error) {
+            return res.status(401).json({
+                success: false,
+                error: 'Invalid token'
+            });
+        }
+
+        // Get patient ID
+        const patientResult = await pool.query(
+            'SELECT id FROM patients WHERE user_id = $1',
+            [decoded.userId]
+        );
+
+        if (patientResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Patient not found'
+            });
+        }
+
+        const patientId = patientResult.rows[0].id;
+
+        // Get patient's centers with status
+        const result = await pool.query(`
+            SELECT 
+                tc.id,
+                tc.name,
+                tc.address,
+                tc.city,
+                tc.state,
+                tc.phone,
+                tc.email,
+                COALESCE(pr.status, 'applied') as status,
+                pr.submitted_at as applied_at
+            FROM patient_referrals pr
+            JOIN transplant_centers tc ON pr.transplant_center_id = tc.id
+            WHERE pr.patient_id = $1
+            ORDER BY pr.submitted_at DESC
+        `, [patientId]);
+
+        res.json({
+            success: true,
+            data: result.rows
+        });
+
+    } catch (error) {
+        console.error('❌ Error fetching patient centers:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to retrieve centers'
+        });
+    }
+});
+
+// Add a transplant center for patient
+app.post('/api/v1/patients/centers', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({
+                success: false,
+                error: 'Authentication required'
+            });
+        }
+
+        const token = authHeader.substring(7);
+        let decoded;
+        try {
+            decoded = verifyToken(token);
+        } catch (error) {
+            return res.status(401).json({
+                success: false,
+                error: 'Invalid token'
+            });
+        }
+
+        const { center_id } = req.body;
+
+        if (!center_id) {
+            return res.status(400).json({
+                success: false,
+                error: 'Center ID is required'
+            });
+        }
+
+        // Get patient ID
+        const patientResult = await pool.query(
+            'SELECT id FROM patients WHERE user_id = $1',
+            [decoded.userId]
+        );
+
+        if (patientResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Patient not found'
+            });
+        }
+
+        const patientId = patientResult.rows[0].id;
+
+        // Check if already added
+        const existing = await pool.query(
+            'SELECT id FROM patient_referrals WHERE patient_id = $1 AND transplant_center_id = $2',
+            [patientId, center_id]
+        );
+
+        if (existing.rows.length > 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Center already added'
+            });
+        }
+
+        // Add the center
+        await pool.query(`
+            INSERT INTO patient_referrals (patient_id, transplant_center_id, status, submitted_at, created_at)
+            VALUES ($1, $2, 'applied', NOW(), NOW())
+        `, [patientId, center_id]);
+
+        // Notify the transplant center
+        const centerResult = await pool.query(
+            'SELECT name, admin_email FROM transplant_centers WHERE id = $1',
+            [center_id]
+        );
+
+        if (centerResult.rows.length > 0 && centerResult.rows[0].admin_email) {
+            const patientInfo = await pool.query(
+                'SELECT u.first_name, u.last_name FROM users u JOIN patients p ON u.id = p.user_id WHERE p.id = $1',
+                [patientId]
+            );
+            const patientName = patientInfo.rows.length > 0 ? 
+                `${patientInfo.rows[0].first_name} ${patientInfo.rows[0].last_name}` : 'A patient';
+
+            // Create notification for TC employees
+            const tcEmployees = await pool.query(
+                'SELECT id FROM tc_employees WHERE transplant_center_id = $1',
+                [center_id]
+            );
+
+            for (const employee of tcEmployees.rows) {
+                await pool.query(`
+                    INSERT INTO tc_notifications (tc_employee_id, patient_id, notification_type, title, message, is_read, created_at)
+                    VALUES ($1, $2, 'new_application', 'New Patient Application', $3, false, NOW())
+                `, [employee.id, patientId, `${patientName} has submitted an application to your transplant center.`]);
+            }
+        }
+
+        console.log(`✅ Center ${center_id} added for patient ${patientId}`);
+
+        res.json({
+            success: true,
+            message: 'Center added successfully'
+        });
+
+    } catch (error) {
+        console.error('❌ Error adding center:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to add center'
+        });
+    }
+});
+
+// Remove a transplant center for patient
+app.delete('/api/v1/patients/centers/:centerId', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({
+                success: false,
+                error: 'Authentication required'
+            });
+        }
+
+        const token = authHeader.substring(7);
+        let decoded;
+        try {
+            decoded = verifyToken(token);
+        } catch (error) {
+            return res.status(401).json({
+                success: false,
+                error: 'Invalid token'
+            });
+        }
+
+        const { centerId } = req.params;
+
+        // Get patient ID
+        const patientResult = await pool.query(
+            'SELECT id FROM patients WHERE user_id = $1',
+            [decoded.userId]
+        );
+
+        if (patientResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Patient not found'
+            });
+        }
+
+        const patientId = patientResult.rows[0].id;
+
+        // Remove the center
+        await pool.query(
+            'DELETE FROM patient_referrals WHERE patient_id = $1 AND transplant_center_id = $2',
+            [patientId, centerId]
+        );
+
+        // Notify the transplant center
+        const patientInfo = await pool.query(
+            'SELECT u.first_name, u.last_name FROM users u JOIN patients p ON u.id = p.user_id WHERE p.id = $1',
+            [patientId]
+        );
+        const patientName = patientInfo.rows.length > 0 ? 
+            `${patientInfo.rows[0].first_name} ${patientInfo.rows[0].last_name}` : 'A patient';
+
+        const tcEmployees = await pool.query(
+            'SELECT id FROM tc_employees WHERE transplant_center_id = $1',
+            [centerId]
+        );
+
+        for (const employee of tcEmployees.rows) {
+            await pool.query(`
+                INSERT INTO tc_notifications (tc_employee_id, patient_id, notification_type, title, message, is_read, created_at)
+                VALUES ($1, $2, 'application_withdrawn', 'Application Withdrawn', $3, false, NOW())
+            `, [employee.id, patientId, `${patientName} has withdrawn their application from your transplant center.`]);
+        }
+
+        console.log(`✅ Center ${centerId} removed for patient ${patientId}`);
+
+        res.json({
+            success: true,
+            message: 'Center removed successfully'
+        });
+
+    } catch (error) {
+        console.error('❌ Error removing center:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to remove center'
+        });
+    }
+});
+
+// ============================================
+// PATIENT MESSAGING ENDPOINTS
+// ============================================
+
+// Send message to social worker
+app.post('/api/v1/patients/messages/social-worker', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({
+                success: false,
+                error: 'Authentication required'
+            });
+        }
+
+        const token = authHeader.substring(7);
+        let decoded;
+        try {
+            decoded = verifyToken(token);
+        } catch (error) {
+            return res.status(401).json({
+                success: false,
+                error: 'Invalid token'
+            });
+        }
+
+        const { message } = req.body;
+
+        if (!message?.trim()) {
+            return res.status(400).json({
+                success: false,
+                error: 'Message is required'
+            });
+        }
+
+        // Get patient ID and social worker info
+        const patientResult = await pool.query(`
+            SELECT 
+                p.id as patient_id,
+                u.first_name,
+                u.last_name,
+                pif.social_worker_email,
+                pif.social_worker_name
+            FROM patients p
+            JOIN users u ON p.user_id = u.id
+            LEFT JOIN patient_intake_forms pif ON p.id = pif.patient_id
+            WHERE p.user_id = $1
+        `, [decoded.userId]);
+
+        if (patientResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Patient not found'
+            });
+        }
+
+        const patient = patientResult.rows[0];
+
+        // Store the message
+        await pool.query(`
+            INSERT INTO patient_messages (patient_id, message_type, content, sender_type, created_at)
+            VALUES ($1, 'social_worker', $2, 'patient', NOW())
+        `, [patient.patient_id, message]);
+
+        // TODO: Send email notification to social worker if email exists
+        if (patient.social_worker_email) {
+            console.log(`📧 Would send email to ${patient.social_worker_email}`);
+        }
+
+        console.log(`✅ Message sent to social worker for patient ${patient.patient_id}`);
+
+        res.json({
+            success: true,
+            message: 'Message sent successfully'
+        });
+
+    } catch (error) {
+        console.error('❌ Error sending message:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to send message'
+        });
+    }
+});
+
 // Lookup Referral by Email - for mobile app first-launch flow
 app.post('/api/v1/patient/referral/lookup', async (req, res) => {
     try {

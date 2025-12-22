@@ -201,6 +201,89 @@ class APIService: ObservableObject {
         )
     }
     
+    func getConsentPDF(consentType: String, accessToken: String) async throws -> Data {
+        let endpoint = "/patients/consent/\(consentType)/pdf"
+        let url = URL(string: baseURL + endpoint)!
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("application/pdf", forHTTPHeaderField: "Accept")
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        
+        let (data, response) = try await session.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200 else {
+            throw APIError.serverError("Failed to load PDF")
+        }
+        
+        return data
+    }
+    
+    // MARK: - Patient Profile Endpoints
+    
+    func getPatientProfile(accessToken: String) async throws -> PatientProfileData {
+        let endpoint = "/patients/profile"
+        
+        let response: PatientProfileResponse = try await performAuthenticatedRequest(
+            endpoint: endpoint,
+            method: .GET,
+            body: EmptyRequest(),
+            accessToken: accessToken
+        )
+        
+        guard let data = response.data else {
+            throw APIError.serverError("No profile data")
+        }
+        
+        return data
+    }
+    
+    func updatePatientProfile(profileData: [String: Any], accessToken: String) async throws -> EmptyResponse {
+        let endpoint = "/patients/profile"
+        
+        let url = URL(string: baseURL + endpoint)!
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try JSONSerialization.data(withJSONObject: profileData)
+        
+        let (data, response) = try await session.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.networkError
+        }
+        
+        if httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 {
+            return EmptyResponse()
+        } else {
+            throw APIError.serverError("Failed to update profile")
+        }
+    }
+    
+    func deletePatientAccount(accessToken: String) async throws -> EmptyResponse {
+        let endpoint = "/patients/account"
+        
+        let url = URL(string: baseURL + endpoint)!
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        
+        let (_, response) = try await session.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.networkError
+        }
+        
+        if httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 {
+            return EmptyResponse()
+        } else {
+            throw APIError.serverError("Failed to delete account")
+        }
+    }
+    
     // MARK: - Transplant Center Endpoints
     
     func getTransplantCenters(accessToken: String) async throws -> [TransplantCenter] {
@@ -242,6 +325,78 @@ class APIService: ObservableObject {
             body: EmptyRequest(),
             accessToken: accessToken
         )
+    }
+    
+    func getPatientCenters(accessToken: String) async throws -> [PatientTransplantCenter] {
+        let endpoint = "/patients/centers"
+        
+        let response: PatientCentersResponse = try await performAuthenticatedRequest(
+            endpoint: endpoint,
+            method: .GET,
+            body: EmptyRequest(),
+            accessToken: accessToken
+        )
+        
+        return response.data ?? []
+    }
+    
+    func addPatientCenter(centerId: String, accessToken: String) async throws -> EmptyResponse {
+        let endpoint = "/patients/centers"
+        
+        let url = URL(string: baseURL + endpoint)!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["center_id": centerId])
+        
+        let (_, response) = try await session.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 else {
+            throw APIError.serverError("Failed to add center")
+        }
+        
+        return EmptyResponse()
+    }
+    
+    func removePatientCenter(centerId: String, accessToken: String) async throws -> EmptyResponse {
+        let endpoint = "/patients/centers/\(centerId)"
+        
+        let url = URL(string: baseURL + endpoint)!
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        
+        let (_, response) = try await session.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 else {
+            throw APIError.serverError("Failed to remove center")
+        }
+        
+        return EmptyResponse()
+    }
+    
+    func sendMessageToSocialWorker(message: String, accessToken: String) async throws -> EmptyResponse {
+        let endpoint = "/patients/messages/social-worker"
+        
+        let url = URL(string: baseURL + endpoint)!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["message": message])
+        
+        let (_, response) = try await session.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 else {
+            throw APIError.serverError("Failed to send message")
+        }
+        
+        return EmptyResponse()
     }
     
     func selectTransplantCenters(centerIds: [String], accessToken: String) async throws -> TransplantSelectionResponse {
