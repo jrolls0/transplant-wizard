@@ -137,6 +137,8 @@ struct AmeliaChatbotView: View {
     @State private var unreadCount = 0
     @State private var showIntakeForm = false
     @State private var pulseAnimation = false
+    @State private var allDocumentsUploaded = false
+    @State private var isCheckingDocuments = true
     
     var body: some View {
         VStack(spacing: 0) {
@@ -221,22 +223,30 @@ struct AmeliaChatbotView: View {
                             isFromAmelia: true
                         )
                         
-                        ChatMessage(
-                            text: "Great news! I've successfully received your transplant center selections and have notified your chosen centers. To continue with the referral process, you'll need to submit the following important documents:",
-                            isFromAmelia: true
-                        )
-                        
-                        // Document requirements list
-                        VStack(alignment: .leading, spacing: 8) {
-                            DocumentRequirementRow(icon: "creditcard.fill", text: "Insurance card (front and back)")
-                            DocumentRequirementRow(icon: "pills.fill", text: "Medication card OR medication list")
-                            DocumentRequirementRow(icon: "person.text.rectangle.fill", text: "Government-issued ID")
+                        // Only show document prompt if not all documents are uploaded
+                        if !allDocumentsUploaded && !isCheckingDocuments {
+                            ChatMessage(
+                                text: "Great news! I've successfully received your transplant center selections and have notified your chosen centers. To continue with the referral process, you'll need to submit the following important documents:",
+                                isFromAmelia: true
+                            )
+                            
+                            // Document requirements list
+                            VStack(alignment: .leading, spacing: 8) {
+                                DocumentRequirementRow(icon: "creditcard.fill", text: "Insurance card (front and back)")
+                                DocumentRequirementRow(icon: "pills.fill", text: "Medication card OR medication list")
+                                DocumentRequirementRow(icon: "person.text.rectangle.fill", text: "Government-issued ID")
+                            }
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .cornerRadius(12)
+                        } else if allDocumentsUploaded {
+                            ChatMessage(
+                                text: "Great job! You've successfully uploaded all required documents. Your transplant centers have been notified. Check your to-do list below for any remaining tasks.",
+                                isFromAmelia: true
+                            )
                         }
-                        .padding()
-                        .background(Color(.systemGray6))
-                        .cornerRadius(12)
                         
-                        if !documentPromptAnswered {
+                        if !documentPromptAnswered && !allDocumentsUploaded && !isCheckingDocuments {
                             ChatMessage(
                                 text: "Would you like to upload these documents now?",
                                 isFromAmelia: true
@@ -428,12 +438,14 @@ struct AmeliaChatbotView: View {
             print("🔄 Current isLoadingCenters: \(isLoadingCenters)")
             loadTransplantCenters()
             loadMessages()
+            checkDocumentUploadStatus()
             pulseAnimation = true
         }
         .refreshable {
             print("🔄 Refreshing transplant centers...")
             loadTransplantCenters()
             loadMessages()
+            checkDocumentUploadStatus()
         }
         .fullScreenCover(isPresented: $showIntakeForm) {
             IntakeFormView()
@@ -473,6 +485,33 @@ struct AmeliaChatbotView: View {
                 }
             } catch {
                 print("❌ Failed to mark message as read: \(error)")
+            }
+        }
+    }
+    
+    private func checkDocumentUploadStatus() {
+        guard let accessToken = KeychainManager.shared.getAccessToken() else {
+            isCheckingDocuments = false
+            return
+        }
+        
+        Task {
+            do {
+                let documents = try await APIService.shared.getDocuments(accessToken: accessToken)
+                let requiredTypes = ["insurance_card", "medication_list", "government_id"]
+                let uploadedTypes = Set(documents.map { $0.documentType })
+                
+                await MainActor.run {
+                    // Check if all 3 required document types have been uploaded
+                    allDocumentsUploaded = requiredTypes.allSatisfy { uploadedTypes.contains($0) }
+                    isCheckingDocuments = false
+                    print("📄 Document check: uploaded=\(uploadedTypes), allUploaded=\(allDocumentsUploaded)")
+                }
+            } catch {
+                await MainActor.run {
+                    isCheckingDocuments = false
+                    print("❌ Failed to check document status: \(error)")
+                }
             }
         }
     }

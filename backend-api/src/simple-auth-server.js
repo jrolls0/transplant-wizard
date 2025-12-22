@@ -2236,19 +2236,22 @@ app.get('/api/v1/dialysis-clinics/:clinicId/social-workers', async (req, res) =>
 
         const { clinicId } = req.params;
 
-        // Get social workers associated with this clinic from patient_referrals
-        // For now, we'll use the social workers that have been added via referrals
+        // Get social workers from dusw_social_workers table
+        // Join with dialysis_clinics to match by clinic ID
         const workers = await pool.query(`
-            SELECT DISTINCT 
-                pr.id,
-                pr.dusw_first_name || ' ' || pr.dusw_last_name as name,
-                pr.dusw_email as email,
-                pr.dusw_phone as phone
-            FROM patient_referrals pr
-            WHERE pr.dialysis_clinic_id = $1
-            AND pr.dusw_first_name IS NOT NULL
-            ORDER BY name
+            SELECT 
+                dsw.id,
+                dsw.first_name || ' ' || dsw.last_name as name,
+                dsw.email,
+                dsw.phone_number as phone
+            FROM dusw_social_workers dsw
+            JOIN dialysis_clinics dc ON dsw.dialysis_clinic = dc.name
+            WHERE dc.id = $1
+            AND dsw.status = 'active'
+            ORDER BY dsw.last_name, dsw.first_name
         `, [clinicId]);
+
+        console.log(`✅ Found ${workers.rows.length} social workers for clinic ${clinicId}`);
 
         res.json({
             success: true,
