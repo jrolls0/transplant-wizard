@@ -73,10 +73,15 @@
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
-                            <small class="text-muted d-block">Status</small>
-                            <span class="badge bg-<%= referral.status === 'pending' ? 'warning' : referral.status === 'accepted' ? 'success' : 'secondary' %> fs-6">
-                                <%= referral.status.charAt(0).toUpperCase() + referral.status.slice(1) %>
-                            </span>
+                            <small class="text-muted d-block mb-2">Update Status</small>
+                            <select id="statusSelect" class="form-select" onchange="updatePatientStatus('<%= patient.id %>')">
+                                <option value="applied" <%= referral.status === 'applied' ? 'selected' : '' %>>Applied</option>
+                                <option value="under_review" <%= referral.status === 'under_review' ? 'selected' : '' %>>Under Review</option>
+                                <option value="accepted" <%= referral.status === 'accepted' ? 'selected' : '' %>>Accepted</option>
+                                <option value="waitlisted" <%= referral.status === 'waitlisted' ? 'selected' : '' %>>Waitlisted</option>
+                                <option value="declined" <%= referral.status === 'declined' ? 'selected' : '' %>>Declined</option>
+                            </select>
+                            <div id="statusUpdateMessage" class="mt-2" style="display: none;"></div>
                         </div>
                         <div class="mb-0">
                             <small class="text-muted d-block">Submitted</small>
@@ -131,13 +136,16 @@
                     </div>
                     <div class="card-body">
                         <% if (intakeForm.status === 'submitted') { %>
-                            <div class="alert alert-success mb-0">
+                            <div class="alert alert-success mb-3">
                                 <i class="fas fa-check-circle me-2"></i>
                                 <strong>Intake form submitted</strong> on <%= new Date(intakeForm.submitted_at).toLocaleDateString() %> at <%= new Date(intakeForm.submitted_at).toLocaleTimeString() %>
                                 <% if (intakeForm.signed_at) { %>
                                     <br><small class="text-muted">Signed on <%= new Date(intakeForm.signed_at).toLocaleDateString() %></small>
                                 <% } %>
                             </div>
+                            <button class="btn btn-primary" onclick="viewIntakeForm('<%= patient.id %>')">
+                                <i class="fas fa-eye me-2"></i>View Intake Form Answers
+                            </button>
                         <% } else if (intakeForm.status === 'in_progress') { %>
                             <div class="alert alert-warning mb-0">
                                 <i class="fas fa-clock me-2"></i>
@@ -151,6 +159,21 @@
                                 <br><small class="text-muted">They need to upload all required documents first.</small>
                             </div>
                         <% } %>
+                    </div>
+                </div>
+                
+                <!-- Consent Documents Card -->
+                <div class="card mb-4">
+                    <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0"><i class="fas fa-file-signature me-2 text-success"></i>Signed Consents</h5>
+                    </div>
+                    <div class="card-body" id="consentsContainer">
+                        <div class="text-center py-3">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="text-muted mb-0 mt-2">Loading consent documents...</p>
+                        </div>
                     </div>
                 </div>
 
@@ -223,6 +246,11 @@
 </section>
 
 <script>
+    // Load consent documents on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        loadConsents('<%= patient.id %>');
+    });
+
     async function viewDocument(documentId) {
         try {
             const response = await fetch(`/api/documents/${documentId}/url`);
@@ -236,6 +264,207 @@
         } catch (error) {
             console.error('Error viewing document:', error);
             alert('Failed to load document. Please try again.');
+        }
+    }
+    
+    async function updatePatientStatus(patientId) {
+        const select = document.getElementById('statusSelect');
+        const messageDiv = document.getElementById('statusUpdateMessage');
+        const newStatus = select.value;
+        
+        try {
+            select.disabled = true;
+            messageDiv.style.display = 'block';
+            messageDiv.className = 'mt-2 alert alert-info';
+            messageDiv.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Updating status...';
+            
+            const response = await fetch(`/api/patient/${patientId}/status`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                messageDiv.className = 'mt-2 alert alert-success';
+                messageDiv.innerHTML = '<i class="fas fa-check-circle me-2"></i>Status updated successfully! Patient will be notified.';
+                setTimeout(() => { messageDiv.style.display = 'none'; }, 3000);
+            } else {
+                messageDiv.className = 'mt-2 alert alert-danger';
+                messageDiv.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + (data.error || 'Failed to update status');
+            }
+        } catch (error) {
+            console.error('Error updating status:', error);
+            messageDiv.className = 'mt-2 alert alert-danger';
+            messageDiv.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Failed to update status. Please try again.';
+        } finally {
+            select.disabled = false;
+        }
+    }
+    
+    async function viewIntakeForm(patientId) {
+        try {
+            const response = await fetch(`/api/patient/${patientId}/intake-form`);
+            const data = await response.json();
+            
+            if (data.success && data.intakeForm) {
+                showIntakeFormModal(data.intakeForm);
+            } else {
+                alert('No intake form data available.');
+            }
+        } catch (error) {
+            console.error('Error loading intake form:', error);
+            alert('Failed to load intake form. Please try again.');
+        }
+    }
+    
+    function showIntakeFormModal(form) {
+        const formatValue = (val) => val || 'Not provided';
+        const formatDate = (val) => val ? new Date(val).toLocaleDateString() : 'Not provided';
+        const formatPhysicians = (physicians) => {
+            if (!physicians || physicians.length === 0) return 'None listed';
+            try {
+                const parsed = typeof physicians === 'string' ? JSON.parse(physicians) : physicians;
+                return parsed.map(p => `${p.name} (${p.specialty || 'General'})`).join(', ');
+            } catch { return 'None listed'; }
+        };
+        
+        const modalHtml = `
+            <div class="modal fade" id="intakeFormModal" tabindex="-1">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title"><i class="fas fa-clipboard-check me-2"></i>Intake Form - ${form.full_name || form.first_name + ' ' + form.last_name}</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-user me-2"></i>Personal Information</h6>
+                                    <p><strong>Full Name:</strong> ${formatValue(form.full_name)}</p>
+                                    <p><strong>Date of Birth:</strong> ${formatDate(form.date_of_birth)}</p>
+                                    <p><strong>Email:</strong> ${formatValue(form.email)}</p>
+                                    <p><strong>Phone:</strong> ${formatValue(form.phone)}</p>
+                                    <p><strong>Address:</strong> ${formatValue(form.address)}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-phone me-2"></i>Emergency Contact</h6>
+                                    <p><strong>Name:</strong> ${formatValue(form.emergency_contact_name)}</p>
+                                    <p><strong>Relationship:</strong> ${formatValue(form.emergency_contact_relationship)}</p>
+                                    <p><strong>Phone:</strong> ${formatValue(form.emergency_contact_phone)}</p>
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="text-info border-bottom pb-2 mb-3"><i class="fas fa-ruler-vertical me-2"></i>Physical Information</h6>
+                                    <p><strong>Height:</strong> ${formatValue(form.height)}</p>
+                                    <p><strong>Weight:</strong> ${formatValue(form.weight)}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-info border-bottom pb-2 mb-3"><i class="fas fa-heartbeat me-2"></i>Dialysis Information</h6>
+                                    <p><strong>On Dialysis:</strong> ${form.on_dialysis ? 'Yes' : 'No'}</p>
+                                    ${form.on_dialysis ? `
+                                        <p><strong>Dialysis Type:</strong> ${formatValue(form.dialysis_type)}</p>
+                                        <p><strong>Start Date:</strong> ${formatValue(form.dialysis_start_date)}</p>
+                                    ` : ''}
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="text-success border-bottom pb-2 mb-3"><i class="fas fa-user-md me-2"></i>Medical Providers</h6>
+                                    <p><strong>Nephrologist:</strong> ${formatValue(form.nephrologist_name)}</p>
+                                    <p><strong>Primary Care Physician:</strong> ${formatValue(form.pcp_name)}</p>
+                                    <p><strong>Other Physicians:</strong> ${formatPhysicians(form.other_physicians)}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-success border-bottom pb-2 mb-3"><i class="fas fa-notes-medical me-2"></i>Medical History</h6>
+                                    <p><strong>Last GFR:</strong> ${formatValue(form.last_gfr)}</p>
+                                    <p><strong>Diagnosed Conditions:</strong> ${formatValue(form.diagnosed_conditions)}</p>
+                                    <p><strong>Past Surgeries:</strong> ${formatValue(form.past_surgeries)}</p>
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="row">
+                                <div class="col-12">
+                                    <h6 class="text-warning border-bottom pb-2 mb-3"><i class="fas fa-clock me-2"></i>Submission Info</h6>
+                                    <p><strong>Submitted:</strong> ${form.submitted_at ? new Date(form.submitted_at).toLocaleString() : 'Not submitted'}</p>
+                                    <p><strong>Signed:</strong> ${form.signed_at ? new Date(form.signed_at).toLocaleString() : 'Not signed'}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remove existing modal if present
+        const existingModal = document.getElementById('intakeFormModal');
+        if (existingModal) existingModal.remove();
+        
+        // Add modal to page and show
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        const modal = new bootstrap.Modal(document.getElementById('intakeFormModal'));
+        modal.show();
+    }
+    
+    async function loadConsents(patientId) {
+        const container = document.getElementById('consentsContainer');
+        
+        try {
+            const response = await fetch(`/api/patient/${patientId}/consents`);
+            const data = await response.json();
+            
+            if (data.success && data.consents && data.consents.length > 0) {
+                const consentTypeNames = {
+                    'services': 'Services Agreement',
+                    'medical_records': 'Medical Records Release',
+                    'hipaa': 'HIPAA Authorization',
+                    'roi': 'Release of Information'
+                };
+                
+                let html = '<div class="list-group">';
+                data.consents.forEach(consent => {
+                    const typeName = consentTypeNames[consent.consent_type] || consent.consent_type;
+                    const signedDate = consent.signed_at ? new Date(consent.signed_at).toLocaleString() : 'Not signed';
+                    const statusClass = consent.status === 'signed' ? 'success' : 'secondary';
+                    
+                    html += `
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1"><i class="fas fa-file-signature me-2 text-${statusClass}"></i>${typeName}</h6>
+                                <small class="text-muted">
+                                    ${consent.status === 'signed' ? `Signed on ${signedDate}` : 'Pending signature'}
+                                </small>
+                            </div>
+                            <span class="badge bg-${statusClass}">
+                                ${consent.status === 'signed' ? '<i class="fas fa-check"></i> Signed' : 'Pending'}
+                            </span>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="fas fa-file-signature fa-3x text-muted mb-3"></i>
+                        <p class="text-muted mb-0">No consent documents found</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error loading consents:', error);
+            container.innerHTML = `
+                <div class="alert alert-danger mb-0">
+                    <i class="fas fa-exclamation-circle me-2"></i>Failed to load consent documents
+                </div>
+            `;
         }
     }
 </script>

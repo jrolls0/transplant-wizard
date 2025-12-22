@@ -646,6 +646,179 @@ app.post('/notifications/mark-all-read', requireAuth, async (req, res) => {
     }
 });
 
+// Update patient referral status
+app.post('/api/patient/:patientId/status', requireAuth, async (req, res) => {
+    try {
+        const { patientId } = req.params;
+        const { status } = req.body;
+        const validStatuses = ['applied', 'under_review', 'accepted', 'waitlisted', 'declined'];
+        
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({ success: false, error: 'Invalid status' });
+        }
+        
+        // Verify this patient has a referral to this TC
+        const referralResult = await queryWithRetry(`
+            SELECT pr.id, pr.status as old_status, p.user_id, u.email, u.first_name,
+                   tc.name as center_name
+            FROM patient_referrals pr
+            JOIN patients p ON pr.patient_id = p.id
+            JOIN users u ON p.user_id = u.id
+            JOIN transplant_centers tc ON pr.transplant_center_id = tc.id
+            WHERE pr.patient_id = $1 AND pr.transplant_center_id = $2
+        `, [patientId, req.session.user.transplant_center_id]);
+        
+        if (referralResult.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Referral not found' });
+        }
+        
+        const referral = referralResult.rows[0];
+        const oldStatus = referral.old_status;
+        
+        // Update the status
+        await queryWithRetry(`
+            UPDATE patient_referrals 
+            SET status = $1, updated_at = NOW()
+            WHERE patient_id = $2 AND transplant_center_id = $3
+        `, [status, patientId, req.session.user.transplant_center_id]);
+        
+        console.log(`✅ Status updated for patient ${patientId}: ${oldStatus} -> ${status}`);
+        
+        // Send email notification to patient
+        const statusDisplayNames = {
+            'applied': 'Application Received',
+            'under_review': 'Under Review',
+            'accepted': 'Accepted',
+            'waitlisted': 'Waitlisted',
+            'declined': 'Declined'
+        };
+        
+        try {
+            const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
+            const sesClient = new SESClient({ region: process.env.AWS_REGION || 'us-east-1' });
+            
+            const emailParams = {
+                Source: 'noreply@transplantwizard.com',
+                Destination: {
+                    ToAddresses: [referral.email]
+                },
+                Message: {
+                    Subject: {
+                        Data: `Application Status Update - ${referral.center_name}`
+                    },
+                    Body: {
+                        Html: {
+                            Data: `
+                                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                                    <h2 style="color: #2563eb;">Application Status Update</h2>
+                                    <p>Dear ${referral.first_name},</p>
+                                    <p>Your application status at <strong>${referral.center_name}</strong> has been updated.</p>
+                                    <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                                        <p style="margin: 0;"><strong>New Status:</strong> ${statusDisplayNames[status]}</p>
+                                    </div>
+                                    <p>Please log in to the Transplant Wizard app to view more details.</p>
+                                    <p>Best regards,<br>The Transplant Wizard Team</p>
+                                </div>
+                            `
+                        }
+                    }
+                }
+            };
+            
+            await sesClient.send(new SendEmailCommand(emailParams));
+            console.log(`📧 Status update email sent to ${referral.email}`);
+        } catch (emailError) {
+            console.error('⚠️ Failed to send status update email:', emailError.message);
+        }
+        
+        // TODO: Send push notification (requires APNs setup)
+        // For now, log the intent
+        console.log(`📱 Push notification should be sent to user ${referral.user_id} about status change`);
+        
+        res.json({ 
+            success: true, 
+            message: 'Status updated successfully',
+            newStatus: status
+        });
+        
+    } catch (error) {
+        console.error('Error updating patient status:', error);
+        res.status(500).json({ success: false, error: 'Failed to update status' });
+    }
+});
+
+// Get patient intake form data (for TC viewing)
+app.get('/api/patient/:patientId/intake-form', requireAuth, async (req, res) => {
+    try {
+        const { patientId } = req.params;
+        
+        // Verify this patient has a referral to this TC
+        const referralCheck = await queryWithRetry(`
+            SELECT 1 FROM patient_referrals 
+            WHERE patient_id = $1 AND transplant_center_id = $2
+        `, [patientId, req.session.user.transplant_center_id]);
+        
+        if (referralCheck.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Patient not found' });
+        }
+        
+        // Get intake form data
+        const intakeResult = await queryWithRetry(`
+            SELECT 
+                pif.*,
+                u.first_name, u.last_name, u.email,
+                p.date_of_birth, p.address
+            FROM patient_intake_forms pif
+            JOIN patients p ON pif.patient_id = p.id
+            JOIN users u ON p.user_id = u.id
+            WHERE pif.patient_id = $1
+        `, [patientId]);
+        
+        if (intakeResult.rows.length === 0) {
+            return res.json({ success: true, intakeForm: null });
+        }
+        
+        res.json({ success: true, intakeForm: intakeResult.rows[0] });
+        
+    } catch (error) {
+        console.error('Error fetching intake form:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch intake form' });
+    }
+});
+
+// Get patient consent documents
+app.get('/api/patient/:patientId/consents', requireAuth, async (req, res) => {
+    try {
+        const { patientId } = req.params;
+        
+        // Verify this patient has a referral to this TC
+        const referralCheck = await queryWithRetry(`
+            SELECT 1 FROM patient_referrals 
+            WHERE patient_id = $1 AND transplant_center_id = $2
+        `, [patientId, req.session.user.transplant_center_id]);
+        
+        if (referralCheck.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Patient not found' });
+        }
+        
+        // Get consent documents
+        const consentsResult = await queryWithRetry(`
+            SELECT 
+                id, consent_type, status, signed_at, 
+                ip_address, signature_data, created_at
+            FROM patient_consents
+            WHERE patient_id = $1
+            ORDER BY signed_at DESC
+        `, [patientId]);
+        
+        res.json({ success: true, consents: consentsResult.rows });
+        
+    } catch (error) {
+        console.error('Error fetching consents:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch consents' });
+    }
+});
+
 // Logout
 app.post('/logout', (req, res) => {
     req.session.destroy((err) => {

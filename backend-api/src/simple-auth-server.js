@@ -2095,8 +2095,7 @@ app.get('/api/v1/patients/centers', async (req, res) => {
 
         const patientId = patientResult.rows[0].id;
 
-        // Get patient's centers with status
-        // Map database status to display status for iOS app
+        // Get patient's centers with status (status values: applied, under_review, accepted, waitlisted, declined)
         const result = await pool.query(`
             SELECT 
                 tc.id,
@@ -2106,13 +2105,7 @@ app.get('/api/v1/patients/centers', async (req, res) => {
                 tc.state,
                 tc.phone,
                 tc.email,
-                CASE pr.status::text
-                    WHEN 'pending' THEN 'applied'
-                    WHEN 'submitted' THEN 'applied'
-                    WHEN 'acknowledged' THEN 'under_review'
-                    WHEN 'completed' THEN 'accepted'
-                    ELSE 'applied'
-                END as status,
+                pr.status::text as status,
                 pr.submitted_at as applied_at
             FROM patient_referrals pr
             JOIN transplant_centers tc ON pr.transplant_center_id = tc.id
