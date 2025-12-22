@@ -133,6 +133,10 @@ struct AmeliaChatbotView: View {
     @State private var documentPromptAnswered = false
     @State private var navigateToDocuments = false
     @State private var todosCreated = false
+    @State private var messages: [PatientMessage] = []
+    @State private var unreadCount = 0
+    @State private var showIntakeForm = false
+    @State private var pulseAnimation = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -166,19 +170,45 @@ struct AmeliaChatbotView: View {
                 
                 Spacer()
                 
-                // Online indicator
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(.green)
-                        .frame(width: 8, height: 8)
+                // Online indicator with unread badge
+                HStack(spacing: 8) {
+                    if unreadCount > 0 {
+                        ZStack {
+                            Circle()
+                                .fill(Color.red)
+                                .frame(width: 24, height: 24)
+                                .scaleEffect(pulseAnimation ? 1.2 : 1.0)
+                                .opacity(pulseAnimation ? 0.7 : 1.0)
+                            
+                            Text("\(unreadCount)")
+                                .font(.caption2)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                        }
+                        .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: pulseAnimation)
+                    }
                     
-                    Text("Online")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(.green)
+                            .frame(width: 8, height: 8)
+                        
+                        Text("Online")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
             .padding()
-            .background(Color(.systemGray6))
+            .background(unreadCount > 0 ? Color(red: 1.0, green: 0.95, blue: 0.95) : Color(.systemGray6))
+            .overlay(
+                unreadCount > 0 ?
+                RoundedRectangle(cornerRadius: 0)
+                    .stroke(Color.red.opacity(0.3), lineWidth: 2)
+                    .scaleEffect(pulseAnimation ? 1.02 : 1.0)
+                    .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: pulseAnimation)
+                : nil
+            )
             
             // Chat Content
             ScrollView {
@@ -275,6 +305,23 @@ struct AmeliaChatbotView: View {
                                 text: "No problem! I've added these documents to your to-do list below. You can also upload them anytime from the Documents tab. I'll continue monitoring your referral progress in the meantime.",
                                 isFromAmelia: true
                             )
+                        }
+                        
+                        // Display dynamic messages from backend
+                        ForEach(messages) { message in
+                            DynamicChatMessage(
+                                message: message,
+                                onTap: {
+                                    markMessageAsRead(message)
+                                    if message.messageType == "intake_form_prompt" {
+                                        showIntakeForm = true
+                                    }
+                                }
+                            )
+                            .onAppear {
+                                // Mark as read when message appears on screen
+                                markMessageAsRead(message)
+                            }
                         }
                         
                     } else {
@@ -380,10 +427,53 @@ struct AmeliaChatbotView: View {
             print("🔄 User transplantCentersSelected: \(authManager.currentUser?.transplantCentersSelected ?? false)")
             print("🔄 Current isLoadingCenters: \(isLoadingCenters)")
             loadTransplantCenters()
+            loadMessages()
+            pulseAnimation = true
         }
         .refreshable {
             print("🔄 Refreshing transplant centers...")
             loadTransplantCenters()
+            loadMessages()
+        }
+        .fullScreenCover(isPresented: $showIntakeForm) {
+            IntakeFormView()
+        }
+    }
+    
+    private func loadMessages() {
+        guard let accessToken = KeychainManager.shared.getAccessToken() else { return }
+        
+        Task {
+            do {
+                let response = try await APIService.shared.getMessages(accessToken: accessToken)
+                await MainActor.run {
+                    self.messages = response.data ?? []
+                    self.unreadCount = response.unreadCount ?? 0
+                    print("📬 Loaded \(self.messages.count) messages, \(self.unreadCount) unread")
+                }
+            } catch {
+                print("❌ Failed to load messages: \(error)")
+            }
+        }
+    }
+    
+    private func markMessageAsRead(_ message: PatientMessage) {
+        guard !message.isRead else { return }
+        guard let accessToken = KeychainManager.shared.getAccessToken() else { return }
+        
+        Task {
+            do {
+                try await APIService.shared.markMessageAsRead(messageId: message.id, accessToken: accessToken)
+                await MainActor.run {
+                    // Update local state
+                    if let index = messages.firstIndex(where: { $0.id == message.id }) {
+                        // Reload messages to get updated state
+                        loadMessages()
+                    }
+                }
+            } catch {
+                print("❌ Failed to mark message as read: \(error)")
+            }
         }
     }
     
@@ -536,6 +626,50 @@ struct ChatMessage: View {
     }
 }
 
+struct DynamicChatMessage: View {
+    let message: PatientMessage
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(message.content)
+                        .font(.body)
+                        .multilineTextAlignment(.leading)
+                    
+                    Spacer()
+                }
+                
+                if message.messageType == "intake_form_prompt" {
+                    HStack {
+                        Image(systemName: "doc.text.fill")
+                        Text("Tap to open Intake Form")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(Color(red: 0.2, green: 0.6, blue: 0.9))
+                    .cornerRadius(8)
+                }
+            }
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(message.isRead ? Color(.systemGray5) : Color(red: 0.95, green: 0.98, blue: 1.0))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(message.isRead ? Color.clear : Color(red: 0.2, green: 0.6, blue: 0.9), lineWidth: 2)
+                    )
+            )
+            .foregroundColor(.primary)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
 struct TransplantCenterRow: View {
     let center: TransplantCenterOption
     let isSelected: Bool
@@ -627,6 +761,7 @@ struct TodoListSection: View {
     @EnvironmentObject private var appState: AppState
     @State private var todos: [PatientTodo] = []
     @State private var isLoading = true
+    @State private var showIntakeForm = false
     
     var pendingTodos: [PatientTodo] {
         todos.filter { $0.status == "pending" }
@@ -676,9 +811,11 @@ struct TodoListSection: View {
                 VStack(spacing: 8) {
                     ForEach(pendingTodos) { todo in
                         TodoItemRow(todo: todo, onTap: {
-                            // Navigate to Documents tab for document upload todos
+                            // Navigate based on todo type
                             if todo.todoType == "document_upload" {
                                 appState.selectedTab = .documents
+                            } else if todo.todoType == "intake_form" {
+                                showIntakeForm = true
                             }
                         }, onComplete: {
                             Task {
@@ -699,6 +836,9 @@ struct TodoListSection: View {
         .onReceive(NotificationCenter.default.publisher(for: .todosUpdated)) { _ in
             print("🟢 TodoListSection: Received todosUpdated notification")
             loadTodos()
+        }
+        .fullScreenCover(isPresented: $showIntakeForm) {
+            IntakeFormView()
         }
     }
     

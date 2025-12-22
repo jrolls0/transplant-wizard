@@ -1769,6 +1769,9 @@ app.post('/api/v1/documents/upload', upload.array('files', 10), async (req, res)
 
         console.log(`✅ Document uploaded: ${documentType} for patient ${patientId}`);
 
+        // Check if all document todos are complete and create intake form todo if so
+        await checkAndCreateIntakeFormTodo(patientId);
+
         res.json({
             success: true,
             message: 'Document uploaded successfully',
@@ -2191,6 +2194,460 @@ async function createDocumentSubmissionTodos(patientId) {
     }
 
     console.log(`✅ Created document submission todos for patient ${patientId}`);
+}
+
+// ============================================
+// PATIENT MESSAGES ENDPOINTS
+// ============================================
+
+// Get patient messages (for chatbot)
+app.get('/api/v1/messages', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ success: false, error: 'Authentication required' });
+        }
+
+        const token = authHeader.substring(7);
+        let decoded;
+        try {
+            decoded = verifyToken(token);
+        } catch (error) {
+            return res.status(401).json({ success: false, error: 'Invalid token' });
+        }
+
+        const patientResult = await pool.query(
+            'SELECT id FROM patients WHERE user_id = $1',
+            [decoded.userId]
+        );
+
+        if (patientResult.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Patient not found' });
+        }
+
+        const patientId = patientResult.rows[0].id;
+
+        const messages = await pool.query(`
+            SELECT id, message_type, content, is_read, read_at, created_at
+            FROM patient_messages
+            WHERE patient_id = $1
+            ORDER BY created_at DESC
+        `, [patientId]);
+
+        // Count unread messages
+        const unreadCount = messages.rows.filter(m => !m.is_read).length;
+
+        res.json({
+            success: true,
+            data: messages.rows,
+            unreadCount: unreadCount
+        });
+
+    } catch (error) {
+        console.error('❌ Error fetching messages:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch messages' });
+    }
+});
+
+// Mark message as read
+app.patch('/api/v1/messages/:messageId/read', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ success: false, error: 'Authentication required' });
+        }
+
+        const token = authHeader.substring(7);
+        let decoded;
+        try {
+            decoded = verifyToken(token);
+        } catch (error) {
+            return res.status(401).json({ success: false, error: 'Invalid token' });
+        }
+
+        const patientResult = await pool.query(
+            'SELECT id FROM patients WHERE user_id = $1',
+            [decoded.userId]
+        );
+
+        if (patientResult.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Patient not found' });
+        }
+
+        const patientId = patientResult.rows[0].id;
+        const { messageId } = req.params;
+
+        const result = await pool.query(`
+            UPDATE patient_messages 
+            SET is_read = true, read_at = NOW()
+            WHERE id = $1 AND patient_id = $2
+            RETURNING *
+        `, [messageId, patientId]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Message not found' });
+        }
+
+        res.json({
+            success: true,
+            data: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('❌ Error marking message as read:', error);
+        res.status(500).json({ success: false, error: 'Failed to mark message as read' });
+    }
+});
+
+// ============================================
+// INTAKE FORM ENDPOINTS
+// ============================================
+
+// Get intake form (with pre-filled data)
+app.get('/api/v1/intake-form', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ success: false, error: 'Authentication required' });
+        }
+
+        const token = authHeader.substring(7);
+        let decoded;
+        try {
+            decoded = verifyToken(token);
+        } catch (error) {
+            return res.status(401).json({ success: false, error: 'Invalid token' });
+        }
+
+        // Get patient info
+        const patientResult = await pool.query(`
+            SELECT p.*, u.email, u.first_name, u.last_name,
+                   dc.name as dialysis_clinic_name, dc.address as dialysis_clinic_address,
+                   dc.phone as dialysis_clinic_phone, dc.email as dialysis_clinic_email
+            FROM patients p
+            JOIN users u ON p.user_id = u.id
+            LEFT JOIN dialysis_clinics dc ON p.dialysis_clinic_id = dc.id
+            WHERE p.user_id = $1
+        `, [decoded.userId]);
+
+        if (patientResult.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Patient not found' });
+        }
+
+        const patient = patientResult.rows[0];
+        const patientId = patient.id;
+
+        // Check if form already exists
+        const existingForm = await pool.query(`
+            SELECT * FROM patient_intake_forms WHERE patient_id = $1 ORDER BY created_at DESC LIMIT 1
+        `, [patientId]);
+
+        if (existingForm.rows.length > 0) {
+            // Return existing form
+            return res.json({
+                success: true,
+                data: existingForm.rows[0],
+                isNew: false
+            });
+        }
+
+        // Return pre-filled data for new form
+        const preFilled = {
+            patient_id: patientId,
+            full_name: `${patient.first_name || ''} ${patient.last_name || ''}`.trim(),
+            date_of_birth: patient.date_of_birth,
+            address: patient.address,
+            phone: null, // Could add phone to users table
+            email: patient.email,
+            emergency_contact_name: patient.emergency_contact_name,
+            emergency_contact_relationship: patient.emergency_contact_relationship,
+            emergency_contact_phone: patient.emergency_contact_phone,
+            dialysis_unit_name: patient.dialysis_clinic_name,
+            dialysis_unit_address: patient.dialysis_clinic_address,
+            dialysis_unit_phone: patient.dialysis_clinic_phone,
+            dialysis_unit_email: patient.dialysis_clinic_email,
+            other_physicians: [],
+            status: 'draft'
+        };
+
+        // Pre-fill nephrologist if exists
+        if (patient.nephrologist) {
+            preFilled.other_physicians = [{
+                name: patient.nephrologist,
+                specialty: 'Nephrologist',
+                address: '',
+                phone: '',
+                fax: '',
+                email: ''
+            }];
+        }
+
+        // Pre-fill PCP if exists
+        if (patient.primary_care_physician) {
+            preFilled.other_physicians.push({
+                name: patient.primary_care_physician,
+                specialty: 'PCP',
+                address: '',
+                phone: '',
+                fax: '',
+                email: ''
+            });
+        }
+
+        res.json({
+            success: true,
+            data: preFilled,
+            isNew: true
+        });
+
+    } catch (error) {
+        console.error('❌ Error fetching intake form:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch intake form' });
+    }
+});
+
+// Save/Update intake form (partial save support)
+app.post('/api/v1/intake-form', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ success: false, error: 'Authentication required' });
+        }
+
+        const token = authHeader.substring(7);
+        let decoded;
+        try {
+            decoded = verifyToken(token);
+        } catch (error) {
+            return res.status(401).json({ success: false, error: 'Invalid token' });
+        }
+
+        const patientResult = await pool.query(
+            'SELECT id FROM patients WHERE user_id = $1',
+            [decoded.userId]
+        );
+
+        if (patientResult.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Patient not found' });
+        }
+
+        const patientId = patientResult.rows[0].id;
+        const formData = req.body;
+
+        // Check if form exists
+        const existingForm = await pool.query(
+            'SELECT id FROM patient_intake_forms WHERE patient_id = $1',
+            [patientId]
+        );
+
+        let result;
+        if (existingForm.rows.length > 0) {
+            // Update existing form
+            result = await pool.query(`
+                UPDATE patient_intake_forms SET
+                    full_name = COALESCE($2, full_name),
+                    date_of_birth = COALESCE($3, date_of_birth),
+                    address = COALESCE($4, address),
+                    phone = COALESCE($5, phone),
+                    email = COALESCE($6, email),
+                    emergency_contact_name = COALESCE($7, emergency_contact_name),
+                    emergency_contact_relationship = COALESCE($8, emergency_contact_relationship),
+                    emergency_contact_phone = COALESCE($9, emergency_contact_phone),
+                    social_support_name = COALESCE($10, social_support_name),
+                    social_support_relationship = COALESCE($11, social_support_relationship),
+                    social_support_phone = COALESCE($12, social_support_phone),
+                    height = COALESCE($13, height),
+                    weight = COALESCE($14, weight),
+                    on_dialysis = COALESCE($15, on_dialysis),
+                    dialysis_type = COALESCE($16, dialysis_type),
+                    dialysis_start_date = COALESCE($17, dialysis_start_date),
+                    last_gfr = COALESCE($18, last_gfr),
+                    requires_additional_organ = COALESCE($19, requires_additional_organ),
+                    additional_organ_details = COALESCE($20, additional_organ_details),
+                    has_infection = COALESCE($21, has_infection),
+                    has_cancer = COALESCE($22, has_cancer),
+                    has_mental_health_disorder = COALESCE($23, has_mental_health_disorder),
+                    uses_substances = COALESCE($24, uses_substances),
+                    recent_surgery = COALESCE($25, recent_surgery),
+                    uses_oxygen = COALESCE($26, uses_oxygen),
+                    contraindications_explanation = COALESCE($27, contraindications_explanation),
+                    diagnosed_conditions = COALESCE($28, diagnosed_conditions),
+                    past_surgeries = COALESCE($29, past_surgeries),
+                    dialysis_unit_name = COALESCE($30, dialysis_unit_name),
+                    dialysis_unit_address = COALESCE($31, dialysis_unit_address),
+                    dialysis_unit_email = COALESCE($32, dialysis_unit_email),
+                    dialysis_unit_phone = COALESCE($33, dialysis_unit_phone),
+                    social_worker_name = COALESCE($34, social_worker_name),
+                    social_worker_email = COALESCE($35, social_worker_email),
+                    social_worker_phone = COALESCE($36, social_worker_phone),
+                    other_physicians = COALESCE($37, other_physicians),
+                    status = COALESCE($38, status),
+                    updated_at = NOW()
+                WHERE patient_id = $1
+                RETURNING *
+            `, [
+                patientId,
+                formData.full_name, formData.date_of_birth, formData.address, formData.phone, formData.email,
+                formData.emergency_contact_name, formData.emergency_contact_relationship, formData.emergency_contact_phone,
+                formData.social_support_name, formData.social_support_relationship, formData.social_support_phone,
+                formData.height, formData.weight, formData.on_dialysis, formData.dialysis_type, formData.dialysis_start_date,
+                formData.last_gfr, formData.requires_additional_organ, formData.additional_organ_details,
+                formData.has_infection, formData.has_cancer, formData.has_mental_health_disorder,
+                formData.uses_substances, formData.recent_surgery, formData.uses_oxygen, formData.contraindications_explanation,
+                formData.diagnosed_conditions, formData.past_surgeries,
+                formData.dialysis_unit_name, formData.dialysis_unit_address, formData.dialysis_unit_email, formData.dialysis_unit_phone,
+                formData.social_worker_name, formData.social_worker_email, formData.social_worker_phone,
+                formData.other_physicians ? JSON.stringify(formData.other_physicians) : null,
+                formData.status
+            ]);
+        } else {
+            // Create new form
+            result = await pool.query(`
+                INSERT INTO patient_intake_forms (
+                    patient_id, full_name, date_of_birth, address, phone, email,
+                    emergency_contact_name, emergency_contact_relationship, emergency_contact_phone,
+                    social_support_name, social_support_relationship, social_support_phone,
+                    height, weight, on_dialysis, dialysis_type, dialysis_start_date,
+                    last_gfr, requires_additional_organ, additional_organ_details,
+                    has_infection, has_cancer, has_mental_health_disorder,
+                    uses_substances, recent_surgery, uses_oxygen, contraindications_explanation,
+                    diagnosed_conditions, past_surgeries,
+                    dialysis_unit_name, dialysis_unit_address, dialysis_unit_email, dialysis_unit_phone,
+                    social_worker_name, social_worker_email, social_worker_phone,
+                    other_physicians, status
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38)
+                RETURNING *
+            `, [
+                patientId,
+                formData.full_name, formData.date_of_birth, formData.address, formData.phone, formData.email,
+                formData.emergency_contact_name, formData.emergency_contact_relationship, formData.emergency_contact_phone,
+                formData.social_support_name, formData.social_support_relationship, formData.social_support_phone,
+                formData.height, formData.weight, formData.on_dialysis, formData.dialysis_type, formData.dialysis_start_date,
+                formData.last_gfr, formData.requires_additional_organ, formData.additional_organ_details,
+                formData.has_infection, formData.has_cancer, formData.has_mental_health_disorder,
+                formData.uses_substances, formData.recent_surgery, formData.uses_oxygen, formData.contraindications_explanation,
+                formData.diagnosed_conditions, formData.past_surgeries,
+                formData.dialysis_unit_name, formData.dialysis_unit_address, formData.dialysis_unit_email, formData.dialysis_unit_phone,
+                formData.social_worker_name, formData.social_worker_email, formData.social_worker_phone,
+                formData.other_physicians ? JSON.stringify(formData.other_physicians) : '[]',
+                formData.status || 'draft'
+            ]);
+        }
+
+        console.log(`✅ Intake form saved for patient ${patientId}`);
+
+        res.json({
+            success: true,
+            data: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('❌ Error saving intake form:', error);
+        res.status(500).json({ success: false, error: 'Failed to save intake form' });
+    }
+});
+
+// Submit intake form with signature
+app.post('/api/v1/intake-form/submit', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ success: false, error: 'Authentication required' });
+        }
+
+        const token = authHeader.substring(7);
+        let decoded;
+        try {
+            decoded = verifyToken(token);
+        } catch (error) {
+            return res.status(401).json({ success: false, error: 'Invalid token' });
+        }
+
+        const patientResult = await pool.query(
+            'SELECT id FROM patients WHERE user_id = $1',
+            [decoded.userId]
+        );
+
+        if (patientResult.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Patient not found' });
+        }
+
+        const patientId = patientResult.rows[0].id;
+        const { signatureData } = req.body;
+
+        if (!signatureData) {
+            return res.status(400).json({ success: false, error: 'Signature is required' });
+        }
+
+        // Update form with signature and submit
+        const result = await pool.query(`
+            UPDATE patient_intake_forms 
+            SET signature_data = $2, signed_at = NOW(), status = 'submitted', submitted_at = NOW(), updated_at = NOW()
+            WHERE patient_id = $1
+            RETURNING *
+        `, [patientId, signatureData]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Intake form not found' });
+        }
+
+        // Mark the intake form todo as complete
+        await pool.query(`
+            UPDATE patient_todos 
+            SET status = 'completed', completed_at = NOW()
+            WHERE patient_id = $1 AND todo_type = 'intake_form' AND status = 'pending'
+        `, [patientId]);
+
+        console.log(`✅ Intake form submitted for patient ${patientId}`);
+
+        res.json({
+            success: true,
+            data: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('❌ Error submitting intake form:', error);
+        res.status(500).json({ success: false, error: 'Failed to submit intake form' });
+    }
+});
+
+// Check if all 3 document todos are complete and create intake form todo
+async function checkAndCreateIntakeFormTodo(patientId) {
+    // Check if all 3 document upload todos are completed
+    const docTodos = await pool.query(`
+        SELECT COUNT(*) as total,
+               SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed
+        FROM patient_todos
+        WHERE patient_id = $1 AND todo_type = 'document_upload'
+    `, [patientId]);
+
+    const { total, completed } = docTodos.rows[0];
+    
+    if (parseInt(total) >= 3 && parseInt(completed) >= 3) {
+        // Check if intake form todo already exists
+        const existingTodo = await pool.query(`
+            SELECT id FROM patient_todos 
+            WHERE patient_id = $1 AND todo_type = 'intake_form'
+        `, [patientId]);
+
+        if (existingTodo.rows.length === 0) {
+            // Create intake form todo
+            await pool.query(`
+                INSERT INTO patient_todos (patient_id, title, description, todo_type, priority, metadata)
+                VALUES ($1, 'Complete Intake Form', 'Fill out your medical intake form to continue the evaluation process', 'intake_form', 'high', '{}')
+            `, [patientId]);
+
+            // Create a chatbot message for the patient
+            await pool.query(`
+                INSERT INTO patient_messages (patient_id, message_type, content, is_read, created_at)
+                VALUES ($1, 'intake_form_prompt', 'Great job uploading all your documents! 🎉 Now let''s complete your intake form. This form helps your transplant center understand your medical history better. Don''t worry - we''ve already pre-filled some information for you!', false, NOW())
+            `, [patientId]);
+
+            console.log(`✅ Created intake form todo and message for patient ${patientId}`);
+            return true;
+        }
+    }
+    return false;
 }
 
 // Start server

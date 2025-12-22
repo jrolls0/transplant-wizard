@@ -394,6 +394,116 @@ class APIService: ObservableObject {
             accessToken: accessToken
         )
     }
+    
+    // MARK: - Intake Form Endpoints
+    
+    func getIntakeForm(accessToken: String) async throws -> IntakeFormData {
+        let endpoint = "/intake-form"
+        
+        let response: IntakeFormResponse = try await performAuthenticatedRequest(
+            endpoint: endpoint,
+            method: .GET,
+            body: EmptyRequest(),
+            accessToken: accessToken
+        )
+        
+        guard let data = response.data else {
+            throw APIError.serverError
+        }
+        
+        return data
+    }
+    
+    func saveIntakeForm(formData: [String: Any], accessToken: String) async throws -> IntakeFormData {
+        let endpoint = "/intake-form"
+        
+        let url = URL(string: baseURL + endpoint)!
+        var request = URLRequest(url: url)
+        request.httpMethod = HTTPMethod.POST.rawValue
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("TransplantPatientApp/1.0", forHTTPHeaderField: "User-Agent")
+        request.httpBody = try JSONSerialization.data(withJSONObject: formData)
+        
+        let (data, response) = try await session.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 else {
+            throw APIError.serverError
+        }
+        
+        let decoder = createJSONDecoder()
+        let apiResponse = try decoder.decode(IntakeFormResponse.self, from: data)
+        
+        guard let formResponse = apiResponse.data else {
+            throw APIError.serverError
+        }
+        
+        return formResponse
+    }
+    
+    func submitIntakeForm(signatureData: String, accessToken: String) async throws -> IntakeFormData {
+        let endpoint = "/intake-form/submit"
+        
+        let url = URL(string: baseURL + endpoint)!
+        var request = URLRequest(url: url)
+        request.httpMethod = HTTPMethod.POST.rawValue
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("TransplantPatientApp/1.0", forHTTPHeaderField: "User-Agent")
+        
+        let body = ["signatureData": signatureData]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        
+        let (data, response) = try await session.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 else {
+            throw APIError.serverError
+        }
+        
+        let decoder = createJSONDecoder()
+        let apiResponse = try decoder.decode(IntakeFormResponse.self, from: data)
+        
+        guard let formResponse = apiResponse.data else {
+            throw APIError.serverError
+        }
+        
+        return formResponse
+    }
+    
+    // MARK: - Patient Messages Endpoints
+    
+    func getMessages(accessToken: String) async throws -> MessagesResponse {
+        let endpoint = "/messages"
+        
+        let response: MessagesResponse = try await performAuthenticatedRequest(
+            endpoint: endpoint,
+            method: .GET,
+            body: EmptyRequest(),
+            accessToken: accessToken
+        )
+        
+        return response
+    }
+    
+    func markMessageAsRead(messageId: String, accessToken: String) async throws {
+        let endpoint = "/messages/\(messageId)/read"
+        
+        let url = URL(string: baseURL + endpoint)!
+        var request = URLRequest(url: url)
+        request.httpMethod = HTTPMethod.PATCH.rawValue
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("TransplantPatientApp/1.0", forHTTPHeaderField: "User-Agent")
+        
+        let (_, response) = try await session.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 else {
+            throw APIError.serverError
+        }
+    }
 
     // MARK: - Referral Lookup
 
@@ -831,6 +941,30 @@ struct CreateTodoRequest: Codable {
 
 struct UpdateTodoRequest: Codable {
     let status: String?
+}
+
+// MARK: - Patient Message Models
+struct PatientMessage: Codable, Identifiable {
+    let id: String
+    let messageType: String
+    let content: String
+    let isRead: Bool
+    let readAt: Date?
+    let createdAt: Date?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, content
+        case messageType = "message_type"
+        case isRead = "is_read"
+        case readAt = "read_at"
+        case createdAt = "created_at"
+    }
+}
+
+struct MessagesResponse: Codable {
+    let success: Bool
+    let data: [PatientMessage]?
+    let unreadCount: Int?
 }
 
 // Extension for Date formatting
