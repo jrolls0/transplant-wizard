@@ -354,88 +354,137 @@
     }
     
     function showIntakeFormModal(form) {
-        const formatValue = (val) => val || 'Not provided';
-        const formatDate = (val) => val ? new Date(val).toLocaleDateString() : 'Not provided';
-        const formatPhysicians = (physicians) => {
-            if (!physicians || physicians.length === 0) return 'None listed';
-            try {
-                const parsed = typeof physicians === 'string' ? JSON.parse(physicians) : physicians;
-                return parsed.map(p => `${p.name} (${p.specialty || 'General'})`).join(', ');
-            } catch { return 'None listed'; }
-        };
+        var formatValue = function(val) { return val || 'Not provided'; };
+        var formatDate = function(val) { return val ? new Date(val).toLocaleDateString() : 'Not provided'; };
+        var formatYesNo = function(val) { return val === true ? '<span class="text-success">Yes</span>' : '<span class="text-danger">No</span>'; };
         
-        const modalHtml = `
-            <div class="modal fade" id="intakeFormModal" tabindex="-1">
-                <div class="modal-dialog modal-lg modal-dialog-scrollable">
-                    <div class="modal-content">
-                        <div class="modal-header bg-primary text-white">
-                            <h5 class="modal-title"><i class="fas fa-clipboard-check me-2"></i>Intake Form - ${form.full_name || form.first_name + ' ' + form.last_name}</h5>
-                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <h6 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-user me-2"></i>Personal Information</h6>
-                                    <p><strong>Full Name:</strong> ${formatValue(form.full_name)}</p>
-                                    <p><strong>Date of Birth:</strong> ${formatDate(form.date_of_birth)}</p>
-                                    <p><strong>Email:</strong> ${formatValue(form.email)}</p>
-                                    <p><strong>Phone:</strong> ${formatValue(form.phone)}</p>
-                                    <p><strong>Address:</strong> ${formatValue(form.address)}</p>
-                                </div>
-                                <div class="col-md-6">
-                                    <h6 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-phone me-2"></i>Emergency Contact</h6>
-                                    <p><strong>Name:</strong> ${formatValue(form.emergency_contact_name)}</p>
-                                    <p><strong>Relationship:</strong> ${formatValue(form.emergency_contact_relationship)}</p>
-                                    <p><strong>Phone:</strong> ${formatValue(form.emergency_contact_phone)}</p>
-                                </div>
-                            </div>
-                            <hr>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <h6 class="text-info border-bottom pb-2 mb-3"><i class="fas fa-ruler-vertical me-2"></i>Physical Information</h6>
-                                    <p><strong>Height:</strong> ${formatValue(form.height)}</p>
-                                    <p><strong>Weight:</strong> ${formatValue(form.weight)}</p>
-                                </div>
-                                <div class="col-md-6">
-                                    <h6 class="text-info border-bottom pb-2 mb-3"><i class="fas fa-heartbeat me-2"></i>Dialysis Information</h6>
-                                    <p><strong>On Dialysis:</strong> ${form.on_dialysis ? 'Yes' : 'No'}</p>
-                                    ${form.on_dialysis ? `
-                                        <p><strong>Dialysis Type:</strong> ${formatValue(form.dialysis_type)}</p>
-                                        <p><strong>Start Date:</strong> ${formatValue(form.dialysis_start_date)}</p>
-                                    ` : ''}
-                                </div>
-                            </div>
-                            <hr>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <h6 class="text-success border-bottom pb-2 mb-3"><i class="fas fa-user-md me-2"></i>Medical Providers</h6>
-                                    <p><strong>Nephrologist:</strong> ${formatValue(form.nephrologist_name)}</p>
-                                    <p><strong>Primary Care Physician:</strong> ${formatValue(form.pcp_name)}</p>
-                                    <p><strong>Other Physicians:</strong> ${formatPhysicians(form.other_physicians)}</p>
-                                </div>
-                                <div class="col-md-6">
-                                    <h6 class="text-success border-bottom pb-2 mb-3"><i class="fas fa-notes-medical me-2"></i>Medical History</h6>
-                                    <p><strong>Last GFR:</strong> ${formatValue(form.last_gfr)}</p>
-                                    <p><strong>Diagnosed Conditions:</strong> ${formatValue(form.diagnosed_conditions)}</p>
-                                    <p><strong>Past Surgeries:</strong> ${formatValue(form.past_surgeries)}</p>
-                                </div>
-                            </div>
-                            <hr>
-                            <div class="row">
-                                <div class="col-12">
-                                    <h6 class="text-warning border-bottom pb-2 mb-3"><i class="fas fa-clock me-2"></i>Submission Info</h6>
-                                    <p><strong>Submitted:</strong> ${form.submitted_at ? new Date(form.submitted_at).toLocaleString() : 'Not submitted'}</p>
-                                    <p><strong>Signed:</strong> ${form.signed_at ? new Date(form.signed_at).toLocaleString() : 'Not signed'}</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
+        // Parse physicians and extract nephrologist/PCP
+        var physicians = [];
+        var nephrologist = 'Not provided';
+        var pcp = 'Not provided';
+        var otherPhysicians = [];
+        
+        try {
+            physicians = typeof form.other_physicians === 'string' ? JSON.parse(form.other_physicians) : (form.other_physicians || []);
+            physicians.forEach(function(p) {
+                if (p.specialty && p.specialty.toLowerCase().includes('nephrolog')) {
+                    nephrologist = p.name + (p.phone ? ' (' + p.phone + ')' : '');
+                } else if (p.specialty && (p.specialty.toLowerCase().includes('primary') || p.specialty.toLowerCase().includes('pcp'))) {
+                    pcp = p.name + (p.phone ? ' (' + p.phone + ')' : '');
+                } else {
+                    otherPhysicians.push(p.name + ' (' + (p.specialty || 'General') + ')');
+                }
+            });
+        } catch (e) { console.error('Error parsing physicians:', e); }
+        
+        var otherPhysiciansStr = otherPhysicians.length > 0 ? otherPhysicians.join(', ') : 'None listed';
+        
+        var modalHtml = '<div class="modal fade" id="intakeFormModal" tabindex="-1">' +
+            '<div class="modal-dialog modal-xl modal-dialog-scrollable">' +
+                '<div class="modal-content">' +
+                    '<div class="modal-header bg-primary text-white">' +
+                        '<h5 class="modal-title"><i class="fas fa-clipboard-check me-2"></i>Intake Form - ' + (form.full_name || form.first_name + ' ' + form.last_name) + '</h5>' +
+                        '<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>' +
+                    '</div>' +
+                    '<div class="modal-body">' +
+                        '<div class="row">' +
+                            '<div class="col-md-6">' +
+                                '<h6 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-user me-2"></i>Personal Information</h6>' +
+                                '<p><strong>Full Name:</strong> ' + formatValue(form.full_name) + '</p>' +
+                                '<p><strong>Date of Birth:</strong> ' + formatDate(form.date_of_birth) + '</p>' +
+                                '<p><strong>Email:</strong> ' + formatValue(form.email) + '</p>' +
+                                '<p><strong>Phone:</strong> ' + formatValue(form.phone) + '</p>' +
+                                '<p><strong>Address:</strong> ' + formatValue(form.address) + '</p>' +
+                            '</div>' +
+                            '<div class="col-md-6">' +
+                                '<h6 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-phone me-2"></i>Emergency Contact</h6>' +
+                                '<p><strong>Name:</strong> ' + formatValue(form.emergency_contact_name) + '</p>' +
+                                '<p><strong>Relationship:</strong> ' + formatValue(form.emergency_contact_relationship) + '</p>' +
+                                '<p><strong>Phone:</strong> ' + formatValue(form.emergency_contact_phone) + '</p>' +
+                                '<h6 class="text-primary border-bottom pb-2 mb-3 mt-4"><i class="fas fa-users me-2"></i>Social Support</h6>' +
+                                '<p><strong>Name:</strong> ' + formatValue(form.social_support_name) + '</p>' +
+                                '<p><strong>Relationship:</strong> ' + formatValue(form.social_support_relationship) + '</p>' +
+                                '<p><strong>Phone:</strong> ' + formatValue(form.social_support_phone) + '</p>' +
+                            '</div>' +
+                        '</div>' +
+                        '<hr>' +
+                        '<div class="row">' +
+                            '<div class="col-md-6">' +
+                                '<h6 class="text-info border-bottom pb-2 mb-3"><i class="fas fa-ruler-vertical me-2"></i>Physical Information</h6>' +
+                                '<p><strong>Height:</strong> ' + formatValue(form.height) + '</p>' +
+                                '<p><strong>Weight:</strong> ' + formatValue(form.weight) + '</p>' +
+                            '</div>' +
+                            '<div class="col-md-6">' +
+                                '<h6 class="text-info border-bottom pb-2 mb-3"><i class="fas fa-heartbeat me-2"></i>Dialysis Information</h6>' +
+                                '<p><strong>On Dialysis:</strong> ' + (form.on_dialysis ? 'Yes' : 'No') + '</p>' +
+                                (form.on_dialysis ? '<p><strong>Dialysis Type:</strong> ' + formatValue(form.dialysis_type) + '</p><p><strong>Start Date:</strong> ' + formatValue(form.dialysis_start_date) + '</p>' : '') +
+                                '<p><strong>Last GFR:</strong> ' + formatValue(form.last_gfr) + '</p>' +
+                            '</div>' +
+                        '</div>' +
+                        '<hr>' +
+                        '<div class="row">' +
+                            '<div class="col-md-6">' +
+                                '<h6 class="text-success border-bottom pb-2 mb-3"><i class="fas fa-user-md me-2"></i>Medical Providers</h6>' +
+                                '<p><strong>Nephrologist:</strong> ' + nephrologist + '</p>' +
+                                '<p><strong>Primary Care Physician:</strong> ' + pcp + '</p>' +
+                                '<p><strong>Other Physicians:</strong> ' + otherPhysiciansStr + '</p>' +
+                            '</div>' +
+                            '<div class="col-md-6">' +
+                                '<h6 class="text-success border-bottom pb-2 mb-3"><i class="fas fa-notes-medical me-2"></i>Medical History</h6>' +
+                                '<p><strong>Diagnosed Conditions:</strong> ' + formatValue(form.diagnosed_conditions) + '</p>' +
+                                '<p><strong>Past Surgeries:</strong> ' + formatValue(form.past_surgeries) + '</p>' +
+                            '</div>' +
+                        '</div>' +
+                        '<hr>' +
+                        '<div class="row">' +
+                            '<div class="col-12">' +
+                                '<h6 class="text-danger border-bottom pb-2 mb-3"><i class="fas fa-exclamation-triangle me-2"></i>Medical Screening Questions</h6>' +
+                            '</div>' +
+                            '<div class="col-md-6">' +
+                                '<p><strong>Requires Additional Organ Transplant:</strong> ' + formatYesNo(form.requires_additional_organ) + '</p>' +
+                                (form.requires_additional_organ && form.additional_organ_details ? '<p class="ms-3 text-muted"><em>Details: ' + form.additional_organ_details + '</em></p>' : '') +
+                                '<p><strong>Has Active Infection:</strong> ' + formatYesNo(form.has_infection) + '</p>' +
+                                '<p><strong>Has Cancer History:</strong> ' + formatYesNo(form.has_cancer) + '</p>' +
+                                '<p><strong>Has Mental Health Disorder:</strong> ' + formatYesNo(form.has_mental_health_disorder) + '</p>' +
+                            '</div>' +
+                            '<div class="col-md-6">' +
+                                '<p><strong>Uses Substances:</strong> ' + formatYesNo(form.uses_substances) + '</p>' +
+                                '<p><strong>Recent Surgery (past 6 months):</strong> ' + formatYesNo(form.recent_surgery) + '</p>' +
+                                '<p><strong>Uses Supplemental Oxygen:</strong> ' + formatYesNo(form.uses_oxygen) + '</p>' +
+                                (form.contraindications_explanation ? '<p><strong>Additional Explanation:</strong> ' + form.contraindications_explanation + '</p>' : '') +
+                            '</div>' +
+                        '</div>' +
+                        '<hr>' +
+                        '<div class="row">' +
+                            '<div class="col-md-6">' +
+                                '<h6 class="text-secondary border-bottom pb-2 mb-3"><i class="fas fa-hospital me-2"></i>Dialysis Unit</h6>' +
+                                '<p><strong>Name:</strong> ' + formatValue(form.dialysis_unit_name) + '</p>' +
+                                '<p><strong>Address:</strong> ' + formatValue(form.dialysis_unit_address) + '</p>' +
+                                '<p><strong>Phone:</strong> ' + formatValue(form.dialysis_unit_phone) + '</p>' +
+                                '<p><strong>Email:</strong> ' + formatValue(form.dialysis_unit_email) + '</p>' +
+                            '</div>' +
+                            '<div class="col-md-6">' +
+                                '<h6 class="text-secondary border-bottom pb-2 mb-3"><i class="fas fa-user-nurse me-2"></i>Social Worker</h6>' +
+                                '<p><strong>Name:</strong> ' + formatValue(form.social_worker_name) + '</p>' +
+                                '<p><strong>Phone:</strong> ' + formatValue(form.social_worker_phone) + '</p>' +
+                                '<p><strong>Email:</strong> ' + formatValue(form.social_worker_email) + '</p>' +
+                            '</div>' +
+                        '</div>' +
+                        '<hr>' +
+                        '<div class="row">' +
+                            '<div class="col-12">' +
+                                '<h6 class="text-warning border-bottom pb-2 mb-3"><i class="fas fa-clock me-2"></i>Submission Info</h6>' +
+                                '<p><strong>Submitted:</strong> ' + (form.submitted_at ? new Date(form.submitted_at).toLocaleString() : 'Not submitted') + '</p>' +
+                                '<p><strong>Signed:</strong> ' + (form.signed_at ? new Date(form.signed_at).toLocaleString() : 'Not signed') + '</p>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="modal-footer">' +
+                        '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
         
         // Remove existing modal if present
         const existingModal = document.getElementById('intakeFormModal');
