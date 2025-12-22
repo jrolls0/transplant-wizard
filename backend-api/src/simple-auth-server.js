@@ -1767,9 +1767,9 @@ app.post('/api/v1/patients/consent', async (req, res) => {
             
             const pdfBuffer = await pdfPromise;
             
-            // Upload to S3
-            const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
-            s3Bucket = process.env.S3_BUCKET || 'transplant-wizard-documents';
+            // Upload to S3 (use same bucket as patient documents)
+            const s3Client = new S3Client({ region: S3_CONFIG.region });
+            s3Bucket = S3_CONFIG.bucket;
             s3Key = `consents/${patientId}/${consentType}_${signedAt.getTime()}.pdf`;
             
             await s3Client.send(new PutObjectCommand({
