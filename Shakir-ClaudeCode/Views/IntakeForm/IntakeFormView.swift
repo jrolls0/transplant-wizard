@@ -382,7 +382,7 @@ struct IntakeFormView: View {
                         .cornerRadius(8)
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color(.systemGray4), lineWidth: 1, style: StrokeStyle(dash: [5]))
+                                .stroke(Color(.systemGray4), style: StrokeStyle(lineWidth: 1, dash: [5]))
                         )
                     }
                 }
