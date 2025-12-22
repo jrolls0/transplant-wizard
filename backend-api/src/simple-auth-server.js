@@ -2386,7 +2386,7 @@ app.get('/api/v1/intake-form', async (req, res) => {
 
         // Get patient info
         const patientResult = await pool.query(`
-            SELECT p.*, u.email, u.first_name, u.last_name,
+            SELECT p.*, u.email, u.first_name, u.last_name, u.phone_number,
                    dc.name as dialysis_clinic_name, dc.address as dialysis_clinic_address,
                    dc.phone as dialysis_clinic_phone, dc.email as dialysis_clinic_email
             FROM patients p
@@ -2422,7 +2422,7 @@ app.get('/api/v1/intake-form', async (req, res) => {
             full_name: `${patient.first_name || ''} ${patient.last_name || ''}`.trim(),
             date_of_birth: patient.date_of_birth,
             address: patient.address,
-            phone: null, // Could add phone to users table
+            phone: patient.phone_number,
             email: patient.email,
             emergency_contact_name: patient.emergency_contact_name,
             emergency_contact_relationship: patient.emergency_contact_relationship,

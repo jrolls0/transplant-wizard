@@ -361,22 +361,28 @@ struct IntakeFormView: View {
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         
-                        Menu {
-                            ForEach(viewModel.dialysisClinics) { clinic in
-                                Button(action: {
-                                    viewModel.selectDialysisClinic(clinic)
-                                }) {
-                                    Text(clinic.name)
+                        if viewModel.dialysisClinics.isEmpty {
+                            Text("Loading dialysis units...")
+                                .foregroundColor(.secondary)
+                                .padding()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
+                        } else {
+                            Picker("Dialysis Unit", selection: Binding(
+                                get: { viewModel.selectedDialysisClinicId ?? "" },
+                                set: { newValue in
+                                    if let clinic = viewModel.dialysisClinics.first(where: { $0.id == newValue }) {
+                                        viewModel.selectDialysisClinic(clinic)
+                                    }
+                                }
+                            )) {
+                                Text("Select dialysis unit...").tag("")
+                                ForEach(viewModel.dialysisClinics) { clinic in
+                                    Text(clinic.name).tag(clinic.id)
                                 }
                             }
-                        } label: {
-                            HStack {
-                                Text(viewModel.dialysisUnitName.isEmpty ? "Select dialysis unit..." : viewModel.dialysisUnitName)
-                                    .foregroundColor(viewModel.dialysisUnitName.isEmpty ? .secondary : .primary)
-                                Spacer()
-                                Image(systemName: "chevron.down")
-                                    .foregroundColor(.secondary)
-                            }
+                            .pickerStyle(.menu)
                             .padding()
                             .background(Color(.systemGray6))
                             .cornerRadius(8)
@@ -452,26 +458,23 @@ struct IntakeFormView: View {
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                             
-                            Menu {
-                                ForEach(viewModel.socialWorkersForClinic) { worker in
-                                    Button(action: {
+                            Picker("Social Worker", selection: Binding(
+                                get: { viewModel.selectedSocialWorkerId ?? "" },
+                                set: { newValue in
+                                    if let worker = viewModel.socialWorkersForClinic.first(where: { $0.id == newValue }) {
                                         viewModel.selectSocialWorker(worker)
-                                    }) {
-                                        Text(worker.name)
                                     }
                                 }
-                            } label: {
-                                HStack {
-                                    Text(viewModel.socialWorkerName.isEmpty ? "Select social worker..." : viewModel.socialWorkerName)
-                                        .foregroundColor(viewModel.socialWorkerName.isEmpty ? .secondary : .primary)
-                                    Spacer()
-                                    Image(systemName: "chevron.down")
-                                        .foregroundColor(.secondary)
+                            )) {
+                                Text("Select social worker...").tag("")
+                                ForEach(viewModel.socialWorkersForClinic) { worker in
+                                    Text(worker.name).tag(worker.id)
                                 }
-                                .padding()
-                                .background(Color(.systemGray6))
-                                .cornerRadius(8)
                             }
+                            .pickerStyle(.menu)
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .cornerRadius(8)
                         }
                         
                         if !viewModel.socialWorkerName.isEmpty {
