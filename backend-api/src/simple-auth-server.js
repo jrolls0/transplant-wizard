@@ -2200,35 +2200,39 @@ app.post('/api/v1/patients/centers', async (req, res) => {
             VALUES ($1, $2, 'submitted', NOW(), NOW())
         `, [patientId, center_id]);
 
-        // Notify the transplant center
-        const centerResult = await pool.query(
-            'SELECT name, admin_email FROM transplant_centers WHERE id = $1',
-            [center_id]
-        );
+        console.log(`✅ Center ${center_id} added for patient ${patientId}`);
 
-        if (centerResult.rows.length > 0 && centerResult.rows[0].admin_email) {
-            const patientInfo = await pool.query(
-                'SELECT u.first_name, u.last_name FROM users u JOIN patients p ON u.id = p.user_id WHERE p.id = $1',
-                [patientId]
-            );
-            const patientName = patientInfo.rows.length > 0 ? 
-                `${patientInfo.rows[0].first_name} ${patientInfo.rows[0].last_name}` : 'A patient';
-
-            // Create notification for TC employees
-            const tcEmployees = await pool.query(
-                'SELECT id FROM tc_employees WHERE transplant_center_id = $1',
+        // Try to notify the transplant center (non-blocking - don't fail if TC tables don't exist)
+        try {
+            const centerResult = await pool.query(
+                'SELECT name, admin_email FROM transplant_centers WHERE id = $1',
                 [center_id]
             );
 
-            for (const employee of tcEmployees.rows) {
-                await pool.query(`
-                    INSERT INTO tc_notifications (tc_employee_id, patient_id, notification_type, title, message, is_read, created_at)
-                    VALUES ($1, $2, 'new_application', 'New Patient Application', $3, false, NOW())
-                `, [employee.id, patientId, `${patientName} has submitted an application to your transplant center.`]);
-            }
-        }
+            if (centerResult.rows.length > 0 && centerResult.rows[0].admin_email) {
+                const patientInfo = await pool.query(
+                    'SELECT u.first_name, u.last_name FROM users u JOIN patients p ON u.id = p.user_id WHERE p.id = $1',
+                    [patientId]
+                );
+                const patientName = patientInfo.rows.length > 0 ? 
+                    `${patientInfo.rows[0].first_name} ${patientInfo.rows[0].last_name}` : 'A patient';
 
-        console.log(`✅ Center ${center_id} added for patient ${patientId}`);
+                // Create notification for TC employees if table exists
+                const tcEmployees = await pool.query(
+                    'SELECT id FROM tc_employees WHERE transplant_center_id = $1',
+                    [center_id]
+                );
+
+                for (const employee of tcEmployees.rows) {
+                    await pool.query(`
+                        INSERT INTO tc_notifications (tc_employee_id, patient_id, notification_type, title, message, is_read, created_at)
+                        VALUES ($1, $2, 'new_application', 'New Patient Application', $3, false, NOW())
+                    `, [employee.id, patientId, `${patientName} has submitted an application to your transplant center.`]);
+                }
+            }
+        } catch (notifyError) {
+            console.log('⚠️ Could not notify TC (table may not exist yet):', notifyError.message);
+        }
 
         res.json({
             success: true,
@@ -2290,27 +2294,31 @@ app.delete('/api/v1/patients/centers/:centerId', async (req, res) => {
             [patientId, centerId]
         );
 
-        // Notify the transplant center
-        const patientInfo = await pool.query(
-            'SELECT u.first_name, u.last_name FROM users u JOIN patients p ON u.id = p.user_id WHERE p.id = $1',
-            [patientId]
-        );
-        const patientName = patientInfo.rows.length > 0 ? 
-            `${patientInfo.rows[0].first_name} ${patientInfo.rows[0].last_name}` : 'A patient';
-
-        const tcEmployees = await pool.query(
-            'SELECT id FROM tc_employees WHERE transplant_center_id = $1',
-            [centerId]
-        );
-
-        for (const employee of tcEmployees.rows) {
-            await pool.query(`
-                INSERT INTO tc_notifications (tc_employee_id, patient_id, notification_type, title, message, is_read, created_at)
-                VALUES ($1, $2, 'application_withdrawn', 'Application Withdrawn', $3, false, NOW())
-            `, [employee.id, patientId, `${patientName} has withdrawn their application from your transplant center.`]);
-        }
-
         console.log(`✅ Center ${centerId} removed for patient ${patientId}`);
+
+        // Try to notify the transplant center (non-blocking - don't fail if TC tables don't exist)
+        try {
+            const patientInfo = await pool.query(
+                'SELECT u.first_name, u.last_name FROM users u JOIN patients p ON u.id = p.user_id WHERE p.id = $1',
+                [patientId]
+            );
+            const patientName = patientInfo.rows.length > 0 ? 
+                `${patientInfo.rows[0].first_name} ${patientInfo.rows[0].last_name}` : 'A patient';
+
+            const tcEmployees = await pool.query(
+                'SELECT id FROM tc_employees WHERE transplant_center_id = $1',
+                [centerId]
+            );
+
+            for (const employee of tcEmployees.rows) {
+                await pool.query(`
+                    INSERT INTO tc_notifications (tc_employee_id, patient_id, notification_type, title, message, is_read, created_at)
+                    VALUES ($1, $2, 'application_withdrawn', 'Application Withdrawn', $3, false, NOW())
+                `, [employee.id, patientId, `${patientName} has withdrawn their application from your transplant center.`]);
+            }
+        } catch (notifyError) {
+            console.log('⚠️ Could not notify TC (table may not exist yet):', notifyError.message);
+        }
 
         res.json({
             success: true,

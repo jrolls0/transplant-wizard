@@ -136,6 +136,10 @@ struct AmeliaChatbotView: View {
     @State private var messages: [PatientMessage] = []
     @State private var unreadCount = 0
     @State private var showIntakeForm = false
+    
+    var intakeFormAlreadySubmitted: Bool {
+        messages.contains { $0.messageType == "intake_form_complete" }
+    }
     @State private var pulseAnimation = false
     @State private var allDocumentsUploaded = false
     @State private var isCheckingDocuments = true
@@ -323,10 +327,12 @@ struct AmeliaChatbotView: View {
                                 message: message,
                                 onTap: {
                                     markMessageAsRead(message)
-                                    if message.messageType == "intake_form_prompt" {
+                                    // Only open intake form if not already submitted
+                                    if message.messageType == "intake_form_prompt" && !intakeFormAlreadySubmitted {
                                         showIntakeForm = true
                                     }
-                                }
+                                },
+                                intakeFormAlreadySubmitted: intakeFormAlreadySubmitted
                             )
                             .onAppear {
                                 // Mark as read when message appears on screen
@@ -671,6 +677,7 @@ struct ChatMessage: View {
 struct DynamicChatMessage: View {
     let message: PatientMessage
     let onTap: () -> Void
+    var intakeFormAlreadySubmitted: Bool = false
     
     var body: some View {
         Button(action: onTap) {
@@ -683,7 +690,8 @@ struct DynamicChatMessage: View {
                     Spacer()
                 }
                 
-                if message.messageType == "intake_form_prompt" {
+                // Only show intake form button if form hasn't been submitted yet
+                if message.messageType == "intake_form_prompt" && !intakeFormAlreadySubmitted {
                     HStack {
                         Image(systemName: "doc.text.fill")
                         Text("Tap to open Intake Form")
@@ -816,9 +824,15 @@ struct TodoListSection: View {
     @State private var todos: [PatientTodo] = []
     @State private var isLoading = true
     @State private var showIntakeForm = false
+    @State private var intakeFormSubmitted = false
     
     var pendingTodos: [PatientTodo] {
-        todos.filter { $0.status == "pending" }
+        // Filter out intake_form todos if already submitted
+        todos.filter { todo in
+            if todo.status != "pending" { return false }
+            if todo.todoType == "intake_form" && intakeFormSubmitted { return false }
+            return true
+        }
     }
     
     var body: some View {
@@ -868,7 +882,7 @@ struct TodoListSection: View {
                             // Navigate based on todo type
                             if todo.todoType == "document_upload" {
                                 appState.selectedTab = .documents
-                            } else if todo.todoType == "intake_form" {
+                            } else if todo.todoType == "intake_form" && !intakeFormSubmitted {
                                 showIntakeForm = true
                             }
                         }, onComplete: {
@@ -908,10 +922,16 @@ struct TodoListSection: View {
                 print("🟡 loadTodos: Fetching todos from API...")
                 let fetchedTodos = try await APIService.shared.getTodos(accessToken: accessToken)
                 print("🟡 loadTodos: Fetched \(fetchedTodos.count) todos")
+                
+                // Check if intake form is already submitted
+                let intakeFormData = try? await APIService.shared.getIntakeForm(accessToken: accessToken)
+                let formSubmitted = intakeFormData?.status == "submitted"
+                
                 await MainActor.run {
                     todos = fetchedTodos
+                    intakeFormSubmitted = formSubmitted
                     isLoading = false
-                    print("🟡 loadTodos: Updated state with \(fetchedTodos.count) todos, pending: \(pendingTodos.count)")
+                    print("🟡 loadTodos: Updated state with \(fetchedTodos.count) todos, pending: \(pendingTodos.count), intakeFormSubmitted: \(formSubmitted)")
                 }
             } catch {
                 await MainActor.run {
