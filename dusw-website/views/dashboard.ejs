@@ -770,39 +770,30 @@
                     const data = await response.json();
                     console.log('📦 API response data:', data);
 
-                    if (!response.ok) {
+                    if (!response.ok || data.success === false) {
                         throw new Error(data.error || 'Failed to send referral');
                     }
 
                     console.log('✅ Referral created successfully');
 
-                    // Update success message with patient details
+                    // Get patient info before resetting form
                     const patientName = document.getElementById('patientFirstName').value + ' ' + document.getElementById('patientLastName').value;
                     const patientEmail = document.getElementById('patientEmail').value;
-                    document.getElementById('successPatientName').textContent = patientName;
-                    document.getElementById('successPatientEmail').textContent = patientEmail;
 
-                    // Show success message
-                    successAlert.classList.remove('d-none');
-
-                    // Scroll to top of modal to show success message
-                    const modalBody = document.querySelector('.modal-body');
-                    if (modalBody) {
-                        modalBody.scrollTop = 0;
+                    // Close modal immediately
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('referralModal'));
+                    if (modal) {
+                        modal.hide();
                     }
+
+                    // Show success toast/alert outside modal
+                    alert('✅ Referral sent successfully!\n\nPatient: ' + patientName + '\nEmail: ' + patientEmail + '\n\nAn invitation email has been sent to the patient.');
 
                     // Reset form
                     referralForm.reset();
 
-                    // Close modal after 2 seconds and reload page to show updated data
-                    setTimeout(() => {
-                        const modal = bootstrap.Modal.getInstance(document.getElementById('referralModal'));
-                        if (modal) {
-                            modal.hide();
-                        }
-                        // Reload page to show updated patient list
-                        window.location.reload();
-                    }, 2000);
+                    // Reload page to show updated patient list
+                    window.location.reload();
 
                 } catch (error) {
                     console.error('❌ Referral error:', error);
