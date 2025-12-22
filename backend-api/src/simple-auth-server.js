@@ -1210,12 +1210,12 @@ app.post('/api/v1/transplant-centers/select', async (req, res) => {
         // Clear existing referrals for this patient
         await pool.query('DELETE FROM patient_referrals WHERE patient_id = $1', [patientId]);
 
-        // Insert new referrals
+        // Insert new referrals (status: applied is the initial status in the new enum)
         const referralPromises = transplantCenterIds.map(centerId => 
             pool.query(`
                 INSERT INTO patient_referrals (
                     patient_id, transplant_center_id, status, submitted_at, created_at
-                ) VALUES ($1, $2, 'submitted', NOW(), NOW())
+                ) VALUES ($1, $2, 'applied', NOW(), NOW())
             `, [patientId, centerId])
         );
 
