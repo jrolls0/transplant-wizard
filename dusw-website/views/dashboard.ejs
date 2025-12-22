@@ -262,9 +262,19 @@
                             <button class="nav-link active fw-semibold" id="notifications-tab" data-bs-toggle="tab" 
                                     data-bs-target="#notifications" type="button" role="tab"
                                     style="border-radius: var(--radius-md); border: 2px solid transparent;">
-                                <i class="fas fa-bell me-2"></i>Patient Activity
+                                <i class="fas fa-users me-2"></i>Patient Activity
                                 <% if (notifications.length > 0) { %>
                                     <span class="badge bg-light text-primary ms-2"><%= notifications.length %></span>
+                                <% } %>
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link fw-semibold" id="alerts-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#alerts" type="button" role="tab"
+                                    style="border-radius: var(--radius-md); border: 2px solid transparent;">
+                                <i class="fas fa-bell me-2"></i>Notifications
+                                <% if (typeof unreadNotificationCount !== 'undefined' && unreadNotificationCount > 0) { %>
+                                    <span class="badge bg-danger ms-2"><%= unreadNotificationCount %></span>
                                 <% } %>
                             </button>
                         </li>
@@ -416,6 +426,67 @@
                                         <i class="fas fa-users me-2"></i>View All Patients
                                         <span class="badge bg-primary ms-2"><%= notifications.length %></span>
                                     </a>
+                                </div>
+                            <% } %>
+                        </div>
+                        
+                        <!-- Notifications/Alerts Tab -->
+                        <div class="tab-pane fade" id="alerts" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-bell text-warning me-2"></i>
+                                    Patient Notifications
+                                </h5>
+                                <% if (typeof duswNotifications !== 'undefined' && duswNotifications.length > 0) { %>
+                                    <button class="btn btn-outline-primary btn-sm" onclick="markAllRead()">
+                                        <i class="fas fa-check-double me-1"></i>Mark All as Read
+                                    </button>
+                                <% } %>
+                            </div>
+                            
+                            <% if (typeof duswNotifications === 'undefined' || duswNotifications.length === 0) { %>
+                                <div class="text-center py-5">
+                                    <div class="feature-icon mx-auto mb-3" style="background: var(--secondary-gradient); opacity: 0.7;">
+                                        <i class="fas fa-bell-slash"></i>
+                                    </div>
+                                    <h4 class="fw-bold mb-2">No Notifications</h4>
+                                    <p class="text-muted">You'll receive notifications when your patients upload documents or complete their intake forms.</p>
+                                </div>
+                            <% } else { %>
+                                <div class="list-group">
+                                    <% duswNotifications.forEach(notification => { %>
+                                        <div class="list-group-item list-group-item-action <%= notification.is_read ? '' : 'bg-light border-start border-4 border-primary' %>" 
+                                             onclick="markAsRead('<%= notification.id %>')" style="cursor: pointer;">
+                                            <div class="d-flex w-100 justify-content-between align-items-start">
+                                                <div>
+                                                    <div class="d-flex align-items-center mb-1">
+                                                        <% if (notification.notification_type === 'documents_complete') { %>
+                                                            <span class="badge bg-success me-2"><i class="fas fa-file-alt me-1"></i>Documents</span>
+                                                        <% } else if (notification.notification_type === 'intake_form_complete') { %>
+                                                            <span class="badge bg-info me-2"><i class="fas fa-clipboard-check me-1"></i>Intake Form</span>
+                                                        <% } else { %>
+                                                            <span class="badge bg-secondary me-2"><i class="fas fa-info me-1"></i>Update</span>
+                                                        <% } %>
+                                                        <h6 class="mb-0 <%= notification.is_read ? 'text-muted' : 'fw-bold' %>"><%= notification.title %></h6>
+                                                    </div>
+                                                    <p class="mb-1 text-muted"><%= notification.message %></p>
+                                                    <% if (notification.patient_first_name) { %>
+                                                        <small class="text-primary">
+                                                            <i class="fas fa-user me-1"></i><%= notification.patient_first_name %> <%= notification.patient_last_name %>
+                                                        </small>
+                                                    <% } %>
+                                                </div>
+                                                <div class="text-end">
+                                                    <small class="text-muted"><%= new Date(notification.created_at).toLocaleDateString() %></small>
+                                                    <br>
+                                                    <small class="text-muted"><%= new Date(notification.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) %></small>
+                                                    <% if (!notification.is_read) { %>
+                                                        <br><span class="badge bg-primary mt-1">New</span>
+                                                    <% } %>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    <% }); %>
                                 </div>
                             <% } %>
                         </div>
@@ -749,6 +820,27 @@
 
             console.log('✅ Referral form initialization complete');
         });
+
+        // Notification functions
+        async function markAsRead(notificationId) {
+            try {
+                await fetch(`/notifications/${notificationId}/read`, { method: 'POST' });
+                // Refresh page to update notification count
+                location.reload();
+            } catch (error) {
+                console.error('Error marking notification as read:', error);
+            }
+        }
+
+        async function markAllRead() {
+            try {
+                await fetch('/notifications/mark-all-read', { method: 'POST' });
+                // Refresh page to update notification count
+                location.reload();
+            } catch (error) {
+                console.error('Error marking all notifications as read:', error);
+            }
+        }
     </script>
 </div>
 

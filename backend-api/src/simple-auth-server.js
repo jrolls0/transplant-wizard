@@ -2666,6 +2666,15 @@ app.post('/api/v1/intake-form/submit', async (req, res) => {
             WHERE patient_id = $1 AND todo_type = 'intake_form' AND status = 'pending'
         `, [patientId]);
 
+        // Notify TC and DUSW about intake form completion
+        await notifyIntakeFormComplete(patientId);
+
+        // Create success message for patient chatbot
+        await pool.query(`
+            INSERT INTO patient_messages (patient_id, message_type, content, is_read, created_at)
+            VALUES ($1, 'intake_form_complete', 'Congratulations! 🎉 Your intake form has been successfully submitted and sent to your selected transplant centers. They will review your information and contact you with next steps. In the meantime, feel free to check your progress in the dashboard.', false, NOW())
+        `, [patientId]);
+
         console.log(`✅ Intake form submitted for patient ${patientId}`);
 
         res.json({
@@ -2711,11 +2720,144 @@ async function checkAndCreateIntakeFormTodo(patientId) {
                 VALUES ($1, 'intake_form_prompt', 'Great job uploading all your documents! 🎉 Now let''s complete your intake form. This form helps your transplant center understand your medical history better. Don''t worry - we''ve already pre-filled some information for you!', false, NOW())
             `, [patientId]);
 
+            // Notify DUSW about document completion
+            await notifyDUSWDocumentsComplete(patientId);
+
             console.log(`✅ Created intake form todo and message for patient ${patientId}`);
             return true;
         }
     }
     return false;
+}
+
+// Notify TC and DUSW when patient completes intake form
+async function notifyIntakeFormComplete(patientId) {
+    try {
+        // Get patient info
+        const patientResult = await pool.query(`
+            SELECT p.id, u.first_name, u.last_name, u.email
+            FROM patients p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.id = $1
+        `, [patientId]);
+
+        if (patientResult.rows.length === 0) return;
+        const patient = patientResult.rows[0];
+
+        // Notify Transplant Centers
+        const tcResult = await pool.query(`
+            SELECT DISTINCT tc.id, tc.name, tce.email as admin_email, tce.first_name as admin_first_name
+            FROM patient_referrals pr
+            JOIN transplant_centers tc ON pr.transplant_center_id = tc.id
+            LEFT JOIN transplant_center_employees tce ON tc.id = tce.transplant_center_id AND tce.role = 'admin'
+            WHERE pr.patient_id = $1
+        `, [patientId]);
+
+        for (const tc of tcResult.rows) {
+            if (tc.admin_email) {
+                await sendEmail(
+                    tc.admin_email,
+                    `Intake Form Completed - ${patient.first_name} ${patient.last_name}`,
+                    `<h2>Patient Intake Form Submitted</h2>
+                    <p>Patient <strong>${patient.first_name} ${patient.last_name}</strong> has completed and submitted their medical intake form.</p>
+                    <p>The form includes:</p>
+                    <ul>
+                        <li>Demographics and contact information</li>
+                        <li>Medical history and current conditions</li>
+                        <li>Healthcare provider information</li>
+                        <li>Patient signature</li>
+                    </ul>
+                    <p>Please log in to the <a href="https://tc.transplantwizard.com/dashboard">TC Portal</a> to review the complete intake form.</p>`,
+                    `Patient ${patient.first_name} ${patient.last_name} has submitted their intake form. View at https://tc.transplantwizard.com/dashboard`
+                );
+                console.log(`✅ Intake form notification sent to TC: ${tc.admin_email}`);
+            }
+        }
+
+        // Notify DUSW
+        const duswResult = await pool.query(`
+            SELECT dsw.id, dsw.email, dsw.first_name, dsw.last_name
+            FROM patient_dusw_assignments pda
+            JOIN dusw_social_workers dsw ON pda.dusw_social_worker_id = dsw.id
+            WHERE pda.patient_id = $1
+        `, [patientId]);
+
+        for (const dusw of duswResult.rows) {
+            // Send email notification
+            await sendEmail(
+                dusw.email,
+                `Intake Form Completed - ${patient.first_name} ${patient.last_name}`,
+                `<h2>Patient Intake Form Submitted</h2>
+                <p>Patient <strong>${patient.first_name} ${patient.last_name}</strong> has completed and submitted their medical intake form.</p>
+                <p>The form has been sent to their selected transplant centers for review.</p>
+                <p>Please log in to the <a href="https://dusw.transplantwizard.com/dashboard">DUSW Portal</a> to view the patient's progress.</p>`,
+                `Patient ${patient.first_name} ${patient.last_name} has submitted their intake form. View at https://dusw.transplantwizard.com/dashboard`
+            );
+
+            // Create portal notification
+            await pool.query(`
+                INSERT INTO dusw_notifications (dusw_id, patient_id, notification_type, title, message, is_read, created_at)
+                VALUES ($1, $2, 'intake_form_complete', 'Intake Form Completed', $3, false, NOW())
+            `, [dusw.id, patientId, `${patient.first_name} ${patient.last_name} has submitted their intake form.`]);
+
+            console.log(`✅ Intake form notification sent to DUSW: ${dusw.email}`);
+        }
+    } catch (error) {
+        console.error('❌ Error notifying about intake form completion:', error);
+    }
+}
+
+// Notify DUSW when patient completes all document uploads
+async function notifyDUSWDocumentsComplete(patientId) {
+    try {
+        // Get patient info
+        const patientResult = await pool.query(`
+            SELECT p.id, u.first_name, u.last_name, u.email
+            FROM patients p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.id = $1
+        `, [patientId]);
+
+        if (patientResult.rows.length === 0) return;
+        const patient = patientResult.rows[0];
+
+        // Get assigned DUSW from patient_dusw_assignments
+        const duswResult = await pool.query(`
+            SELECT dsw.id, dsw.email, dsw.first_name, dsw.last_name
+            FROM patient_dusw_assignments pda
+            JOIN dusw_social_workers dsw ON pda.dusw_social_worker_id = dsw.id
+            WHERE pda.patient_id = $1
+        `, [patientId]);
+
+        for (const dusw of duswResult.rows) {
+            // Send email notification
+            await sendEmail(
+                dusw.email,
+                `Documents Uploaded - ${patient.first_name} ${patient.last_name}`,
+                `<h2>Patient Document Upload Complete</h2>
+                <p>Patient <strong>${patient.first_name} ${patient.last_name}</strong> has successfully uploaded all required documents.</p>
+                <p><strong>Documents uploaded:</strong></p>
+                <ul>
+                    <li>Insurance Card (front and back)</li>
+                    <li>Medication List</li>
+                    <li>Government-issued ID</li>
+                </ul>
+                <p>The patient will now be prompted to complete their medical intake form.</p>
+                <p>Please log in to the <a href="https://dusw.transplantwizard.com/dashboard">DUSW Portal</a> to view the documents.</p>`,
+                `Patient ${patient.first_name} ${patient.last_name} has uploaded all required documents. View at https://dusw.transplantwizard.com/dashboard`
+            );
+
+            // Create portal notification
+            await pool.query(`
+                INSERT INTO dusw_notifications (dusw_id, patient_id, notification_type, title, message, is_read, created_at)
+                VALUES ($1, $2, 'documents_complete', 'Documents Uploaded', $3, false, NOW())
+            `, [dusw.id, patientId, `${patient.first_name} ${patient.last_name} has uploaded all required documents.`]);
+
+            console.log(`✅ DUSW notification sent to ${dusw.email} for patient ${patientId}`);
+        }
+    } catch (error) {
+        console.error('❌ Error notifying DUSW about document completion:', error);
+    }
 }
 
 // Start server

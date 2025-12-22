@@ -13,6 +13,8 @@ struct IntakeFormView: View {
     @State private var currentSection = 0
     @State private var showSignaturePad = false
     @State private var showSubmitConfirmation = false
+    @State private var validationError: String? = nil
+    @State private var showValidationError = false
     
     let sections = ["Demographics", "Basic Info", "Contraindications", "Medical History", "Providers", "Signature"]
     
@@ -68,6 +70,37 @@ struct IntakeFormView: View {
             } message: {
                 Text("Your intake form has been submitted successfully!")
             }
+            .alert("Required Field Missing", isPresented: $showValidationError) {
+                Button("Go to Field") {
+                    if let error = validationError {
+                        navigateToMissingField(error)
+                    }
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text(validationError ?? "Please fill in all required fields.")
+            }
+        }
+    }
+    
+    private func validateAndSubmit() {
+        if let error = viewModel.getFirstValidationError() {
+            validationError = error
+            showValidationError = true
+        } else {
+            showSubmitConfirmation = true
+        }
+    }
+    
+    private func navigateToMissingField(_ error: String) {
+        // Navigate to the section containing the missing field
+        if error.contains("Full Name") || error.contains("Date of Birth") || error.contains("Address") || 
+           error.contains("Phone") || error.contains("Email") || error.contains("Emergency Contact") {
+            currentSection = 0 // Demographics
+        } else if error.contains("Weight") {
+            currentSection = 1 // Basic Info
+        } else if error.contains("Signature") {
+            currentSection = 5 // Signature
         }
     }
     
@@ -634,9 +667,7 @@ struct IntakeFormView: View {
                 }
             } else {
                 Button(action: {
-                    if viewModel.validateForm() {
-                        showSubmitConfirmation = true
-                    }
+                    validateAndSubmit()
                 }) {
                     HStack {
                         Image(systemName: "checkmark.circle.fill")
@@ -644,11 +675,10 @@ struct IntakeFormView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(viewModel.canSubmit ? Color.green : Color(.systemGray4))
+                    .background(Color.green)
                     .foregroundColor(.white)
                     .cornerRadius(10)
                 }
-                .disabled(!viewModel.canSubmit)
             }
         }
         .padding()

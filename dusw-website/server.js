@@ -144,7 +144,7 @@ app.get('/register', (req, res) => {
 app.get('/dashboard', requireAuth, async (req, res) => {
     try {
         // Get recent patient notifications for this social worker with retry logic
-        const notifications = await queryWithRetry(`
+        const patients = await queryWithRetry(`
             SELECT 
                 u.first_name,
                 u.last_name, 
@@ -164,17 +164,42 @@ app.get('/dashboard', requireAuth, async (req, res) => {
             LIMIT 10
         `, [req.session.user.id]);
 
+        // Get actual notifications from dusw_notifications table
+        const duswNotifications = await queryWithRetry(`
+            SELECT 
+                dn.id,
+                dn.notification_type,
+                dn.title,
+                dn.message,
+                dn.is_read,
+                dn.created_at,
+                u.first_name as patient_first_name,
+                u.last_name as patient_last_name
+            FROM dusw_notifications dn
+            LEFT JOIN patients p ON dn.patient_id = p.id
+            LEFT JOIN users u ON p.user_id = u.id
+            WHERE dn.dusw_id = $1
+            ORDER BY dn.created_at DESC
+            LIMIT 20
+        `, [req.session.user.id]);
+
+        const unreadCount = duswNotifications.rows.filter(n => !n.is_read).length;
+
         res.render('dashboard', {
             title: 'Dashboard - DUSW Portal',
             user: req.session.user,
-            notifications: notifications.rows
+            notifications: patients.rows,
+            duswNotifications: duswNotifications.rows,
+            unreadNotificationCount: unreadCount
         });
     } catch (error) {
         console.error('Dashboard error:', error);
         res.render('dashboard', {
             title: 'Dashboard - DUSW Portal',
             user: req.session.user,
-            notifications: []
+            notifications: [],
+            duswNotifications: [],
+            unreadNotificationCount: 0
         });
     }
 });
@@ -407,6 +432,39 @@ app.get('/patients/:id', requireAuth, async (req, res) => {
     } catch (error) {
         console.error('Patient details error:', error);
         res.status(500).send('Server error');
+    }
+});
+
+// Mark notification as read
+app.post('/notifications/:id/read', requireAuth, async (req, res) => {
+    try {
+        const notificationId = req.params.id;
+        await pool.query(`
+            UPDATE dusw_notifications 
+            SET is_read = true, read_at = NOW()
+            WHERE id = $1 AND dusw_id = $2
+        `, [notificationId, req.session.user.id]);
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error marking notification as read:', error);
+        res.status(500).json({ success: false, error: 'Failed to mark notification as read' });
+    }
+});
+
+// Mark all notifications as read
+app.post('/notifications/mark-all-read', requireAuth, async (req, res) => {
+    try {
+        await pool.query(`
+            UPDATE dusw_notifications 
+            SET is_read = true, read_at = NOW()
+            WHERE dusw_id = $1 AND is_read = false
+        `, [req.session.user.id]);
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error marking all notifications as read:', error);
+        res.status(500).json({ success: false, error: 'Failed to mark notifications as read' });
     }
 });
 

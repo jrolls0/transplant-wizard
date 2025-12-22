@@ -121,6 +121,40 @@ class IntakeFormViewModel: ObservableObject {
         signatureData != nil
     }
     
+    func getFirstValidationError() -> String? {
+        if fullName.isEmpty {
+            return "Full Name is required. Please enter your full name."
+        }
+        if dateOfBirth == nil {
+            return "Date of Birth is required. Please select your date of birth."
+        }
+        if address.isEmpty {
+            return "Address is required. Please enter your address."
+        }
+        if phone.isEmpty {
+            return "Phone number is required. Please enter your phone number."
+        }
+        if email.isEmpty {
+            return "Email is required. Please enter your email address."
+        }
+        if emergencyContactName.isEmpty {
+            return "Emergency Contact Name is required. Please enter an emergency contact."
+        }
+        if emergencyContactRelationship.isEmpty {
+            return "Emergency Contact Relationship is required."
+        }
+        if emergencyContactPhone.isEmpty {
+            return "Emergency Contact Phone is required."
+        }
+        if weight.isEmpty {
+            return "Weight is required. Please enter your weight."
+        }
+        if signatureData == nil {
+            return "Signature is required. Please sign the form to submit."
+        }
+        return nil
+    }
+    
     func loadForm() {
         guard let accessToken = KeychainManager.shared.getAccessToken() else { return }
         
