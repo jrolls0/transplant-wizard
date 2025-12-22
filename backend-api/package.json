@@ -47,6 +47,7 @@
     "multer-s3": "^3.0.1",
     "nodemailer": "^6.9.7",
     "nodemailer-ses-transport": "^1.5.1",
+    "pdfkit": "^0.17.2",
     "pg": "^8.11.3",
     "pg-pool": "^3.6.1",
     "socket.io": "^4.7.4",

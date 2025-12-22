@@ -806,6 +806,7 @@ app.get('/api/patient/:patientId/consents', requireAuth, async (req, res) => {
             SELECT 
                 id, consent_type, signed_at, 
                 ip_address, created_at,
+                s3_bucket, s3_key,
                 'signed' as status
             FROM patient_consents
             WHERE patient_id = $1
@@ -817,6 +818,54 @@ app.get('/api/patient/:patientId/consents', requireAuth, async (req, res) => {
     } catch (error) {
         console.error('Error fetching consents:', error);
         res.status(500).json({ success: false, error: 'Failed to fetch consents' });
+    }
+});
+
+// Get consent PDF download URL
+app.get('/api/consent/:consentId/url', requireAuth, async (req, res) => {
+    try {
+        const { consentId } = req.params;
+        
+        // Get consent and verify access
+        const consentResult = await queryWithRetry(`
+            SELECT pc.*, pr.transplant_center_id
+            FROM patient_consents pc
+            JOIN patient_referrals pr ON pc.patient_id = pr.patient_id
+            WHERE pc.id = $1 AND pr.transplant_center_id = $2
+        `, [consentId, req.session.user.transplant_center_id]);
+        
+        if (consentResult.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Consent not found' });
+        }
+        
+        const consent = consentResult.rows[0];
+        
+        if (!consent.s3_bucket || !consent.s3_key) {
+            return res.status(404).json({ success: false, error: 'PDF not available for this consent' });
+        }
+        
+        // Generate pre-signed URL
+        const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+        const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+        
+        const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
+        
+        const command = new GetObjectCommand({
+            Bucket: consent.s3_bucket,
+            Key: consent.s3_key
+        });
+        
+        const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 900 });
+        
+        res.json({
+            success: true,
+            url: signedUrl,
+            expiresIn: 900
+        });
+        
+    } catch (error) {
+        console.error('Error generating consent URL:', error);
+        res.status(500).json({ success: false, error: 'Failed to generate consent URL' });
     }
 });
 

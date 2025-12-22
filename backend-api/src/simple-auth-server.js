@@ -1641,11 +1641,13 @@ app.post('/api/v1/patients/consent', async (req, res) => {
             });
         }
 
-        // Get patient ID from user ID
-        const patientResult = await pool.query(
-            'SELECT id FROM patients WHERE user_id = $1',
-            [decoded.userId]
-        );
+        // Get patient ID and info from user ID
+        const patientResult = await pool.query(`
+            SELECT p.id, u.first_name, u.last_name, u.email
+            FROM patients p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.user_id = $1
+        `, [decoded.userId]);
 
         if (patientResult.rows.length === 0) {
             return res.status(404).json({
@@ -1654,7 +1656,8 @@ app.post('/api/v1/patients/consent', async (req, res) => {
             });
         }
 
-        const patientId = patientResult.rows[0].id;
+        const patient = patientResult.rows[0];
+        const patientId = patient.id;
 
         // Check if consent already exists
         const existingConsent = await pool.query(
@@ -1670,17 +1673,137 @@ app.post('/api/v1/patients/consent', async (req, res) => {
             });
         }
 
-        // Create consent record with signature
+        // Generate consent PDF and upload to S3
+        const signedAt = new Date();
+        let s3Bucket = null;
+        let s3Key = null;
+        
+        try {
+            const PDFDocument = require('pdfkit');
+            const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+            
+            // Create PDF
+            const pdfDoc = new PDFDocument({ margin: 50 });
+            const chunks = [];
+            
+            pdfDoc.on('data', chunk => chunks.push(chunk));
+            
+            const pdfPromise = new Promise((resolve) => {
+                pdfDoc.on('end', () => resolve(Buffer.concat(chunks)));
+            });
+            
+            // Consent titles
+            const consentTitles = {
+                'services_consent': 'Transplant Wizard Services Agreement',
+                'medical_records_consent': 'Medical Records Release Authorization'
+            };
+            
+            // PDF Header
+            pdfDoc.fontSize(20).font('Helvetica-Bold').text(consentTitles[consentType], { align: 'center' });
+            pdfDoc.moveDown();
+            pdfDoc.fontSize(10).font('Helvetica').text('Transplant Wizard Healthcare Platform', { align: 'center' });
+            pdfDoc.moveDown(2);
+            
+            // Patient Info
+            pdfDoc.fontSize(12).font('Helvetica-Bold').text('Patient Information');
+            pdfDoc.fontSize(10).font('Helvetica');
+            pdfDoc.text(`Name: ${patient.first_name} ${patient.last_name}`);
+            pdfDoc.text(`Email: ${patient.email}`);
+            pdfDoc.text(`Patient ID: ${patientId}`);
+            pdfDoc.moveDown(2);
+            
+            // Consent Text
+            pdfDoc.fontSize(12).font('Helvetica-Bold').text('Consent Agreement');
+            pdfDoc.fontSize(10).font('Helvetica');
+            
+            if (consentType === 'services_consent') {
+                pdfDoc.text('By signing this document, I acknowledge and agree to the following:', { continued: false });
+                pdfDoc.moveDown();
+                pdfDoc.text('1. I authorize Transplant Wizard to facilitate my kidney transplant evaluation process.');
+                pdfDoc.text('2. I understand that Transplant Wizard will share my information with transplant centers I select.');
+                pdfDoc.text('3. I agree to receive communications regarding my transplant journey.');
+                pdfDoc.text('4. I understand that I can withdraw my consent at any time by contacting support.');
+                pdfDoc.text('5. I confirm that all information I provide is accurate to the best of my knowledge.');
+            } else {
+                pdfDoc.text('By signing this document, I authorize the following:', { continued: false });
+                pdfDoc.moveDown();
+                pdfDoc.text('1. I authorize the release of my medical records to Transplant Wizard.');
+                pdfDoc.text('2. I authorize Transplant Wizard to share my medical records with transplant centers.');
+                pdfDoc.text('3. I understand this authorization is valid for 2 years from the date signed.');
+                pdfDoc.text('4. I understand I may revoke this authorization at any time in writing.');
+                pdfDoc.text('5. This authorization complies with HIPAA regulations.');
+            }
+            
+            pdfDoc.moveDown(2);
+            
+            // Signature Section
+            pdfDoc.fontSize(12).font('Helvetica-Bold').text('Electronic Signature');
+            pdfDoc.fontSize(10).font('Helvetica');
+            pdfDoc.text(`Signed Date: ${signedAt.toLocaleString()}`);
+            pdfDoc.text(`IP Address: ${req.ip || '127.0.0.1'}`);
+            pdfDoc.moveDown();
+            
+            // Add signature image if it's base64 data
+            if (signatureData && signatureData.startsWith('data:image')) {
+                try {
+                    const base64Data = signatureData.replace(/^data:image\/\w+;base64,/, '');
+                    const signatureBuffer = Buffer.from(base64Data, 'base64');
+                    pdfDoc.image(signatureBuffer, { width: 200, height: 80 });
+                } catch (sigError) {
+                    pdfDoc.text('[Electronic Signature on File]');
+                }
+            } else {
+                pdfDoc.text('[Electronic Signature on File]');
+            }
+            
+            pdfDoc.moveDown(2);
+            
+            // Footer
+            pdfDoc.fontSize(8).fillColor('gray');
+            pdfDoc.text(`Document ID: ${patientId}-${consentType}-${signedAt.getTime()}`, { align: 'center' });
+            pdfDoc.text('This is a legally binding electronic document.', { align: 'center' });
+            
+            pdfDoc.end();
+            
+            const pdfBuffer = await pdfPromise;
+            
+            // Upload to S3
+            const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
+            s3Bucket = process.env.S3_BUCKET || 'transplant-wizard-documents';
+            s3Key = `consents/${patientId}/${consentType}_${signedAt.getTime()}.pdf`;
+            
+            await s3Client.send(new PutObjectCommand({
+                Bucket: s3Bucket,
+                Key: s3Key,
+                Body: pdfBuffer,
+                ContentType: 'application/pdf',
+                Metadata: {
+                    'patient-id': patientId,
+                    'consent-type': consentType,
+                    'signed-at': signedAt.toISOString()
+                }
+            }));
+            
+            console.log(`📄 Consent PDF uploaded to S3: ${s3Key}`);
+            
+        } catch (pdfError) {
+            console.error('⚠️ PDF generation/upload failed (consent still recorded):', pdfError.message);
+        }
+
+        // Create consent record with signature and S3 info
         await pool.query(`
             INSERT INTO patient_consents (
-                patient_id, consent_type, consent_version, signature_data, signed_at, ip_address, user_agent
-            ) VALUES ($1, $2, '1.0', $3, NOW(), $4, $5)
+                patient_id, consent_type, consent_version, signature_data, signed_at, ip_address, user_agent, s3_bucket, s3_key
+            ) VALUES ($1, $2, '1.0', $3, $4, $5, $6, $7, $8)
         `, [
             patientId,
             consentType,
             signatureData,
+            signedAt,
             req.ip || '127.0.0.1',
-            req.get('user-agent') || 'mobile-app'
+            req.get('user-agent') || 'mobile-app',
+            s3Bucket,
+            s3Key
         ]);
 
         console.log(`✅ ${consentType} signed for patient ${patientId}`);
