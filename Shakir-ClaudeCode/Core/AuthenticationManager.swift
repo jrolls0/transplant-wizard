@@ -96,7 +96,9 @@ class AuthenticationManager: ObservableObject {
                 transplantCentersSelected: false,
                 dialysisClinicId: nil,
                 assignedSocialWorkerName: nil,
-                createdAt: Date()
+                createdAt: Date(),
+                servicesConsentSigned: false,
+                medicalRecordsConsentSigned: false
             )
             
             // Store mock tokens (in real app, these would come from server)
@@ -301,7 +303,9 @@ class AuthenticationManager: ObservableObject {
                     transplantCentersSelected: user.transplantCentersSelected,
                     dialysisClinicId: user.dialysisClinicId,
                     assignedSocialWorkerName: user.assignedSocialWorkerName,
-                    createdAt: user.createdAt
+                    createdAt: user.createdAt,
+                    servicesConsentSigned: user.servicesConsentSigned,
+                    medicalRecordsConsentSigned: user.medicalRecordsConsentSigned
                 )
                 
                 // Log ROI signature for audit trail
