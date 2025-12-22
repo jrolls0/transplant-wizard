@@ -624,7 +624,9 @@ struct AmeliaChatbotView: View {
                             transplantCentersSelected: true,
                             dialysisClinicId: user.dialysisClinicId,
                             assignedSocialWorkerName: user.assignedSocialWorkerName,
-                            createdAt: user.createdAt
+                            createdAt: user.createdAt,
+                            servicesConsentSigned: user.servicesConsentSigned,
+                            medicalRecordsConsentSigned: user.medicalRecordsConsentSigned
                         )
                     }
                     
