@@ -480,7 +480,7 @@ app.post('/api/v1/auth/register/patient', async (req, res) => {
             if (referralData.dusw_id) {
                 await client.query(`
                     INSERT INTO dusw_notifications (
-                        dusw_social_worker_id, patient_id, notification_type, title, message, is_read, created_at
+                        dusw_id, patient_id, notification_type, title, message, is_read, created_at
                     ) VALUES ($1, $2, 'patient_registered', 'Patient Registered', $3, false, NOW())
                 `, [
                     referralData.dusw_id,
