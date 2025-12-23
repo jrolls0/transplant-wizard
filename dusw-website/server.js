@@ -434,10 +434,7 @@ app.get('/patients', requireAuth, async (req, res) => {
                 p.onboarding_completed,
                 COUNT(DISTINCT pr.id) as referral_count,
                 COUNT(DISTINCT pd.id) as document_count,
-                COALESCE(
-                    (SELECT roi.status::text FROM roi_consents roi WHERE roi.patient_id = p.id ORDER BY roi.created_at DESC LIMIT 1),
-                    'not_signed'
-                ) as roi_status,
+                (SELECT COUNT(*) FROM patient_consents pc WHERE pc.patient_id = p.id) as consent_count,
                 COALESCE(
                     (SELECT MAX(pr2.status::text) FROM patient_referrals pr2 WHERE pr2.patient_id = p.id),
                     'none'
@@ -452,28 +449,27 @@ app.get('/patients', requireAuth, async (req, res) => {
             ORDER BY u.created_at DESC
         `, [duswId]);
 
-        // Calculate patient stages
+        // Calculate patient stages - Complete = documents uploaded (not onboarding_completed)
         const patientsWithStages = patients.rows.map(patient => {
             let stage = 'registered';
             let stageLabel = 'Registered';
             let stageColor = '#3b82f6'; // blue
             
-            if (patient.roi_status === 'signed') {
+            const hasConsents = parseInt(patient.consent_count) >= 2; // Both consents signed
+            const hasTCSelected = parseInt(patient.referral_count) > 0;
+            const hasDocuments = parseInt(patient.document_count) > 0;
+            
+            if (hasConsents) {
                 stage = 'roi_signed';
                 stageLabel = 'ROI Signed';
                 stageColor = '#8b5cf6'; // purple
             }
-            if (parseInt(patient.referral_count) > 0) {
+            if (hasTCSelected) {
                 stage = 'tc_selected';
                 stageLabel = 'TC Selected';
                 stageColor = '#f59e0b'; // amber
             }
-            if (parseInt(patient.document_count) > 0) {
-                stage = 'documents';
-                stageLabel = 'Docs Uploaded';
-                stageColor = '#10b981'; // green
-            }
-            if (patient.onboarding_completed) {
+            if (hasDocuments) {
                 stage = 'complete';
                 stageLabel = 'Complete';
                 stageColor = '#059669'; // dark green
@@ -623,29 +619,39 @@ app.get('/patients/:id', requireAuth, async (req, res) => {
 
         const intakeForm = intakeFormResult.rows[0] || null;
 
-        // Get ROI consent status
-        const roiResult = await pool.query(`
-            SELECT status, signed_at FROM roi_consents 
-            WHERE patient_id = $1 
-            ORDER BY created_at DESC LIMIT 1
+        // Get consent status from patient_consents table (check for both required consents)
+        const consentsResult = await pool.query(`
+            SELECT consent_type, signed_at FROM patient_consents 
+            WHERE patient_id = $1
         `, [patientId]);
-        const roiConsent = roiResult.rows[0] || null;
+        
+        // Check if both required consents are signed
+        const consents = consentsResult.rows;
+        const hasServicesConsent = consents.some(c => c.consent_type === 'services_consent');
+        const hasMedicalRecordsConsent = consents.some(c => c.consent_type === 'medical_records_consent');
+        const allConsentsSigned = hasServicesConsent && hasMedicalRecordsConsent;
+        const latestConsentDate = consents.length > 0 ? consents.reduce((latest, c) => 
+            new Date(c.signed_at) > new Date(latest) ? c.signed_at : latest, consents[0].signed_at) : null;
+
+        // Patient is truly complete only when they have uploaded documents
+        const hasDocuments = documentsResult.rows.length > 0;
+        const hasTCSelected = referralsResult.rows.length > 0;
+        const isComplete = hasDocuments; // Complete = documents uploaded
 
         // Calculate patient journey stages for progress bar
         const stages = {
             registered: { complete: true, label: 'Registered', icon: 'fa-user-plus', date: patient.created_at },
-            roi_signed: { complete: roiConsent?.status === 'signed', label: 'ROI Signed', icon: 'fa-file-signature', date: roiConsent?.signed_at },
-            tc_selected: { complete: referralsResult.rows.length > 0, label: 'TC Selected', icon: 'fa-hospital', date: referralsResult.rows[0]?.submitted_at },
-            documents: { complete: documentsResult.rows.length > 0, label: 'Documents', icon: 'fa-file-alt', date: documentsResult.rows[0]?.created_at },
-            complete: { complete: patient.onboarding_completed, label: 'Complete', icon: 'fa-check-circle', date: null }
+            roi_signed: { complete: allConsentsSigned, label: 'ROI Signed', icon: 'fa-file-signature', date: latestConsentDate },
+            tc_selected: { complete: hasTCSelected, label: 'TC Selected', icon: 'fa-hospital', date: referralsResult.rows[0]?.submitted_at },
+            documents: { complete: hasDocuments, label: 'Documents', icon: 'fa-file-alt', date: documentsResult.rows[0]?.created_at },
+            complete: { complete: isComplete, label: 'Complete', icon: 'fa-check-circle', date: hasDocuments ? documentsResult.rows[0]?.created_at : null }
         };
 
-        // Determine current stage
+        // Determine current stage (highest completed stage)
         let currentStage = 'registered';
-        if (roiConsent?.status === 'signed') currentStage = 'roi_signed';
-        if (referralsResult.rows.length > 0) currentStage = 'tc_selected';
-        if (documentsResult.rows.length > 0) currentStage = 'documents';
-        if (patient.onboarding_completed) currentStage = 'complete';
+        if (allConsentsSigned) currentStage = 'roi_signed';
+        if (hasTCSelected) currentStage = 'tc_selected';
+        if (hasDocuments) currentStage = 'complete'; // Skip to complete when docs uploaded
 
         res.render('patient-details', {
             title: 'Patient Details - DUSW Portal',
@@ -654,7 +660,8 @@ app.get('/patients/:id', requireAuth, async (req, res) => {
             referrals: referralsResult.rows,
             documents: documentsResult.rows,
             intakeForm: intakeForm,
-            roiConsent: roiConsent,
+            consents: consents,
+            allConsentsSigned: allConsentsSigned,
             stages: stages,
             currentStage: currentStage
         });
