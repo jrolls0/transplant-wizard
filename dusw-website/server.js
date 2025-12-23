@@ -435,11 +435,11 @@ app.get('/patients', requireAuth, async (req, res) => {
                 COUNT(DISTINCT pr.id) as referral_count,
                 COUNT(DISTINCT pd.id) as document_count,
                 COALESCE(
-                    (SELECT roi.status FROM roi_consents roi WHERE roi.patient_id = p.id ORDER BY roi.created_at DESC LIMIT 1),
+                    (SELECT roi.status::text FROM roi_consents roi WHERE roi.patient_id = p.id ORDER BY roi.created_at DESC LIMIT 1),
                     'not_signed'
                 ) as roi_status,
                 COALESCE(
-                    (SELECT MAX(pr2.status) FROM patient_referrals pr2 WHERE pr2.patient_id = p.id),
+                    (SELECT MAX(pr2.status::text) FROM patient_referrals pr2 WHERE pr2.patient_id = p.id),
                     'none'
                 ) as tc_status
             FROM patient_dusw_assignments pda
