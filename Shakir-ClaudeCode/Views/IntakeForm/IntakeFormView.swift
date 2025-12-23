@@ -278,31 +278,53 @@ struct IntakeFormView: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                 
-                YesNoToggle(title: "Do you currently have or are you being treated for an infection?", isOn: $viewModel.hasInfection, isRequired: true)
+                YesNoToggleWithExplanation(
+                    title: "Do you currently have or are you being treated for an infection?",
+                    isOn: $viewModel.hasInfection,
+                    explanation: $viewModel.infectionExplanation,
+                    explanationPrompt: "Please describe the infection and treatment:",
+                    isRequired: true
+                )
                 
-                YesNoToggle(title: "Do you currently have or are you being treated for cancer?", isOn: $viewModel.hasCancer, isRequired: true)
+                YesNoToggleWithExplanation(
+                    title: "Do you currently have or are you being treated for cancer?",
+                    isOn: $viewModel.hasCancer,
+                    explanation: $viewModel.cancerExplanation,
+                    explanationPrompt: "Please describe the type of cancer and treatment:",
+                    isRequired: true
+                )
                 
-                YesNoToggle(title: "Do you have any mental health or psychiatric disorders?", isOn: $viewModel.hasMentalHealthDisorder, isRequired: true)
+                YesNoToggleWithExplanation(
+                    title: "Do you have any mental health or psychiatric disorders?",
+                    isOn: $viewModel.hasMentalHealthDisorder,
+                    explanation: $viewModel.mentalHealthExplanation,
+                    explanationPrompt: "Please describe the condition and any treatment:",
+                    isRequired: true
+                )
                 
-                YesNoToggle(title: "Do you smoke, drink alcohol, or use drugs/substances?", isOn: $viewModel.usesSubstances, isRequired: true)
+                YesNoToggleWithExplanation(
+                    title: "Do you smoke, drink alcohol, or use drugs/substances?",
+                    isOn: $viewModel.usesSubstances,
+                    explanation: $viewModel.substancesExplanation,
+                    explanationPrompt: "Please describe the substance use (type, frequency):",
+                    isRequired: true
+                )
                 
-                YesNoToggle(title: "Any surgery or procedure in the past 12 months?", isOn: $viewModel.recentSurgery, isRequired: true)
+                YesNoToggleWithExplanation(
+                    title: "Any surgery or procedure in the past 12 months?",
+                    isOn: $viewModel.recentSurgery,
+                    explanation: $viewModel.surgeryExplanation,
+                    explanationPrompt: "Please describe the surgery/procedure and date:",
+                    isRequired: true
+                )
                 
-                YesNoToggle(title: "Do you use oxygen?", isOn: $viewModel.usesOxygen, isRequired: true)
-                
-                if viewModel.hasAnyContraindication {
-                    Divider().padding(.vertical, 8)
-                    
-                    Text("Please explain any 'Yes' answers above:")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    
-                    TextEditor(text: $viewModel.contraindicationsExplanation)
-                        .frame(minHeight: 100)
-                        .padding(8)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(8)
-                }
+                YesNoToggleWithExplanation(
+                    title: "Do you use oxygen?",
+                    isOn: $viewModel.usesOxygen,
+                    explanation: $viewModel.oxygenExplanation,
+                    explanationPrompt: "Please describe when and how often you use oxygen:",
+                    isRequired: true
+                )
             }
             .padding()
         }
@@ -822,6 +844,65 @@ struct YesNoToggle: View {
                 }
             }
         }
+    }
+}
+
+struct YesNoToggleWithExplanation: View {
+    let title: String
+    @Binding var isOn: Bool
+    @Binding var explanation: String
+    var explanationPrompt: String = "Please explain:"
+    var isRequired: Bool = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 4) {
+                Text(title)
+                    .font(.subheadline)
+                if isRequired {
+                    Text("*")
+                        .foregroundColor(.red)
+                }
+            }
+            
+            HStack(spacing: 12) {
+                Button(action: { isOn = true }) {
+                    Text("Yes")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(isOn ? Color(red: 0.2, green: 0.6, blue: 0.9) : Color(.systemGray5))
+                        .foregroundColor(isOn ? .white : .primary)
+                        .cornerRadius(8)
+                }
+                
+                Button(action: { isOn = false }) {
+                    Text("No")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(!isOn ? Color(red: 0.2, green: 0.6, blue: 0.9) : Color(.systemGray5))
+                        .foregroundColor(!isOn ? .white : .primary)
+                        .cornerRadius(8)
+                }
+            }
+            
+            if isOn {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(explanationPrompt)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    TextField("Enter details...", text: $explanation, axis: .vertical)
+                        .textFieldStyle(.plain)
+                        .padding(10)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(8)
+                        .lineLimit(3...6)
+                }
+                .padding(.top, 4)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: isOn)
     }
 }
 

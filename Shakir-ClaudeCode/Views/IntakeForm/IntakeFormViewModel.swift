@@ -57,12 +57,18 @@ class IntakeFormViewModel: ObservableObject {
     
     // Contraindications
     @Published var hasInfection: Bool = false
+    @Published var infectionExplanation: String = ""
     @Published var hasCancer: Bool = false
+    @Published var cancerExplanation: String = ""
     @Published var hasMentalHealthDisorder: Bool = false
+    @Published var mentalHealthExplanation: String = ""
     @Published var usesSubstances: Bool = false
+    @Published var substancesExplanation: String = ""
     @Published var recentSurgery: Bool = false
+    @Published var surgeryExplanation: String = ""
     @Published var usesOxygen: Bool = false
-    @Published var contraindicationsExplanation: String = ""
+    @Published var oxygenExplanation: String = ""
+    @Published var contraindicationsExplanation: String = "" // Keep for backwards compatibility
     
     // Medical History - now as lists
     @Published var diagnosedConditionsList: [String] = [""]
@@ -354,11 +360,17 @@ class IntakeFormViewModel: ObservableObject {
         additionalOrganDetails = data.additionalOrganDetails ?? ""
         
         hasInfection = data.hasInfection ?? false
+        infectionExplanation = data.infectionExplanation ?? ""
         hasCancer = data.hasCancer ?? false
+        cancerExplanation = data.cancerExplanation ?? ""
         hasMentalHealthDisorder = data.hasMentalHealthDisorder ?? false
+        mentalHealthExplanation = data.mentalHealthExplanation ?? ""
         usesSubstances = data.usesSubstances ?? false
+        substancesExplanation = data.substancesExplanation ?? ""
         recentSurgery = data.recentSurgery ?? false
+        surgeryExplanation = data.surgeryExplanation ?? ""
         usesOxygen = data.usesOxygen ?? false
+        oxygenExplanation = data.oxygenExplanation ?? ""
         contraindicationsExplanation = data.contraindicationsExplanation ?? ""
         
         // Parse conditions and surgeries from semicolon-separated strings to lists
@@ -411,11 +423,17 @@ class IntakeFormViewModel: ObservableObject {
             "requires_additional_organ": requiresAdditionalOrgan,
             "additional_organ_details": additionalOrganDetails,
             "has_infection": hasInfection,
+            "infection_explanation": infectionExplanation,
             "has_cancer": hasCancer,
+            "cancer_explanation": cancerExplanation,
             "has_mental_health_disorder": hasMentalHealthDisorder,
+            "mental_health_explanation": mentalHealthExplanation,
             "uses_substances": usesSubstances,
+            "substances_explanation": substancesExplanation,
             "recent_surgery": recentSurgery,
+            "surgery_explanation": surgeryExplanation,
             "uses_oxygen": usesOxygen,
+            "oxygen_explanation": oxygenExplanation,
             "contraindications_explanation": contraindicationsExplanation,
             "diagnosed_conditions": diagnosedConditions,
             "past_surgeries": pastSurgeries,
@@ -482,11 +500,17 @@ struct IntakeFormData: Codable {
     let requiresAdditionalOrgan: Bool?
     let additionalOrganDetails: String?
     let hasInfection: Bool?
+    let infectionExplanation: String?
     let hasCancer: Bool?
+    let cancerExplanation: String?
     let hasMentalHealthDisorder: Bool?
+    let mentalHealthExplanation: String?
     let usesSubstances: Bool?
+    let substancesExplanation: String?
     let recentSurgery: Bool?
+    let surgeryExplanation: String?
     let usesOxygen: Bool?
+    let oxygenExplanation: String?
     let contraindicationsExplanation: String?
     let diagnosedConditions: String?
     let pastSurgeries: String?
@@ -520,11 +544,17 @@ struct IntakeFormData: Codable {
         case requiresAdditionalOrgan = "requires_additional_organ"
         case additionalOrganDetails = "additional_organ_details"
         case hasInfection = "has_infection"
+        case infectionExplanation = "infection_explanation"
         case hasCancer = "has_cancer"
+        case cancerExplanation = "cancer_explanation"
         case hasMentalHealthDisorder = "has_mental_health_disorder"
+        case mentalHealthExplanation = "mental_health_explanation"
         case usesSubstances = "uses_substances"
+        case substancesExplanation = "substances_explanation"
         case recentSurgery = "recent_surgery"
+        case surgeryExplanation = "surgery_explanation"
         case usesOxygen = "uses_oxygen"
+        case oxygenExplanation = "oxygen_explanation"
         case contraindicationsExplanation = "contraindications_explanation"
         case diagnosedConditions = "diagnosed_conditions"
         case pastSurgeries = "past_surgeries"
