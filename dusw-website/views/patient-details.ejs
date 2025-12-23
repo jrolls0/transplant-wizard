@@ -94,6 +94,39 @@
             </div>
         </div>
 
+        <!-- Patient Journey Progress Bar -->
+        <div class="journey-progress-card">
+            <div class="progress-header">
+                <h3 class="progress-title"><i class="fas fa-route me-2"></i>Patient Journey</h3>
+                <span class="current-stage-label">Current: <strong><%= stages[currentStage]?.label || 'Registered' %></strong></span>
+            </div>
+            <div class="progress-pipeline">
+                <div class="pipeline-track"></div>
+                <div class="pipeline-stages">
+                    <% const stageKeys = ['registered', 'roi_signed', 'tc_selected', 'documents', 'complete']; %>
+                    <% const stageColors = { registered: '#3b82f6', roi_signed: '#8b5cf6', tc_selected: '#f59e0b', documents: '#10b981', complete: '#059669' }; %>
+                    <% stageKeys.forEach((key, index) => { %>
+                        <% const stage = stages[key]; %>
+                        <% const isActive = stage?.complete; %>
+                        <% const isCurrent = currentStage === key; %>
+                        <div class="pipeline-stage <%= isActive ? 'active' : '' %> <%= isCurrent ? 'current' : '' %>">
+                            <div class="stage-connector <%= index === 0 ? 'first' : '' %> <%= isActive ? 'active' : '' %>"></div>
+                            <div class="stage-node" style="<%= isActive ? 'background: ' + stageColors[key] + '; border-color: ' + stageColors[key] + ';' : '' %>">
+                                <i class="fas <%= stage?.icon || 'fa-circle' %>" style="color: <%= isActive ? 'white' : '#9ca3af' %>;"></i>
+                            </div>
+                            <div class="stage-label">
+                                <span class="stage-name" style="<%= isActive ? 'color: ' + stageColors[key] + '; font-weight: 600;' : '' %>"><%= stage?.label || key %></span>
+                                <% if (stage?.date && isActive) { %>
+                                    <span class="stage-date"><%= new Date(stage.date).toLocaleDateString() %></span>
+                                <% } %>
+                            </div>
+                            <div class="stage-connector <%= index === stageKeys.length - 1 ? 'last' : '' %> <%= isActive ? 'active' : '' %>"></div>
+                        </div>
+                    <% }); %>
+                </div>
+            </div>
+        </div>
+
         <!-- Quick Actions Bar -->
         <div class="quick-actions-bar" id="actionBar">
             <div class="action-group">
@@ -1168,6 +1201,141 @@
     .patient-name {
         font-size: 1.75rem;
     }
+    
+    .pipeline-stages {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .pipeline-stage {
+        flex-direction: row;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .stage-connector {
+        display: none;
+    }
+}
+
+/* Patient Journey Progress Bar */
+.journey-progress-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem 2rem;
+    margin-bottom: 2rem;
+}
+
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.progress-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+}
+
+.current-stage-label {
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.progress-pipeline {
+    position: relative;
+}
+
+.pipeline-track {
+    position: absolute;
+    top: 20px;
+    left: 40px;
+    right: 40px;
+    height: 4px;
+    background: #e5e7eb;
+    border-radius: 2px;
+    z-index: 0;
+}
+
+.pipeline-stages {
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+    z-index: 1;
+}
+
+.pipeline-stage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    position: relative;
+}
+
+.stage-node {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: white;
+    border: 3px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    z-index: 2;
+}
+
+.pipeline-stage.active .stage-node {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.pipeline-stage.current .stage-node {
+    transform: scale(1.1);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.stage-label {
+    text-align: center;
+    margin-top: 0.75rem;
+}
+
+.stage-name {
+    display: block;
+    font-size: 0.75rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.stage-date {
+    display: block;
+    font-size: 0.65rem;
+    color: #9ca3af;
+    margin-top: 0.25rem;
+}
+
+.stage-connector {
+    position: absolute;
+    top: 18px;
+    height: 4px;
+    background: #e5e7eb;
+    z-index: 1;
+}
+
+.stage-connector.active {
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+}
+
+.stage-connector.first {
+    display: none;
+}
+
+.stage-connector.last {
+    display: none;
 }
 </style>
 

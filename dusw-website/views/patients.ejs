@@ -9,13 +9,16 @@
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                         <div>
                             <h1 class="h3 fw-bold mb-1" style="color: #111827;">
-                                <i class="fas fa-users me-2" style="color: #6366f1;"></i>All Patients
+                                <i class="fas fa-users me-2" style="color: #6366f1;"></i>Patient Management
                             </h1>
-                            <p class="mb-0" style="color: #4b5563;">Manage all patients assigned to you</p>
+                            <p class="mb-0" style="color: #4b5563;">Track referrals and registered patients</p>
                         </div>
                         <div class="d-flex gap-2 align-items-center">
+                            <span class="badge fs-6 px-3 py-2" style="background: #fef3c7; color: #92400e;">
+                                <i class="fas fa-paper-plane me-1"></i><%= pendingReferrals.length %> pending
+                            </span>
                             <span class="badge fs-6 px-3 py-2" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white;">
-                                <i class="fas fa-user-friends me-1"></i><%= patients.length %> patients
+                                <i class="fas fa-user-check me-1"></i><%= allPatients.length %> registered
                             </span>
                         </div>
                     </div>
@@ -24,56 +27,116 @@
         </div>
     </div>
 
-    <!-- Stats Row -->
-    <div class="row g-3 mb-4">
-        <div class="col-md-4">
-            <div class="card border-0 h-100 shadow-sm" style="border-radius: 12px; background: white;">
-                <div class="card-body d-flex align-items-center p-3">
-                    <div class="rounded-circle p-3 me-3" style="background: #e0e7ff;">
-                        <i class="fas fa-users" style="color: #4338ca; font-size: 1.25rem;"></i>
-                    </div>
-                    <div>
-                        <h4 class="fw-bold mb-0" style="color: #111827;"><%= patients.length %></h4>
-                        <small style="color: #4b5563;">Total Patients</small>
-                    </div>
-                </div>
+    <!-- Stage Filter Pills -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex flex-wrap gap-2">
+                <a href="/patients?stage=all" class="btn btn-sm <%= currentFilter === 'all' ? 'btn-primary' : 'btn-outline-secondary' %>" style="border-radius: 20px;">
+                    All Registered <span class="badge bg-white text-dark ms-1"><%= stageCounts.all %></span>
+                </a>
+                <a href="/patients?stage=registered" class="btn btn-sm <%= currentFilter === 'registered' ? '' : 'btn-outline-secondary' %>" style="border-radius: 20px; <%= currentFilter === 'registered' ? 'background: #3b82f6; color: white; border-color: #3b82f6;' : '' %>">
+                    <i class="fas fa-user-plus me-1"></i>Registered <span class="badge <%= currentFilter === 'registered' ? 'bg-white text-primary' : 'bg-secondary' %> ms-1"><%= stageCounts.registered %></span>
+                </a>
+                <a href="/patients?stage=roi_signed" class="btn btn-sm <%= currentFilter === 'roi_signed' ? '' : 'btn-outline-secondary' %>" style="border-radius: 20px; <%= currentFilter === 'roi_signed' ? 'background: #8b5cf6; color: white; border-color: #8b5cf6;' : '' %>">
+                    <i class="fas fa-file-signature me-1"></i>ROI Signed <span class="badge <%= currentFilter === 'roi_signed' ? 'bg-white text-purple' : 'bg-secondary' %> ms-1"><%= stageCounts.roi_signed %></span>
+                </a>
+                <a href="/patients?stage=tc_selected" class="btn btn-sm <%= currentFilter === 'tc_selected' ? '' : 'btn-outline-secondary' %>" style="border-radius: 20px; <%= currentFilter === 'tc_selected' ? 'background: #f59e0b; color: white; border-color: #f59e0b;' : '' %>">
+                    <i class="fas fa-hospital me-1"></i>TC Selected <span class="badge <%= currentFilter === 'tc_selected' ? 'bg-white text-warning' : 'bg-secondary' %> ms-1"><%= stageCounts.tc_selected %></span>
+                </a>
+                <a href="/patients?stage=documents" class="btn btn-sm <%= currentFilter === 'documents' ? '' : 'btn-outline-secondary' %>" style="border-radius: 20px; <%= currentFilter === 'documents' ? 'background: #10b981; color: white; border-color: #10b981;' : '' %>">
+                    <i class="fas fa-file-alt me-1"></i>Docs Uploaded <span class="badge <%= currentFilter === 'documents' ? 'bg-white text-success' : 'bg-secondary' %> ms-1"><%= stageCounts.documents %></span>
+                </a>
+                <a href="/patients?stage=complete" class="btn btn-sm <%= currentFilter === 'complete' ? '' : 'btn-outline-secondary' %>" style="border-radius: 20px; <%= currentFilter === 'complete' ? 'background: #059669; color: white; border-color: #059669;' : '' %>">
+                    <i class="fas fa-check-circle me-1"></i>Complete <span class="badge <%= currentFilter === 'complete' ? 'bg-white text-success' : 'bg-secondary' %> ms-1"><%= stageCounts.complete %></span>
+                </a>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card border-0 h-100 shadow-sm" style="border-radius: 12px; background: white;">
-                <div class="card-body d-flex align-items-center p-3">
-                    <div class="rounded-circle p-3 me-3" style="background: #d1fae5;">
-                        <i class="fas fa-hospital" style="color: #047857; font-size: 1.25rem;"></i>
-                    </div>
-                    <div>
-                        <h4 class="fw-bold mb-0" style="color: #111827;"><%= patients.filter(p => parseInt(p.referral_count) > 0).length %></h4>
-                        <small style="color: #4b5563;">TC Selected</small>
+    </div>
+
+    <!-- Pending Referrals Section -->
+    <% if (pendingReferrals.length > 0) { %>
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm" style="border-radius: 16px; background: white; border-left: 4px solid #f59e0b;">
+                <div class="card-header bg-transparent border-0 pt-4 pb-2 px-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="fw-bold mb-0" style="color: #111827;">
+                            <i class="fas fa-paper-plane me-2" style="color: #f59e0b;"></i>Pending Referrals
+                            <span class="badge ms-2" style="background: #fef3c7; color: #92400e;"><%= pendingReferrals.length %></span>
+                        </h5>
+                        <small style="color: #6b7280;">Patients who haven't registered yet</small>
                     </div>
                 </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card border-0 h-100 shadow-sm" style="border-radius: 12px; background: white;">
-                <div class="card-body d-flex align-items-center p-3">
-                    <div class="rounded-circle p-3 me-3" style="background: #fef3c7;">
-                        <i class="fas fa-clock" style="color: #b45309; font-size: 1.25rem;"></i>
-                    </div>
-                    <div>
-                        <h4 class="fw-bold mb-0" style="color: #111827;"><%= patients.filter(p => parseInt(p.referral_count) === 0).length %></h4>
-                        <small style="color: #4b5563;">Pending Selection</small>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead>
+                                <tr style="border-bottom: 2px solid #e5e7eb;">
+                                    <th class="border-0 text-muted small text-uppercase ps-4" style="font-weight: 600;">Patient</th>
+                                    <th class="border-0 text-muted small text-uppercase" style="font-weight: 600;">Email</th>
+                                    <th class="border-0 text-muted small text-uppercase text-center" style="font-weight: 600;">Days Pending</th>
+                                    <th class="border-0 text-muted small text-uppercase" style="font-weight: 600;">Referred</th>
+                                    <th class="border-0 text-muted small text-uppercase text-end pe-4" style="font-weight: 600;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% pendingReferrals.forEach(referral => { %>
+                                    <tr class="pending-row" data-id="<%= referral.id %>">
+                                        <td class="ps-4">
+                                            <div class="d-flex align-items-center">
+                                                <div class="rounded-circle d-flex align-items-center justify-content-center me-3" 
+                                                     style="width: 40px; height: 40px; background: #fef3c7; color: #92400e; font-weight: 600; font-size: 0.875rem;">
+                                                    <%= referral.patient_first_name ? referral.patient_first_name.charAt(0) : '' %><%= referral.patient_last_name ? referral.patient_last_name.charAt(0) : '' %>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-0 fw-semibold" style="color: #1f2937;"><%= referral.patient_first_name %> <%= referral.patient_last_name %></h6>
+                                                    <span class="badge" style="background: #fef3c7; color: #92400e; font-size: 0.65rem;">
+                                                        <i class="fas fa-clock me-1"></i>Awaiting Registration
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span style="color: #4b5563;"><%= referral.patient_email %></span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge <%= referral.daysPending > 7 ? 'bg-danger' : referral.daysPending > 3 ? 'bg-warning' : 'bg-info' %>">
+                                                <%= referral.daysPending %> days
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <small style="color: #6b7280;"><%= new Date(referral.created_at).toLocaleDateString() %></small>
+                                        </td>
+                                        <td class="text-end pe-4">
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary" title="Resend Invitation" onclick="resendReferral('<%= referral.id %>')">
+                                                    <i class="fas fa-paper-plane"></i>
+                                                </button>
+                                                <button class="btn btn-outline-danger" title="Cancel Referral" onclick="cancelReferral('<%= referral.id %>', '<%= referral.patient_first_name %> <%= referral.patient_last_name %>')">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+    <% } %>
 
-    <!-- Search and Table -->
+    <!-- Registered Patients Table -->
     <div class="row">
         <div class="col-12">
             <div class="card border-0 shadow-sm" style="border-radius: 16px; background: white;">
                 <div class="card-header bg-transparent border-0 pt-4 pb-3 px-4">
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                        <h5 class="fw-bold mb-0" style="color: #111827;">Patient List</h5>
+                        <h5 class="fw-bold mb-0" style="color: #111827;">
+                            <i class="fas fa-user-check me-2" style="color: #6366f1;"></i>Registered Patients
+                        </h5>
                         <div class="position-relative" style="max-width: 300px;">
                             <i class="fas fa-search position-absolute" style="left: 12px; top: 50%; transform: translateY(-50%); color: #6b7280;"></i>
                             <input type="text" class="form-control form-control-sm ps-5" id="patientSearch" placeholder="Search patients..." style="border-radius: 8px; border: 1px solid #d1d5db;">
@@ -86,8 +149,14 @@
                             <div class="mb-3">
                                 <i class="fas fa-users fa-3x" style="color: #9ca3af;"></i>
                             </div>
-                            <h5 style="color: #374151;">No Patients Yet</h5>
-                            <p style="color: #6b7280;" class="mb-3">Patients will appear here once they register.</p>
+                            <h5 style="color: #374151;">No Patients Found</h5>
+                            <p style="color: #6b7280;" class="mb-3">
+                                <% if (currentFilter !== 'all') { %>
+                                    No patients match the selected filter. <a href="/patients?stage=all">View all patients</a>
+                                <% } else { %>
+                                    Patients will appear here once they register.
+                                <% } %>
+                            </p>
                         </div>
                     <% } else { %>
                         <div class="table-responsive">
@@ -96,7 +165,7 @@
                                     <tr style="border-bottom: 2px solid #e5e7eb;">
                                         <th class="border-0 text-muted small text-uppercase ps-4" style="font-weight: 600; letter-spacing: 0.5px;">Patient</th>
                                         <th class="border-0 text-muted small text-uppercase" style="font-weight: 600; letter-spacing: 0.5px;">Contact</th>
-                                        <th class="border-0 text-muted small text-uppercase text-center" style="font-weight: 600; letter-spacing: 0.5px;">TC Status</th>
+                                        <th class="border-0 text-muted small text-uppercase text-center" style="font-weight: 600; letter-spacing: 0.5px;">Stage</th>
                                         <th class="border-0 text-muted small text-uppercase" style="font-weight: 600; letter-spacing: 0.5px;">Registered</th>
                                         <th class="border-0 text-muted small text-uppercase text-end pe-4" style="font-weight: 600; letter-spacing: 0.5px;">Actions</th>
                                     </tr>
@@ -107,7 +176,7 @@
                                             <td class="ps-4">
                                                 <div class="d-flex align-items-center">
                                                     <div class="rounded-circle d-flex align-items-center justify-content-center me-3" 
-                                                         style="width: 40px; height: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: 600; font-size: 0.875rem;">
+                                                         style="width: 40px; height: 40px; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; font-weight: 600; font-size: 0.875rem;">
                                                         <%= patient.first_name ? patient.first_name.charAt(0) : '' %><%= patient.last_name ? patient.last_name.charAt(0) : '' %>
                                                     </div>
                                                     <div>
@@ -127,22 +196,27 @@
                                                 </div>
                                             </td>
                                             <td class="text-center">
-                                                <% if (parseInt(patient.referral_count) > 0) { %>
-                                                    <span class="badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
-                                                        <i class="fas fa-check-circle me-1"></i><%= patient.referral_count %> Selected
-                                                    </span>
-                                                <% } else { %>
-                                                    <span class="badge" style="background: rgba(251, 191, 36, 0.1); color: #f59e0b;">
-                                                        <i class="fas fa-clock me-1"></i>Pending
-                                                    </span>
-                                                <% } %>
+                                                <span class="badge" style="background: <%= patient.stageColor %>20; color: <%= patient.stageColor %>;">
+                                                    <% if (patient.stage === 'registered') { %>
+                                                        <i class="fas fa-user-plus me-1"></i>
+                                                    <% } else if (patient.stage === 'roi_signed') { %>
+                                                        <i class="fas fa-file-signature me-1"></i>
+                                                    <% } else if (patient.stage === 'tc_selected') { %>
+                                                        <i class="fas fa-hospital me-1"></i>
+                                                    <% } else if (patient.stage === 'documents') { %>
+                                                        <i class="fas fa-file-alt me-1"></i>
+                                                    <% } else if (patient.stage === 'complete') { %>
+                                                        <i class="fas fa-check-circle me-1"></i>
+                                                    <% } %>
+                                                    <%= patient.stageLabel %>
+                                                </span>
                                             </td>
                                             <td>
                                                 <small style="color: #6b7280;"><%= new Date(patient.created_at).toLocaleDateString() %></small>
                                             </td>
                                             <td class="text-end pe-4">
                                                 <div class="btn-group btn-group-sm">
-                                                    <a href="/patients/<%= patient.id %>" class="btn btn-outline-primary" title="View Details">
+                                                    <a href="/patients/<%= patient.patient_id %>" class="btn btn-outline-primary" title="View Details">
                                                         <i class="fas fa-eye"></i>
                                                     </a>
                                                     <button class="btn btn-outline-secondary" title="Contact" onclick="contactPatient('<%= patient.email %>')">
@@ -184,6 +258,52 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function contactPatient(email) {
     window.location.href = 'mailto:' + email;
+}
+
+async function resendReferral(referralId) {
+    if (!confirm('Resend invitation email to this patient?')) return;
+    
+    try {
+        const response = await fetch(`https://api.transplantwizard.com/api/v1/dusw/referrals/${referralId}/resend`, {
+            method: 'POST',
+            credentials: 'include'
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('Invitation resent successfully!');
+        } else {
+            alert('Failed to resend: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to resend invitation. Please try again.');
+    }
+}
+
+async function cancelReferral(referralId, patientName) {
+    if (!confirm(`Are you sure you want to cancel the referral for ${patientName}? This cannot be undone.`)) return;
+    
+    try {
+        const response = await fetch(`https://api.transplantwizard.com/api/v1/dusw/referrals/${referralId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            // Remove the row from the table
+            const row = document.querySelector(`tr[data-id="${referralId}"]`);
+            if (row) row.remove();
+            alert('Referral canceled successfully.');
+            location.reload();
+        } else {
+            alert('Failed to cancel: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to cancel referral. Please try again.');
+    }
 }
 </script>
 

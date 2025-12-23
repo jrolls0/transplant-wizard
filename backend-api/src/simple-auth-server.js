@@ -475,6 +475,20 @@ app.post('/api/v1/auth/register/patient', async (req, res) => {
             `, [patientId, referralToken]);
 
             console.log(`✅ Marked referral as redeemed: ${referralToken}`);
+
+            // Create notification for DUSW that their referred patient registered
+            if (referralData.dusw_id) {
+                await client.query(`
+                    INSERT INTO dusw_notifications (
+                        dusw_social_worker_id, patient_id, notification_type, title, message, is_read, created_at
+                    ) VALUES ($1, $2, 'patient_registered', 'Patient Registered', $3, false, NOW())
+                `, [
+                    referralData.dusw_id,
+                    patientId,
+                    `${firstName.trim()} ${lastName.trim()} has registered in the app and is now in your patient list.`
+                ]);
+                console.log(`✅ Created DUSW notification for patient registration`);
+            }
         }
 
         // Log audit
@@ -833,6 +847,145 @@ HIPAA NOTICE: This is a secure, encrypted communication containing protected hea
         });
     } finally {
         client.release();
+    }
+});
+
+// Get Pending Referrals for a DUSW - returns unredeemed referral invitations
+app.get('/api/v1/dusw/referrals/pending/:duswId', async (req, res) => {
+    try {
+        const { duswId } = req.params;
+
+        console.log(`📋 Fetching pending referrals for DUSW: ${duswId}`);
+
+        const result = await pool.query(`
+            SELECT 
+                id, referral_token, patient_email, patient_title,
+                patient_first_name, patient_last_name, patient_nephrologist,
+                dialysis_clinic_name, created_at, expires_at
+            FROM patient_referral_invitations
+            WHERE dusw_id = $1 AND redeemed = false
+            ORDER BY created_at DESC
+        `, [duswId]);
+
+        console.log(`✅ Found ${result.rows.length} pending referrals`);
+
+        res.json({
+            success: true,
+            data: result.rows.map(row => ({
+                id: row.id,
+                referralToken: row.referral_token,
+                patientEmail: row.patient_email,
+                patientTitle: row.patient_title,
+                patientFirstName: row.patient_first_name,
+                patientLastName: row.patient_last_name,
+                patientNephrologist: row.patient_nephrologist,
+                dialysisClinic: row.dialysis_clinic_name,
+                createdAt: row.created_at,
+                expiresAt: row.expires_at,
+                daysPending: Math.floor((Date.now() - new Date(row.created_at).getTime()) / (1000 * 60 * 60 * 24))
+            }))
+        });
+
+    } catch (error) {
+        console.error('❌ Error fetching pending referrals:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch pending referrals'
+        });
+    }
+});
+
+// Resend Referral Invitation Email
+app.post('/api/v1/dusw/referrals/:referralId/resend', async (req, res) => {
+    try {
+        const { referralId } = req.params;
+
+        console.log(`📧 Resending referral invitation: ${referralId}`);
+
+        // Get the referral data
+        const result = await pool.query(`
+            SELECT * FROM patient_referral_invitations
+            WHERE id = $1 AND redeemed = false
+        `, [referralId]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Referral not found or already redeemed'
+            });
+        }
+
+        const referral = result.rows[0];
+        const referralLink = `https://transplantwizard.com/register?referralToken=${referral.referral_token}`;
+
+        // Send email
+        const emailResult = await sendEmail(
+            referral.patient_email,
+            `Reminder: Complete Your Registration - Transplant Wizard`,
+            `<h2>Reminder from ${referral.dusw_name}</h2>
+            <p>Hello ${referral.patient_first_name},</p>
+            <p>This is a friendly reminder to complete your registration with Transplant Wizard.</p>
+            <p><a href="${referralLink}" style="background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Complete Registration</a></p>
+            <p>If the button doesn't work, copy this link: ${referralLink}</p>`,
+            `Reminder from ${referral.dusw_name}\n\nHello ${referral.patient_first_name},\n\nPlease complete your registration: ${referralLink}`
+        );
+
+        if (emailResult.success) {
+            console.log(`✅ Resent referral email to ${referral.patient_email}`);
+            res.json({
+                success: true,
+                message: 'Referral invitation resent successfully'
+            });
+        } else {
+            console.warn(`⚠️ Failed to resend email: ${emailResult.error}`);
+            res.status(500).json({
+                success: false,
+                error: 'Failed to send email. Please try again.'
+            });
+        }
+
+    } catch (error) {
+        console.error('❌ Error resending referral:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to resend referral invitation'
+        });
+    }
+});
+
+// Cancel/Delete a Pending Referral
+app.delete('/api/v1/dusw/referrals/:referralId', async (req, res) => {
+    try {
+        const { referralId } = req.params;
+
+        console.log(`🗑️ Canceling referral: ${referralId}`);
+
+        const result = await pool.query(`
+            DELETE FROM patient_referral_invitations
+            WHERE id = $1 AND redeemed = false
+            RETURNING patient_email, patient_first_name, patient_last_name
+        `, [referralId]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Referral not found or already redeemed'
+            });
+        }
+
+        console.log(`✅ Canceled referral for ${result.rows[0].patient_email}`);
+
+        res.json({
+            success: true,
+            message: 'Referral canceled successfully'
+        });
+
+    } catch (error) {
+        console.error('❌ Error canceling referral:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to cancel referral'
+        });
     }
 });
 
