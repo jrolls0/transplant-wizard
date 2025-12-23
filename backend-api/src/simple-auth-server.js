@@ -1485,6 +1485,24 @@ This email contains patient information protected under HIPAA.`;
                             }
                         }
                     }
+                    
+                    // Create in-app notifications for ALL TC employees at this center
+                    const tcEmployeesResult = await pool.query(`
+                        SELECT id FROM transplant_center_employees WHERE transplant_center_id = $1
+                    `, [centerId]);
+                    
+                    for (const employee of tcEmployeesResult.rows) {
+                        await pool.query(`
+                            INSERT INTO tc_notifications (
+                                tc_employee_id, patient_id, notification_type, title, message, is_read, created_at
+                            ) VALUES ($1, $2, 'new_referral', 'New Patient Referral', $3, false, NOW())
+                        `, [
+                            employee.id,
+                            patientId,
+                            `${patient.first_name} ${patient.last_name} has selected ${tcInfo.name} as one of their transplant centers.`
+                        ]);
+                    }
+                    console.log(`✅ Created in-app notifications for ${tcEmployeesResult.rows.length} TC employees at ${tcInfo.name}`);
                 }
             } catch (notifyError) {
                 console.error(`⚠️  Error notifying TC admin for center ${centerId}:`, notifyError.message);
@@ -2474,11 +2492,13 @@ app.post('/api/v1/patients/centers', async (req, res) => {
         // Try to notify the transplant center (non-blocking - don't fail if TC tables don't exist)
         try {
             const centerResult = await pool.query(
-                'SELECT name, admin_email FROM transplant_centers WHERE id = $1',
+                'SELECT name FROM transplant_centers WHERE id = $1',
                 [center_id]
             );
 
-            if (centerResult.rows.length > 0 && centerResult.rows[0].admin_email) {
+            if (centerResult.rows.length > 0) {
+                const centerName = centerResult.rows[0].name;
+                
                 const patientInfo = await pool.query(
                     'SELECT u.first_name, u.last_name FROM users u JOIN patients p ON u.id = p.user_id WHERE p.id = $1',
                     [patientId]
@@ -2486,17 +2506,21 @@ app.post('/api/v1/patients/centers', async (req, res) => {
                 const patientName = patientInfo.rows.length > 0 ? 
                     `${patientInfo.rows[0].first_name} ${patientInfo.rows[0].last_name}` : 'A patient';
 
-                // Create notification for TC employees if table exists
+                // Create notification for ALL TC employees at this center
                 const tcEmployees = await pool.query(
-                    'SELECT id FROM tc_employees WHERE transplant_center_id = $1',
+                    'SELECT id FROM transplant_center_employees WHERE transplant_center_id = $1',
                     [center_id]
                 );
 
                 for (const employee of tcEmployees.rows) {
                     await pool.query(`
                         INSERT INTO tc_notifications (tc_employee_id, patient_id, notification_type, title, message, is_read, created_at)
-                        VALUES ($1, $2, 'new_application', 'New Patient Application', $3, false, NOW())
-                    `, [employee.id, patientId, `${patientName} has submitted an application to your transplant center.`]);
+                        VALUES ($1, $2, 'new_referral', 'New Patient Referral', $3, false, NOW())
+                    `, [employee.id, patientId, `${patientName} has selected ${centerName} as one of their transplant centers.`]);
+                }
+                
+                if (tcEmployees.rows.length > 0) {
+                    console.log(`✅ Created in-app notifications for ${tcEmployees.rows.length} TC employees at ${centerName}`);
                 }
             }
         } catch (notifyError) {
