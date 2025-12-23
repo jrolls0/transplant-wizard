@@ -3607,14 +3607,23 @@ app.get('/api/v1/intake-form', async (req, res) => {
             return res.status(401).json({ success: false, error: 'Invalid token' });
         }
 
-        // Get patient info
+        // Get patient info including dialysis clinic and assigned DUSW
         const patientResult = await pool.query(`
             SELECT p.*, u.email, u.first_name, u.last_name, u.phone_number,
                    dc.name as dialysis_clinic_name, dc.address as dialysis_clinic_address,
-                   dc.phone as dialysis_clinic_phone, dc.email as dialysis_clinic_email
+                   dc.phone as dialysis_clinic_phone, dc.email as dialysis_clinic_email,
+                   dc.id as dialysis_clinic_id,
+                   dsw.id as dusw_id,
+                   dsw.title as dusw_title,
+                   dsw.first_name as dusw_first_name,
+                   dsw.last_name as dusw_last_name,
+                   dsw.email as dusw_email,
+                   dsw.phone_number as dusw_phone
             FROM patients p
             JOIN users u ON p.user_id = u.id
             LEFT JOIN dialysis_clinics dc ON p.dialysis_clinic_id = dc.id
+            LEFT JOIN patient_dusw_assignments pda ON p.id = pda.patient_id
+            LEFT JOIN dusw_social_workers dsw ON pda.dusw_social_worker_id = dsw.id
             WHERE p.user_id = $1
         `, [decoded.userId]);
 
@@ -3639,6 +3648,14 @@ app.get('/api/v1/intake-form', async (req, res) => {
             });
         }
 
+        // Build social worker name with title if available
+        let socialWorkerFullName = '';
+        if (patient.dusw_first_name && patient.dusw_last_name) {
+            socialWorkerFullName = patient.dusw_title 
+                ? `${patient.dusw_title} ${patient.dusw_first_name} ${patient.dusw_last_name}`
+                : `${patient.dusw_first_name} ${patient.dusw_last_name}`;
+        }
+
         // Return pre-filled data for new form
         const preFilled = {
             patient_id: patientId,
@@ -3654,6 +3671,9 @@ app.get('/api/v1/intake-form', async (req, res) => {
             dialysis_unit_address: patient.dialysis_clinic_address,
             dialysis_unit_phone: patient.dialysis_clinic_phone,
             dialysis_unit_email: patient.dialysis_clinic_email,
+            social_worker_name: socialWorkerFullName,
+            social_worker_email: patient.dusw_email || '',
+            social_worker_phone: patient.dusw_phone || '',
             other_physicians: [],
             status: 'draft'
         };
