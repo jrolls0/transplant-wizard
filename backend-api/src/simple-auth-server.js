@@ -2825,11 +2825,18 @@ app.get('/api/social-workers', async (req, res) => {
 // Document types configuration
 const DOCUMENT_TYPES = {
     'insurance_card': { name: 'Insurance Card', requiresFrontBack: true },
-    'medication_list': { name: 'Medication Card/List', requiresFrontBack: false },
+    'medication_list': { name: 'Medication list', requiresFrontBack: false },
     'government_id': { name: 'Government-Issued ID', requiresFrontBack: false },
     'medical_records': { name: 'Medical Records', requiresFrontBack: false },
     'lab_results': { name: 'Lab Results', requiresFrontBack: false },
     'referral_letter': { name: 'Referral Letter', requiresFrontBack: false },
+    'immunization_record': { name: 'Immunization record', requiresFrontBack: false },
+    'current_labs': { name: 'One week of current labs', requiresFrontBack: false },
+    'medicare_2728': { name: 'Medicare 2728 form', requiresFrontBack: false },
+    'social_work_summary': { name: 'Social work summary', requiresFrontBack: false },
+    'dietitian_summary': { name: 'Dietitian summary', requiresFrontBack: false },
+    'care_plan_notes': { name: 'Recent care plan or progress notes', requiresFrontBack: false },
+    'dialysis_shift': { name: 'Hemodialysis/Peritoneal Shift', requiresFrontBack: false },
     'other': { name: 'Other Document', requiresFrontBack: false }
 };
 
