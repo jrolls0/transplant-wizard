@@ -32,8 +32,8 @@ struct DocumentSubmissionView: View {
     @State private var isSelectingFront = true
     @State private var showSourceActionSheet = false
     
-    // For uploading other documents after required ones are done
-    @State private var selectedDocumentType: DocumentType = .other
+    // For uploading additional documents after required ones are done
+    @State private var selectedDocumentType: DocumentType = .immunizationRecord
     @State private var showOtherDocumentUpload = false
     @State private var additionalUploadedDocs: [(type: DocumentType, date: Date)] = []
     @State private var showAdditionalUploadSuccess = false
