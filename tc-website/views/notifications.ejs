@@ -29,13 +29,15 @@
                         <a href="/patient/<%= notification.patient_id %>" class="list-group-item list-group-item-action <%= notification.is_read ? '' : 'bg-light' %>" onclick="markNotificationRead('<%= notification.id %>')">
                             <div class="d-flex align-items-start">
                                 <div class="me-3 mt-1">
-                                    <% if (notification.notification_type === 'new_application') { %>
+                                    <% if (notification.notification_type === 'new_application' || notification.notification_type === 'new_referral') { %>
                                         <span class="badge bg-warning rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;"><i class="fas fa-user-plus"></i></span>
                                     <% } else if (notification.notification_type === 'documents_complete') { %>
                                         <span class="badge bg-success rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;"><i class="fas fa-file-check"></i></span>
                                     <% } else if (notification.notification_type === 'intake_form_complete') { %>
                                         <span class="badge bg-info rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;"><i class="fas fa-clipboard-check"></i></span>
                                     <% } else if (notification.notification_type === 'new_document') { %>
+                                        <span class="badge bg-primary rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;"><i class="fas fa-file-upload"></i></span>
+                                    <% } else if (notification.notification_type === 'document_uploaded') { %>
                                         <span class="badge bg-primary rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;"><i class="fas fa-file-upload"></i></span>
                                     <% } else if (notification.notification_type === 'application_withdrawn') { %>
                                         <span class="badge bg-danger rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;"><i class="fas fa-user-minus"></i></span>

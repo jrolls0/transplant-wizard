@@ -941,6 +941,46 @@ app.post('/patients/:patientId/documents/upload', requireAuth, upload.single('fi
 
         console.log(`✅ Document saved to database: ${docResult.rows[0].id}`);
 
+        // Notify TC admins about new document uploaded by DUSW
+        try {
+            const duswInfo = await pool.query(
+                'SELECT first_name, last_name FROM dusw_social_workers WHERE id = $1',
+                [duswId]
+            );
+            const duswName = duswInfo.rows.length > 0 
+                ? `${duswInfo.rows[0].first_name} ${duswInfo.rows[0].last_name}`
+                : 'DUSW';
+
+            // Get patient's selected transplant centers
+            const referrals = await pool.query(`
+                SELECT DISTINCT tc.id, tc.name, tce.id as employee_id
+                FROM patient_referrals pr
+                JOIN transplant_centers tc ON pr.transplant_center_id = tc.id
+                LEFT JOIN transplant_center_employees tce ON tc.id = tce.transplant_center_id
+                WHERE pr.patient_id = $1
+            `, [patientId]);
+
+            const docTypeName = DUSW_DOCUMENT_TYPES[documentType] || documentType;
+
+            // Create notification for each TC employee
+            for (const row of referrals.rows) {
+                if (row.employee_id) {
+                    await pool.query(`
+                        INSERT INTO tc_notifications (
+                            tc_employee_id, patient_id, notification_type, title, message, is_read, created_at
+                        ) VALUES ($1, $2, 'document_uploaded', 'Document Uploaded by DUSW', $3, false, NOW())
+                    `, [
+                        row.employee_id,
+                        patientId,
+                        `${duswName} (DUSW) uploaded "${docTypeName}" for ${patient.first_name} ${patient.last_name}.`
+                    ]);
+                }
+            }
+            console.log(`✅ TC notifications sent for DUSW document upload`);
+        } catch (notifyError) {
+            console.error('⚠️ Error sending TC notifications:', notifyError.message);
+        }
+
         res.json({
             success: true,
             message: 'Document uploaded successfully',

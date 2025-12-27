@@ -324,7 +324,7 @@ struct DocumentSubmissionView: View {
                 }
                 
                 Menu {
-                    ForEach(DocumentType.allCases.filter { !requiredDocuments.contains($0) }, id: \.self) { type in
+                    ForEach(DocumentType.additionalDocumentTypes, id: \.self) { type in
                         Button(action: {
                             selectedDocumentType = type
                             showOtherDocumentUpload = true
@@ -625,20 +625,14 @@ enum DocumentType: String, CaseIterable {
     case insuranceCard = "insurance_card"
     case medicationList = "medication_list"
     case governmentId = "government_id"
-    case medicalRecords = "medical_records"
-    case labResults = "lab_results"
-    case referralLetter = "referral_letter"
-    case other = "other"
+    case immunizationRecord = "immunization_record"
     
     var displayName: String {
         switch self {
         case .insuranceCard: return "Insurance Card"
-        case .medicationList: return "Medication Card/List"
+        case .medicationList: return "Medication list"
         case .governmentId: return "Government-Issued ID"
-        case .medicalRecords: return "Medical Records"
-        case .labResults: return "Lab Results"
-        case .referralLetter: return "Referral Letter"
-        case .other: return "Other Document"
+        case .immunizationRecord: return "Immunization record"
         }
     }
     
@@ -647,15 +641,17 @@ enum DocumentType: String, CaseIterable {
         case .insuranceCard: return "creditcard.fill"
         case .medicationList: return "pills.fill"
         case .governmentId: return "person.text.rectangle.fill"
-        case .medicalRecords: return "doc.text.fill"
-        case .labResults: return "chart.bar.doc.horizontal.fill"
-        case .referralLetter: return "envelope.fill"
-        case .other: return "doc.fill"
+        case .immunizationRecord: return "syringe.fill"
         }
     }
     
     var requiresFrontBack: Bool {
         self == .insuranceCard
+    }
+    
+    // Additional document types available for upload after required docs are done
+    static var additionalDocumentTypes: [DocumentType] {
+        [.immunizationRecord, .medicationList]
     }
 }
 

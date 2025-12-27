@@ -319,13 +319,19 @@ app.get('/patient/:patientId/documents', requireAuth, async (req, res) => {
             });
         }
         
-        // Get patient documents
+        // Get patient documents with uploader info
         const documents = await pool.query(`
-            SELECT id, document_type, file_name, file_size, mime_type, 
-                   is_front, document_group_id, created_at
-            FROM patient_documents
-            WHERE patient_id = $1
-            ORDER BY created_at DESC
+            SELECT pd.id, pd.document_type, pd.file_name, pd.file_size, pd.mime_type, 
+                   pd.is_front, pd.document_group_id, pd.created_at,
+                   pd.uploaded_by_type,
+                   CASE 
+                       WHEN pd.uploaded_by_type = 'dusw' THEN 
+                           (SELECT CONCAT(dsw.first_name, ' ', dsw.last_name) FROM dusw_social_workers dsw WHERE dsw.id = pd.uploaded_by_id)
+                       ELSE 'Patient'
+                   END as uploaded_by_name
+            FROM patient_documents pd
+            WHERE pd.patient_id = $1
+            ORDER BY pd.created_at DESC
         `, [patientId]);
         
         // Group documents by type
@@ -610,13 +616,19 @@ app.get('/patient/:patientId', requireAuth, async (req, res) => {
         
         const intakeForm = intakeFormResult.rows[0] || { status: 'not_started' };
         
-        // Get patient documents
+        // Get patient documents with uploader info
         const documents = await pool.query(`
-            SELECT id, document_type, file_name, file_size, mime_type, 
-                   is_front, document_group_id, created_at
-            FROM patient_documents
-            WHERE patient_id = $1
-            ORDER BY created_at DESC
+            SELECT pd.id, pd.document_type, pd.file_name, pd.file_size, pd.mime_type, 
+                   pd.is_front, pd.document_group_id, pd.created_at,
+                   pd.uploaded_by_type,
+                   CASE 
+                       WHEN pd.uploaded_by_type = 'dusw' THEN 
+                           (SELECT CONCAT(dsw.first_name, ' ', dsw.last_name) FROM dusw_social_workers dsw WHERE dsw.id = pd.uploaded_by_id)
+                       ELSE 'Patient'
+                   END as uploaded_by_name
+            FROM patient_documents pd
+            WHERE pd.patient_id = $1
+            ORDER BY pd.created_at DESC
         `, [patientId]);
         
         // Group documents by type
