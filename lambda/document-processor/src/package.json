@@ -1,0 +1,21 @@
+{
+  "name": "transplant-wizard-document-processor",
+  "version": "1.0.0",
+  "description": "Lambda function for processing patient documents with AWS Textract",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-textract": "^3.400.0",
+    "@aws-sdk/client-s3": "^3.400.0",
+    "pg": "^8.11.0"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "Transplant Wizard",
+  "license": "UNLICENSED",
+  "private": true
+}

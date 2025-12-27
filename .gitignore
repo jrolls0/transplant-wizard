@@ -36,6 +36,7 @@ xcuserdata/
 
 # Database
 *.sql
+!backend-api/database/migrations/*.sql
 *.db
 
 # AWS

@@ -1,0 +1,38 @@
+# SAM CLI Configuration for Document Processor Lambda
+# More information about the format of this file can be found here:
+# https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-config.html
+
+version = 0.1
+
+[default]
+[default.global.parameters]
+stack_name = "transplant-wizard-document-processor"
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.validate.parameters]
+lint = true
+
+[default.deploy.parameters]
+capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
+confirm_changeset = true
+resolve_s3 = true
+region = "us-east-1"
+# Parameter overrides - fill these in before deployment
+# parameter_overrides = "DatabasePassword=YOUR_PASSWORD VpcId=vpc-xxx SubnetIds=subnet-xxx,subnet-yyy SecurityGroupId=sg-xxx"
+
+[default.local_invoke.parameters]
+env_vars = "env.json"
+
+[default.sync.parameters]
+watch = true
+
+[production]
+[production.deploy.parameters]
+stack_name = "transplant-wizard-document-processor-prod"
+s3_prefix = "transplant-wizard-document-processor-prod"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
+confirm_changeset = true

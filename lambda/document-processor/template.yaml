@@ -1,0 +1,212 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Transplant Wizard - Document Processor Lambda
+  Smart Extraction Pipeline for processing uploaded patient documents
+
+Globals:
+  Function:
+    Timeout: 300
+    MemorySize: 1024
+    Runtime: nodejs18.x
+    Environment:
+      Variables:
+        NODE_ENV: production
+
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues:
+      - development
+      - staging
+      - production
+  
+  S3BucketName:
+    Type: String
+    Default: transplant-wizard-patient-documents
+    Description: Name of the existing S3 bucket for patient documents
+  
+  DatabaseHost:
+    Type: String
+    Description: RDS PostgreSQL host endpoint
+    Default: transplant-platform-db.cibqsuyys3wn.us-east-1.rds.amazonaws.com
+  
+  DatabaseName:
+    Type: String
+    Default: postgres
+  
+  DatabaseUsername:
+    Type: String
+    Default: transplant_admin
+  
+  DatabasePassword:
+    Type: String
+    NoEcho: true
+    Description: Database password (stored in Secrets Manager recommended)
+  
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID where RDS is deployed
+  
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Private subnet IDs for Lambda to access RDS
+  
+  SecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Security group that allows access to RDS
+
+Resources:
+  DocumentProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub transplant-wizard-document-processor-${Environment}
+      CodeUri: ./src/
+      Handler: index.handler
+      Description: Processes uploaded patient documents using AWS Textract for lab extraction
+      
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref SecurityGroupId
+        SubnetIds: !Ref SubnetIds
+      
+      Environment:
+        Variables:
+          ENVIRONMENT: !Ref Environment
+          S3_BUCKET: !Ref S3BucketName
+          DB_HOST: !Ref DatabaseHost
+          DB_NAME: !Ref DatabaseName
+          DB_USER: !Ref DatabaseUsername
+          DB_PASSWORD: !Ref DatabasePassword
+          DB_PORT: '5432'
+          CONFIDENCE_THRESHOLD_LOW: '50'
+          CONFIDENCE_THRESHOLD_MEDIUM: '70'
+          CONFIDENCE_THRESHOLD_HIGH: '90'
+      
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Sid: S3ReadAccess
+              Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:HeadObject
+              Resource: !Sub arn:aws:s3:::${S3BucketName}/*
+            
+            - Sid: TextractAccess
+              Effect: Allow
+              Action:
+                - textract:AnalyzeDocument
+                - textract:DetectDocumentText
+                - textract:StartDocumentAnalysis
+                - textract:GetDocumentAnalysis
+              Resource: '*'
+            
+            - Sid: CloudWatchLogs
+              Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: '*'
+        
+        - VPCAccessPolicy: {}
+      
+      Events:
+        S3Event:
+          Type: S3
+          Properties:
+            Bucket: !Ref PatientDocumentsBucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: patients/
+
+  PatientDocumentsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: transplant-wizard-patient-documents
+      
+      # CORS Configuration for Mobile App Direct Uploads
+      CorsConfiguration:
+        CorsRules:
+          - AllowedMethods:
+              - GET
+              - PUT
+              - POST
+              - HEAD
+            AllowedOrigins:
+              - '*'
+            AllowedHeaders:
+              - '*'
+            MaxAge: 3600
+      
+      # Block Public Access - Required for HIPAA compliance
+      # App uses signed URLs or IAM credentials, not public access
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      
+      # Server-side encryption for HIPAA compliance
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      
+      # Versioning for data protection
+      VersioningConfiguration:
+        Status: Enabled
+      
+      # S3 Event Notification to Lambda
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: s3:ObjectCreated:*
+            Function: !GetAtt DocumentProcessorFunction.Arn
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: patients/
+
+  S3InvokeLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref DocumentProcessorFunction
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceArn: !GetAtt PatientDocumentsBucket.Arn
+      SourceAccount: !Ref AWS::AccountId
+
+  DocumentProcessorLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/transplant-wizard-document-processor-${Environment}
+      RetentionInDays: 30
+
+Outputs:
+  DocumentProcessorFunctionArn:
+    Description: ARN of the Document Processor Lambda function
+    Value: !GetAtt DocumentProcessorFunction.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-DocumentProcessorArn
+  
+  DocumentProcessorFunctionName:
+    Description: Name of the Document Processor Lambda function
+    Value: !Ref DocumentProcessorFunction
+  
+  PatientDocumentsBucketName:
+    Description: Name of the S3 bucket for patient documents
+    Value: !Ref PatientDocumentsBucket
+    Export:
+      Name: !Sub ${AWS::StackName}-PatientDocumentsBucket
+  
+  PatientDocumentsBucketArn:
+    Description: ARN of the S3 bucket for patient documents
+    Value: !GetAtt PatientDocumentsBucket.Arn
