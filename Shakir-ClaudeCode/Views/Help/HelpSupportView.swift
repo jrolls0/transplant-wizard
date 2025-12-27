@@ -216,7 +216,7 @@ struct HelpSupportView: View {
                 .cornerRadius(10)
                 
                 Button {
-                    if let url = URL(string: "https://transplantwizard.com/privacy") {
+                    if let url = URL(string: "https://transplantwizard.com/privacy-policy") {
                         UIApplication.shared.open(url)
                     }
                 } label: {

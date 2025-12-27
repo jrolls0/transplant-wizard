@@ -1,0 +1,68 @@
+﻿New Feature Goal: I want you to add in the following  "Smart Classification & Extraction" pipeline whenever a patient uploads any “Additional Documents” in their patient portal. 
+The Document Types:
+* Group A (Digitizable): "One week of current labs" (MVP Priority), "Medicare 2728 form", "Medication list", "Immunization record". 
+* Group B (Read-Only/Narrative): "Social work summary", "Dietitian summary", "Recent care plan or progress notes", "Hemodialysis/Peritoneal Shift".
+The Workflow & Implementation Steps:
+1. Ingest:
+* User uploads photo/PDF via mobile app ->S3 Bucket (transplant-wizard-patient-documents).
+2. Trigger:
+* S3 Event triggers a Lambda function (DocumentProcessor).
+3. Classification Logic (The "Brain"):
+* Implement a helper class DocumentClassifier in the Lambda.
+* Do NOT use Machine Learning/Comprehend. Use this Keyword Matching Rule Set:
+   * Medicare 2728: "2728", "End Stage Renal Disease Medical Evidence", "Department of Health"
+   * Labs (1 Week): "Reference Range", "Analyte", "Metabolic Panel", "CBC", "Lipid Panel", "Quest Diagnostics", "Labcorp"
+   * Medication List: "Rx", "Pharmacy", "Prescription", "Dosage", "Refills", "mg", "Active Medications"
+   * Immunization Record: "Vaccine", "Immunization", "Flu", "Pneumococcal", "Hepatitis B", "Shot Record"
+   * Dialysis Shift: "MWF", "TTS", "Shift", "Chair Time", "Treatment Schedule"
+   * Social Work Summary: "Psychosocial Assessment", "Social Worker", "MSW", "LCSW", "Living Situation", "Support System"
+   * Dietitian Summary: "Dietitian", "RD", "Nutrition", "Albumin", "Phosphorus", "Potassium intake", "Fluid restriction"
+   * Care Plan: "Plan of Care", "Progress Note", "Nursing Note", "Assessment", "Chief Complaint"
+* Logic: Normalize text to lowercase. If multiple matches found, pick the highest count. If zero matches, return "UNKNOWN".
+4. Extraction Logic (MVP Constraint):
+* IF Classification is "Labs (1 Week)":
+   * Call Textract again using Queries to find the specific transplant metrics listed below.
+   * Crucial: For each query, include both the full name and the common abbreviation (using "or") to ensure the AI catches it regardless of how the lab printed it.
+   * The Query List:
+1. "What is the Potassium?"
+2. "What is the Blood Urea Nitrogen or BUN?"
+3. "What is the Phosphorus?"
+4. "What is the Hemoglobin or Hb?"
+5. "What is the Platelets or PLT?"
+6. "What is the Prothrombin Time or PT?"
+7. "What is the International Normalized Ratio or INR?"
+8. "What is the Partial Thromboplastin Time or PTT?"
+9. "What is the Parathyroid Hormone or PTH?"
+10. "What is the Hemoglobin A1c or A1c?"
+11. "What is the Albumin?"
+12. "What is the Total Bilirubin?"
+13. "What is the Total Cholesterol?"
+14. "What is the Urine Protein?"
+15. "What is the Urine Red Cell Count?"
+16. "What is the Urine White Cell Count?"
+17. "What is the Urine Hemoglobin?"
+* Handling Missing Data:
+   * If Textract cannot find a value (or returns a confidence score below 60%), explicitly set that key's value to null in the JSON object (do not omit the key).
+   * Example: {"potassium": "4.5", "parathyroid_hormone": null}
+   * This null value will serve as the signal for the Frontend UI to render an empty, red-highlighted input box, prompting the Admin to manually check the document.
+   * Map these directly to columns in the JSON structure.
+* IF Classification is ANYTHING ELSE (Group B OR other Group A types like 2728):
+   * Skip extraction. Save extracted_data as null.
+5. Staging:
+* Save to database table document_staging with:
+   * status: "PENDING_REVIEW"
+   * predicted_type: (e.g., "Labs")
+   * extracted_data: (JSON for Labs, or null for others)
+6. Verification Dashboard (UI Logic):
+* Transplant Admin opens the "Review" page.
+* Top Section: Dropdown shows predicted_type. Admin MUST confirm/change it.
+* Dynamic UI Scenarios:
+   * Scenario A (Labs): If type is "Labs", show the Split-Screen UI with the extracted data form for verification.
+   * Scenario B (Other Group A): If type is "Medicare 2728", "Medication List", etc., show a message: "Auto-digitization for this document type is coming soon. Please review the PDF manually." (Do not show an empty form).
+   * Scenario C (Group B): If type is "Social Work", "Dietitian", etc., show: "This is a narrative document. Please review and click Confirm to archive."
+7. Finalization:
+* On "Confirm," move data/file to appropriate patient records db/table. 
+Constraints:
+* STRICT adherence to HIPAA best practices (Encryption at rest/transit)
+* Handle PDF and Image inputs.
+After this prompt, I will begin giving you broken up instructions in separate prompts on the actual implementation of this new feature. Before we begin, do you have any questions or concerns on this implementation?

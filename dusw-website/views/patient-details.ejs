@@ -294,6 +294,125 @@
                 </div>
             </div>
 
+            <!-- Patient Documents Section -->
+            <div class="content-section full-width">
+                <div class="section-header">
+                    <div class="header-content">
+                        <div class="header-icon documents-icon">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <div class="header-text">
+                            <h3 class="section-title">Patient Documents</h3>
+                            <p class="section-subtitle">Upload and manage patient documents</p>
+                        </div>
+                    </div>
+                    <% if (documents.length > 0) { %>
+                        <div class="header-badge">
+                            <span class="count-badge"><%= documents.length %></span>
+                        </div>
+                    <% } %>
+                </div>
+                
+                <div class="section-content">
+                    <!-- Upload Documents Form -->
+                    <div class="upload-section">
+                        <h4 class="upload-title"><i class="fas fa-cloud-upload-alt me-2"></i>Upload Document</h4>
+                        <form id="uploadDocumentForm" class="upload-form" enctype="multipart/form-data">
+                            <div class="upload-row">
+                                <div class="form-group">
+                                    <label for="documentType">Document Type</label>
+                                    <select id="documentType" name="documentType" class="form-select" required>
+                                        <option value="">Select document type...</option>
+                                        <% Object.entries(documentTypes).forEach(([key, label]) => { %>
+                                            <option value="<%= key %>"><%= label %></option>
+                                        <% }); %>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="documentFile">File (PDF or Image)</label>
+                                    <input type="file" id="documentFile" name="file" class="form-control" 
+                                           accept=".pdf,.jpg,.jpeg,.png,.heic,.heif" required>
+                                </div>
+                                <button type="submit" class="btn-upload" id="uploadBtn">
+                                    <i class="fas fa-upload me-2"></i>Upload
+                                </button>
+                            </div>
+                        </form>
+                        <div id="uploadStatus" class="upload-status" style="display: none;"></div>
+                    </div>
+
+                    <!-- Documents List -->
+                    <div class="documents-list-section">
+                        <h4 class="documents-list-title"><i class="fas fa-folder-open me-2"></i>Uploaded Documents</h4>
+                        <% if (documents.length === 0) { %>
+                            <div class="empty-state small">
+                                <div class="empty-icon small">
+                                    <i class="fas fa-file-alt"></i>
+                                </div>
+                                <p class="empty-description">No documents uploaded yet</p>
+                            </div>
+                        <% } else { %>
+                            <div class="documents-table-wrapper">
+                                <table class="documents-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Document Type</th>
+                                            <th>File Name</th>
+                                            <th>Uploaded By</th>
+                                            <th>Date</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% 
+                                        const docTypeLabels = {
+                                            'insurance_card': 'Insurance Card',
+                                            'medication_list': 'Medication List',
+                                            'government_id': 'Government ID',
+                                            'medical_records': 'Medical Records',
+                                            'lab_results': 'Lab Results',
+                                            'current_labs': 'One week of current labs',
+                                            'medicare_2728': 'Medicare 2728 form',
+                                            'immunization_record': 'Immunization record',
+                                            'social_work_summary': 'Social work summary',
+                                            'dietitian_summary': 'Dietitian summary',
+                                            'care_plan_notes': 'Recent care plan or progress notes',
+                                            'dialysis_shift': 'Hemodialysis/Peritoneal Shift',
+                                            'other': 'Other Document'
+                                        };
+                                        documents.forEach(doc => { 
+                                        %>
+                                            <tr>
+                                                <td>
+                                                    <span class="doc-type-badge">
+                                                        <i class="fas fa-file-medical me-1"></i>
+                                                        <%= docTypeLabels[doc.document_type] || doc.document_type %>
+                                                    </span>
+                                                </td>
+                                                <td class="file-name-cell"><%= doc.file_name %></td>
+                                                <td>
+                                                    <span class="uploader-badge <%= doc.uploaded_by_type === 'dusw' ? 'dusw' : 'patient' %>">
+                                                        <i class="fas fa-<%= doc.uploaded_by_type === 'dusw' ? 'user-nurse' : 'user' %> me-1"></i>
+                                                        <%= doc.uploaded_by_name || 'Patient' %>
+                                                    </span>
+                                                </td>
+                                                <td><%= new Date(doc.created_at).toLocaleDateString() %></td>
+                                                <td>
+                                                    <button class="btn-view-doc" onclick="viewDocument('<%= doc.id %>')" title="View Document">
+                                                        <i class="fas fa-eye"></i>
+                                                        <span>View</span>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        <% }); %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+
             <!-- Activity Timeline Section -->
             <div class="content-section">
                 <div class="section-header">
@@ -1337,6 +1456,220 @@
 .stage-connector.last {
     display: none;
 }
+
+/* Documents Section Styles */
+.documents-icon {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+}
+
+.upload-section {
+    background: #f8fafc;
+    border: 2px dashed #cbd5e1;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.upload-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0 0 1rem 0;
+}
+
+.upload-form .upload-row {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.upload-form .form-group {
+    flex: 1;
+    min-width: 200px;
+}
+
+.upload-form .form-group label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #475569;
+    margin-bottom: 0.5rem;
+}
+
+.upload-form .form-select,
+.upload-form .form-control {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    background: white;
+}
+
+.upload-form .form-select:focus,
+.upload-form .form-control:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.btn-upload {
+    padding: 0.75rem 1.5rem;
+    background: var(--primary-gradient);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.btn-upload:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-upload:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.upload-status {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+}
+
+.upload-status.success {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #86efac;
+}
+
+.upload-status.error {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fca5a5;
+}
+
+.upload-status.loading {
+    background: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #7dd3fc;
+}
+
+.documents-list-section {
+    margin-top: 1rem;
+}
+
+.documents-list-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0 0 1rem 0;
+}
+
+.documents-table-wrapper {
+    overflow-x: auto;
+}
+
+.documents-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.documents-table th {
+    background: #f1f5f9;
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: #475569;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.documents-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e2e8f0;
+    color: #1e293b;
+}
+
+.documents-table tr:hover {
+    background: #f8fafc;
+}
+
+.doc-type-badge {
+    display: inline-flex;
+    align-items: center;
+    background: #e0f2fe;
+    color: #0369a1;
+    padding: 0.25rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.file-name-cell {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.uploader-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.uploader-badge.patient {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.uploader-badge.dusw {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.btn-view-doc {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem 0.75rem;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-view-doc:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+}
+
+.empty-state.small {
+    padding: 2rem;
+}
+
+.empty-state.small .empty-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 1.25rem;
+}
 </style>
 
 <script>
@@ -1358,6 +1691,84 @@ function viewCenterDetails(centerName) {
 
 function contactCenter(centerName) {
     alert(`Contacting: ${centerName}`);
+}
+
+// Document upload functionality
+const patientId = '<%= patient.patient_id %>';
+
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadForm = document.getElementById('uploadDocumentForm');
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const uploadBtn = document.getElementById('uploadBtn');
+            const statusDiv = document.getElementById('uploadStatus');
+            const documentType = document.getElementById('documentType').value;
+            const fileInput = document.getElementById('documentFile');
+            const file = fileInput.files[0];
+            
+            if (!documentType || !file) {
+                showStatus('Please select a document type and file', 'error');
+                return;
+            }
+            
+            // Show loading state
+            uploadBtn.disabled = true;
+            uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading...';
+            showStatus('Uploading document...', 'loading');
+            
+            try {
+                const formData = new FormData();
+                formData.append('documentType', documentType);
+                formData.append('file', file);
+                
+                const response = await fetch(`/patients/${patientId}/documents/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showStatus(`Document "${result.document.documentTypeName}" uploaded successfully!`, 'success');
+                    // Reload page to show new document
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    showStatus(result.error || 'Failed to upload document', 'error');
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                showStatus('An error occurred while uploading the document', 'error');
+            } finally {
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '<i class="fas fa-upload me-2"></i>Upload';
+            }
+        });
+    }
+});
+
+function showStatus(message, type) {
+    const statusDiv = document.getElementById('uploadStatus');
+    statusDiv.textContent = message;
+    statusDiv.className = 'upload-status ' + type;
+    statusDiv.style.display = 'block';
+}
+
+async function viewDocument(documentId) {
+    try {
+        const response = await fetch(`/patients/${patientId}/documents/${documentId}/view`);
+        const result = await response.json();
+        
+        if (result.success && result.url) {
+            window.open(result.url, '_blank');
+        } else {
+            alert('Unable to view document: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('View document error:', error);
+        alert('An error occurred while trying to view the document');
+    }
 }
 
 // Sticky action bar behavior

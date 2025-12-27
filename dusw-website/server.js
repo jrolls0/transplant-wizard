@@ -9,6 +9,10 @@ const path = require('path');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
+const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+const multer = require('multer');
+const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
 const app = express();
@@ -27,6 +31,44 @@ const pool = new Pool({
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 15000, // Increased timeout
 });
+
+// AWS S3 Client for document storage
+const s3Client = new S3Client({
+    region: process.env.AWS_REGION || 'us-east-1'
+});
+
+const S3_CONFIG = {
+    bucket: process.env.S3_DOCUMENTS_BUCKET || 'transplant-wizard-patient-documents',
+    region: process.env.AWS_REGION || 'us-east-1'
+};
+
+// Multer configuration for file uploads (memory storage)
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB limit
+    },
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/heic', 'image/heif', 'application/pdf'];
+        if (allowedTypes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Invalid file type. Only JPEG, PNG, HEIC, and PDF files are allowed.'));
+        }
+    }
+});
+
+// Document type mapping for DUSW uploads
+const DUSW_DOCUMENT_TYPES = {
+    'current_labs': 'One week of current labs',
+    'medicare_2728': 'Medicare 2728 form',
+    'medication_list': 'Medication list',
+    'immunization_record': 'Immunization record',
+    'social_work_summary': 'Social work summary',
+    'dietitian_summary': 'Dietitian summary',
+    'care_plan_notes': 'Recent care plan or progress notes',
+    'dialysis_shift': 'Hemodialysis/Peritoneal Shift'
+};
 
 // Database query with automatic retry logic
 async function queryWithRetry(text, params, maxRetries = 3) {
@@ -594,16 +636,24 @@ app.get('/patients/:id', requireAuth, async (req, res) => {
             ORDER BY pr.submitted_at DESC
         `, [patientId]);
 
-        // Get patient documents for activity timeline
+        // Get documents with uploader info
         const documentsResult = await pool.query(`
             SELECT 
-                id,
-                document_type,
-                file_name,
-                created_at
-            FROM patient_documents
-            WHERE patient_id = $1
-            ORDER BY created_at DESC
+                pd.id,
+                pd.document_type,
+                pd.file_name,
+                pd.file_size,
+                pd.mime_type,
+                pd.created_at,
+                pd.uploaded_by_type,
+                CASE 
+                    WHEN pd.uploaded_by_type = 'dusw' THEN 
+                        (SELECT CONCAT(dsw.first_name, ' ', dsw.last_name) FROM dusw_social_workers dsw WHERE dsw.id = pd.uploaded_by_id)
+                    ELSE 'Patient'
+                END as uploaded_by_name
+            FROM patient_documents pd
+            WHERE pd.patient_id = $1
+            ORDER BY pd.created_at DESC
         `, [patientId]);
 
         // Get intake form status
@@ -663,7 +713,8 @@ app.get('/patients/:id', requireAuth, async (req, res) => {
             consents: consents,
             allConsentsSigned: allConsentsSigned,
             stages: stages,
-            currentStage: currentStage
+            currentStage: currentStage,
+            documentTypes: DUSW_DOCUMENT_TYPES
         });
 
     } catch (error) {
@@ -816,6 +867,136 @@ app.post('/notifications/mark-all-read', requireAuth, async (req, res) => {
     } catch (error) {
         console.error('Error marking all notifications as read:', error);
         res.status(500).json({ success: false, error: 'Failed to mark notifications as read' });
+    }
+});
+
+// Upload document for patient (DUSW)
+app.post('/patients/:patientId/documents/upload', requireAuth, upload.single('file'), async (req, res) => {
+    try {
+        const patientId = req.params.patientId;
+        const { documentType } = req.body;
+        const file = req.file;
+        const duswId = req.session.user.id;
+
+        console.log(`📄 DUSW document upload: patientId=${patientId}, type=${documentType}`);
+
+        if (!file) {
+            return res.status(400).json({ success: false, error: 'No file uploaded' });
+        }
+
+        if (!documentType || !DUSW_DOCUMENT_TYPES[documentType]) {
+            return res.status(400).json({ success: false, error: 'Invalid document type' });
+        }
+
+        // Verify patient exists and is assigned to this DUSW
+        const patientCheck = await pool.query(`
+            SELECT p.id, u.first_name, u.last_name
+            FROM patients p
+            JOIN users u ON p.user_id = u.id
+            JOIN patient_dusw_assignments pda ON p.id = pda.patient_id
+            WHERE p.id = $1 AND pda.dusw_social_worker_id = $2
+        `, [patientId, duswId]);
+
+        if (patientCheck.rows.length === 0) {
+            return res.status(403).json({ success: false, error: 'Patient not found or not assigned to you' });
+        }
+
+        const patient = patientCheck.rows[0];
+        const documentGroupId = uuidv4();
+        const fileExtension = file.originalname.split('.').pop() || 'pdf';
+        const s3Key = `patients/${patientId}/documents/${documentType}/${documentGroupId}/file.${fileExtension}`;
+
+        // Upload to S3
+        console.log(`📄 Uploading to S3: ${s3Key}`);
+        const putCommand = new PutObjectCommand({
+            Bucket: S3_CONFIG.bucket,
+            Key: s3Key,
+            Body: file.buffer,
+            ContentType: file.mimetype,
+            ServerSideEncryption: 'AES256',
+            Metadata: {
+                'patient-id': String(patientId),
+                'document-type': String(documentType),
+                'uploaded-by': 'dusw',
+                'dusw-id': String(duswId),
+                'original-filename': String(file.originalname)
+            }
+        });
+
+        await s3Client.send(putCommand);
+        console.log(`✅ File uploaded to S3 successfully`);
+
+        // Save to database with uploaded_by info
+        const docResult = await pool.query(`
+            INSERT INTO patient_documents (
+                patient_id, document_type, file_name, file_size, mime_type,
+                s3_key, s3_bucket, upload_status, is_front, document_group_id,
+                uploaded_by_type, uploaded_by_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'completed', true, $8, 'dusw', $9)
+            RETURNING id, document_type, file_name, created_at
+        `, [
+            patientId, documentType, file.originalname, file.size, file.mimetype,
+            s3Key, S3_CONFIG.bucket, documentGroupId, duswId
+        ]);
+
+        console.log(`✅ Document saved to database: ${docResult.rows[0].id}`);
+
+        res.json({
+            success: true,
+            message: 'Document uploaded successfully',
+            document: {
+                id: docResult.rows[0].id,
+                documentType: documentType,
+                documentTypeName: DUSW_DOCUMENT_TYPES[documentType],
+                fileName: file.originalname,
+                createdAt: docResult.rows[0].created_at
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ DUSW document upload error:', error);
+        res.status(500).json({ success: false, error: 'Failed to upload document' });
+    }
+});
+
+// Get signed URL to view/download document
+app.get('/patients/:patientId/documents/:documentId/view', requireAuth, async (req, res) => {
+    try {
+        const { patientId, documentId } = req.params;
+        const duswId = req.session.user.id;
+
+        // Verify document exists and patient is assigned to this DUSW
+        const docResult = await pool.query(`
+            SELECT pd.s3_key, pd.s3_bucket, pd.file_name, pd.mime_type
+            FROM patient_documents pd
+            JOIN patient_dusw_assignments pda ON pd.patient_id = pda.patient_id
+            WHERE pd.id = $1 AND pd.patient_id = $2 AND pda.dusw_social_worker_id = $3
+        `, [documentId, patientId, duswId]);
+
+        if (docResult.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Document not found' });
+        }
+
+        const doc = docResult.rows[0];
+
+        // Generate signed URL (valid for 15 minutes)
+        const getCommand = new GetObjectCommand({
+            Bucket: doc.s3_bucket,
+            Key: doc.s3_key
+        });
+
+        const signedUrl = await getSignedUrl(s3Client, getCommand, { expiresIn: 900 });
+
+        res.json({
+            success: true,
+            url: signedUrl,
+            fileName: doc.file_name,
+            mimeType: doc.mime_type
+        });
+
+    } catch (error) {
+        console.error('❌ Error getting document URL:', error);
+        res.status(500).json({ success: false, error: 'Failed to get document URL' });
     }
 });
 
